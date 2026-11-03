@@ -45,6 +45,8 @@ import com.example.auralocalai.data.SocDetector
 import com.example.auralocalai.data.SocInfo
 import com.example.auralocalai.data.HtpVersion
 import com.example.auralocalai.data.SocVendor
+import androidx.compose.ui.res.stringResource
+import com.example.auralocalai.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +77,7 @@ fun SettingsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "APP SETTINGS",
+                            text = stringResource(R.string.settings_title),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.2.sp,
@@ -86,7 +88,7 @@ fun SettingsScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Go Back",
+                                contentDescription = stringResource(R.string.go_back),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -126,11 +128,11 @@ fun SettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Key,
-                            contentDescription = "Token Settings",
+                            contentDescription = stringResource(R.string.token_settings),
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Hugging Face Authentication",
+                            text = stringResource(R.string.hf_auth_title),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -138,7 +140,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Some gated, highly-capable models require a Hugging Face User Access Token (read permission) to download. Your token is stored securely in local app settings and only sent directly to Hugging Face during downloads.",
+                        text = stringResource(R.string.hf_auth_body),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp
@@ -156,7 +158,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Hugging Face Access Token",
+                        text = stringResource(R.string.hf_token_title),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -169,7 +171,7 @@ fun SettingsScreen(
                             tokenInput = it.trim()
                             validationResult = null
                         },
-                        label = { Text("HF Token (hf_...)") },
+                        label = { Text(stringResource(R.string.hf_token_label)) },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = if (isTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -177,7 +179,7 @@ fun SettingsScreen(
                             IconButton(onClick = { isTokenVisible = !isTokenVisible }) {
                                 Icon(
                                     imageVector = if (isTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (isTokenVisible) "Hide Token" else "Show Token"
+                                    contentDescription = if (isTokenVisible) stringResource(R.string.hide_token) else stringResource(R.string.show_token)
                                 )
                             }
                         },
@@ -207,7 +209,7 @@ fun SettingsScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = if (isConfigured) "Configured ✓" else "Not Configured",
+                                text = if (isConfigured) stringResource(R.string.configured) else stringResource(R.string.not_configured),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isConfigured) MaterialTheme.colorScheme.onTertiaryContainer
@@ -246,7 +248,7 @@ fun SettingsScreen(
                             )
                         ) {
                             Text(
-                                text = if (isValidating) "Checking..." else "Validate Access",
+                                text = if (isValidating) stringResource(R.string.checking) else stringResource(R.string.validate_access),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -269,7 +271,7 @@ fun SettingsScreen(
                             )
                         ) {
                             Text(
-                                text = "Save Token",
+                                text = stringResource(R.string.save_token),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -290,7 +292,7 @@ fun SettingsScreen(
                             ),
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         ) {
-                            Text("Remove Saved Token", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(stringResource(R.string.remove_token), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
 
@@ -317,7 +319,7 @@ fun SettingsScreen(
                             ) {
                                 Icon(
                                     imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
-                                    contentDescription = if (isSuccess) "Success" else "Error",
+                                    contentDescription = if (isSuccess) stringResource(R.string.success) else stringResource(R.string.error),
                                     tint = if (isSuccess) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -358,7 +360,7 @@ fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "🌐 Online Web Search (External Data Transmission)",
+                                text = stringResource(R.string.web_search_title),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -368,9 +370,9 @@ fun SettingsScreen(
                         // Status chip
                         val isKeyedProvider = uiState.webSearchProviderId != "free"
                         val (statusText, statusBg, statusFg) = when {
-                            uiState.webSearchMode == WebSearchMode.OFF -> Triple("Disabled", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                            isKeyedProvider && !uiState.searchApiKeyConfigured -> Triple("Needs API Key", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
-                            else -> Triple("Active (${uiState.webSearchMode.name})", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                            uiState.webSearchMode == WebSearchMode.OFF -> Triple(stringResource(R.string.status_disabled), MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                            isKeyedProvider && !uiState.searchApiKeyConfigured -> Triple(stringResource(R.string.status_needs_key), MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
+                            else -> Triple(stringResource(R.string.status_active_mode, uiState.webSearchMode.name), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -389,7 +391,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Connect local models to real-time information from the web. Aura sanitizes and injects search results directly into the local model prompt.",
+                        text = stringResource(R.string.web_search_body),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 17.sp
@@ -401,7 +403,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "⚠️ Privacy Notice: Enabling Web Search sends your query text over the internet to external search providers (Brave, Serper, or DuckDuckGo). The rest of Aura Local AI runs 100% offline.",
+                            text = stringResource(R.string.web_search_privacy),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             lineHeight = 15.sp,
@@ -413,7 +415,7 @@ fun SettingsScreen(
 
                     // 1. Search Mode Section
                     Text(
-                        text = "Trigger Mode",
+                        text = stringResource(R.string.trigger_mode),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -421,9 +423,9 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     val searchModes = listOf(
-                        WebSearchMode.OFF to ("Off" to "Never perform web search"),
-                        WebSearchMode.AUTO to ("Auto" to "Detect when real-time information is needed"),
-                        WebSearchMode.ALWAYS to ("Always" to "Search the web for every user prompt")
+                        WebSearchMode.OFF to (stringResource(R.string.mode_off) to stringResource(R.string.mode_off_desc)),
+                        WebSearchMode.AUTO to (stringResource(R.string.mode_auto) to stringResource(R.string.mode_auto_desc)),
+                        WebSearchMode.ALWAYS to (stringResource(R.string.mode_always) to stringResource(R.string.mode_always_desc))
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -483,7 +485,7 @@ fun SettingsScreen(
 
                     // 2. Search Provider Section
                     Text(
-                        text = "Search Provider",
+                        text = stringResource(R.string.search_provider),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -491,9 +493,9 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     val providers = listOf(
-                        Triple("free", "Built-in Free (DuckDuckGo & Wikipedia)", "No API key required. Entity and encyclopedic lookups only."),
-                        Triple("brave", "Brave Search (Recommended)", "BYO API key. High-quality LLM Context API with full grounding."),
-                        Triple("serper", "Serper (Google Search)", "BYO API key. Google web search results & answer boxes.")
+                        Triple("free", stringResource(R.string.provider_free), stringResource(R.string.provider_free_desc)),
+                        Triple("brave", stringResource(R.string.provider_brave), stringResource(R.string.provider_brave_desc)),
+                        Triple("serper", stringResource(R.string.provider_serper), stringResource(R.string.provider_serper_desc))
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -542,7 +544,7 @@ fun SettingsScreen(
                     if (uiState.webSearchProviderId != "free") {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Provider API Key (${if (uiState.webSearchProviderId == "brave") "Brave Search" else "Serper"})",
+                            text = stringResource(R.string.provider_api_key, if (uiState.webSearchProviderId == "brave") "Brave Search" else "Serper"),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -552,8 +554,8 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = searchKeyInput,
                             onValueChange = { searchKeyInput = it.trim() },
-                            label = { Text("Enter API Key") },
-                            placeholder = { Text(if (uiState.searchApiKeyConfigured) "••••••••••••••••" else "Paste API Key") },
+                            label = { Text(stringResource(R.string.enter_api_key)) },
+                            placeholder = { Text(if (uiState.searchApiKeyConfigured) "••••••••••••••••" else stringResource(R.string.paste_api_key)) },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
                             visualTransformation = if (isSearchKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -561,7 +563,7 @@ fun SettingsScreen(
                                 IconButton(onClick = { isSearchKeyVisible = !isSearchKeyVisible }) {
                                     Icon(
                                         imageVector = if (isSearchKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (isSearchKeyVisible) "Hide Key" else "Show Key"
+                                        contentDescription = if (isSearchKeyVisible) stringResource(R.string.hide_key) else stringResource(R.string.show_key)
                                     )
                                 }
                             },
@@ -591,7 +593,7 @@ fun SettingsScreen(
                                     .height(38.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
-                                Text("Save Key", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.save_key), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             if (uiState.searchApiKeyConfigured) {
@@ -607,7 +609,7 @@ fun SettingsScreen(
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                                 ) {
-                                    Text("Remove Key", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.remove_key), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -617,7 +619,7 @@ fun SettingsScreen(
 
                     // 4. Max Sources Slider
                     Text(
-                        text = "Max Search Results: ${uiState.webSearchMaxResults} sources",
+                        text = stringResource(R.string.max_results, uiState.webSearchMaxResults),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -630,7 +632,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text(
-                        text = "Controls number of web citations injected into the prompt context.",
+                        text = stringResource(R.string.max_results_desc),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
@@ -673,9 +675,9 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSecondary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Testing Search…", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.testing_search), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         } else {
-                            Text("Test Search Connection", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.test_search), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -708,8 +710,8 @@ fun SettingsScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
-                                        text = if (isSuccess) "Connection verified: ${result.sources.size} sources retrieved via ${result.providerId}"
-                                               else "Search failed: ${result.errorMessage ?: "No sources returned"}",
+                                        text = if (isSuccess) stringResource(R.string.search_verified, result.sources.size, result.providerId)
+                                               else stringResource(R.string.search_failed, result.errorMessage ?: stringResource(R.string.no_sources)),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = if (isSuccess) MaterialTheme.colorScheme.onTertiaryContainer
@@ -719,7 +721,7 @@ fun SettingsScreen(
                                 if (isSuccess && result.sources.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Sample: ${result.sources.first().title} (${result.sources.first().domain})",
+                                        text = stringResource(R.string.search_sample, result.sources.first().title, result.sources.first().domain),
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
                                         maxLines = 1
@@ -741,14 +743,14 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Appearance",
+                        text = stringResource(R.string.appearance),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Select Theme",
+                        text = stringResource(R.string.select_theme),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -756,10 +758,10 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     val themeOptions = listOf(
-                        ThemeMode.SYSTEM to "System",
-                        ThemeMode.LIGHT to "Light",
-                        ThemeMode.DARK to "Dark",
-                        ThemeMode.AMOLED to "Amoled Dark"
+                        ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+                        ThemeMode.LIGHT to stringResource(R.string.theme_light),
+                        ThemeMode.DARK to stringResource(R.string.theme_dark),
+                        ThemeMode.AMOLED to stringResource(R.string.theme_amoled)
                     )
                     
                     Column {
@@ -795,14 +797,14 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Hardware Acceleration Backend",
+                        text = stringResource(R.string.backend_title),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Choose your preferred LLM execution engine. By default, Auto selects the fastest available backend (NPU → GPU → CPU).",
+                        text = stringResource(R.string.backend_body),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         lineHeight = 15.sp
@@ -810,10 +812,10 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     val backendOptions = listOf(
-                        "AUTO" to "Auto (Recommended: NPU \u2192 GPU \u2192 CPU)",
-                        "GPU_ONLY" to "GPU Only (Vulkan Acceleration)",
-                        "NPU_ONLY" to "NPU Only (Snapdragon Hexagon HTP)",
-                        "CPU_ONLY" to "CPU Only (Multithreaded Fallback)"
+                        "AUTO" to stringResource(R.string.backend_auto),
+                        "GPU_ONLY" to stringResource(R.string.backend_gpu),
+                        "NPU_ONLY" to stringResource(R.string.backend_npu),
+                        "CPU_ONLY" to stringResource(R.string.backend_cpu)
                     )
 
                     Column {
@@ -846,7 +848,7 @@ fun SettingsScreen(
                                     )
                                     if (isNpuOption && !diagnostics.socInfo.isNpuHardwarePresent) {
                                         Text(
-                                            text = "Snapdragon Hexagon HTP not detected on this device",
+                                            text = stringResource(R.string.npu_not_detected),
                                             fontSize = 10.sp,
                                             color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                                         )
@@ -868,7 +870,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "System Diagnostics & Hardware",
+                        text = stringResource(R.string.diagnostics_title),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -881,7 +883,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "Processor SoC",
+                            text = stringResource(R.string.diag_soc),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -903,7 +905,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "Hexagon NPU Hardware",
+                            text = stringResource(R.string.diag_npu),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -913,7 +915,7 @@ fun SettingsScreen(
                             text = if (diagnostics.socInfo.isNpuHardwarePresent) {
                                 "${diagnostics.socInfo.htpVersion.label}"
                             } else {
-                                "Not Detected (${diagnostics.socInfo.vendor.name})"
+                                stringResource(R.string.not_detected, diagnostics.socInfo.vendor.name)
                             },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -929,7 +931,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "NPU Runtime Status",
+                            text = stringResource(R.string.diag_npu_runtime),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -951,14 +953,14 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "Vulkan GPU Acceleration",
+                            text = stringResource(R.string.diag_vulkan),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (diagnostics.vulkanSupported) "Supported (${diagnostics.vulkanVersion})" else "Unsupported",
+                            text = if (diagnostics.vulkanSupported) stringResource(R.string.supported_version, diagnostics.vulkanVersion) else stringResource(R.string.unsupported),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (diagnostics.vulkanSupported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
@@ -973,7 +975,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "Physical RAM",
+                            text = stringResource(R.string.diag_ram),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -995,7 +997,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "Target Architecture",
+                            text = stringResource(R.string.diag_arch),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -1023,7 +1025,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Chat Configuration",
+                        text = stringResource(R.string.chat_config),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1032,14 +1034,14 @@ fun SettingsScreen(
 
                     // 1. Context Window turns slider
                     Text(
-                        text = "Context Window Limit: ${uiState.contextWindowSize} turns",
+                        text = stringResource(R.string.context_window, uiState.contextWindowSize),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Determines how many recent messages are sent to the local model. Lower limits save RAM and improve response speed.",
+                        text = stringResource(R.string.context_window_desc),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         lineHeight = 15.sp
@@ -1063,14 +1065,14 @@ fun SettingsScreen(
 
                     // 2. Custom System Prompt
                     Text(
-                        text = "Custom System Instructions",
+                        text = stringResource(R.string.system_instructions),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Customize the system prompt instructions to change the offline AI behavior and persona guidelines.",
+                        text = stringResource(R.string.system_instructions_desc),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         lineHeight = 15.sp
@@ -1082,7 +1084,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = promptInput,
                         onValueChange = { promptInput = it },
-                        placeholder = { Text("Enter system instructions...") },
+                        placeholder = { Text(stringResource(R.string.enter_instructions)) },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 4,
@@ -1101,7 +1103,7 @@ fun SettingsScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Apply Instructions", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.apply_instructions), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1117,13 +1119,13 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Speed,
-                            contentDescription = "Parameters",
+                            contentDescription = stringResource(R.string.parameters),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Inference & Generation Parameters",
+                            text = stringResource(R.string.params_title),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1131,7 +1133,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Fine-tune how the local model generates text, creativity balance, repetition penalties, and reasoning budget.",
+                        text = stringResource(R.string.params_desc),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         lineHeight = 15.sp
@@ -1146,7 +1148,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Temperature",
+                            text = stringResource(R.string.temperature),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1159,7 +1161,7 @@ fun SettingsScreen(
                         )
                     }
                     Text(
-                        text = "Controls randomness. Lower values (0.2) produce factual, focused answers; higher values (0.9) increase creativity.",
+                        text = stringResource(R.string.temperature_desc),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -1179,7 +1181,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Top-P (Nucleus Sampling)",
+                            text = stringResource(R.string.top_p),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1235,7 +1237,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Repetition Penalty",
+                            text = stringResource(R.string.repetition_penalty),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1248,7 +1250,7 @@ fun SettingsScreen(
                         )
                     }
                     Text(
-                        text = "Penalizes repeating phrases. 1.0 = off, 1.1-1.2 eliminates repetitive loops without hurting coherence.",
+                        text = stringResource(R.string.repetition_penalty_desc),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -1271,13 +1273,13 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Reasoning / Thinking Mode",
+                                text = stringResource(R.string.thinking_mode),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Allows reasoning models (e.g. DeepSeek-R1, Qwen Reasoning) to output scratchpad thoughts.",
+                                text = stringResource(R.string.thinking_mode_desc),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
@@ -1306,14 +1308,14 @@ fun SettingsScreen(
                         modifier = Modifier.align(Alignment.End).height(32.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                     ) {
-                        Text("Reset Defaults", fontSize = 11.sp)
+                        Text(stringResource(R.string.reset_defaults), fontSize = 11.sp)
                     }
                 }
             }
 
             // Footer / How to link
             Text(
-                text = "Get your token by visiting Hugging Face settings page:",
+                text = stringResource(R.string.hf_token_link_intro),
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)

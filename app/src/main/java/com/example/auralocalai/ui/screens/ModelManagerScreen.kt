@@ -45,16 +45,19 @@ import com.example.auralocalai.data.ModelPreset
 import com.example.auralocalai.data.ModelSpeedTier
 import com.example.auralocalai.data.ModelTag
 import java.util.Locale
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.example.auralocalai.R
 
 
-enum class ModelPresetCategory(val label: String) {
-    ALL("All"),
-    TURBO("⚡ Turbo"),
-    REASONING("🧠 Reasoning"),
-    VISION("👁️ Vision"),
-    COMPACT("4GB RAM"),
-    UNCENSORED("Uncensored"),
-    CODING("💻 Coding")
+enum class ModelPresetCategory(@StringRes val labelRes: Int) {
+    ALL(R.string.cat_all),
+    TURBO(R.string.cat_turbo),
+    REASONING(R.string.cat_reasoning),
+    VISION(R.string.cat_vision),
+    COMPACT(R.string.cat_compact),
+    UNCENSORED(R.string.cat_uncensored),
+    CODING(R.string.cat_coding)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +76,7 @@ fun ModelManagerScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            importStatusMessage = "Importing model file..."
+            importStatusMessage = context.getString(R.string.importing_model)
             viewModel.importModelFile(context, uri) { success, message ->
                 isImportSuccess = success
                 importStatusMessage = message
@@ -99,10 +102,10 @@ fun ModelManagerScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("LOCAL LLM MANAGER", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.primary) },
+                    title = { Text(stringResource(R.string.model_manager_title), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.primary) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Go Back", tint = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back), tint = MaterialTheme.colorScheme.primary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -131,14 +134,14 @@ fun ModelManagerScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Model Storage Directory",
+                            text = stringResource(R.string.storage_dir_title),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "All large language models are downloaded to secure, external app file storage. Models remain 100% offline.",
+                            text = stringResource(R.string.storage_dir_body),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 18.sp
@@ -159,7 +162,7 @@ fun ModelManagerScreen(
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = if (isHfConfigured) "\uD83D\uDD11 HF Token: Configured \u2713" else "\u26A0 HF Token: Not Configured",
+                                    text = if (isHfConfigured) stringResource(R.string.hf_token_configured_badge) else stringResource(R.string.hf_token_not_configured_badge),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isHfConfigured) MaterialTheme.colorScheme.onTertiaryContainer
@@ -175,7 +178,7 @@ fun ModelManagerScreen(
             item {
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     Text(
-                        text = "Recommended Mobile Presets",
+                        text = stringResource(R.string.recommended_presets),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary,
@@ -193,7 +196,7 @@ fun ModelManagerScreen(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { selectedCategory = cat },
-                                label = { Text(cat.label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
+                                label = { Text(stringResource(cat.labelRes), fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
                                 shape = RoundedCornerShape(18.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -249,7 +252,7 @@ fun ModelManagerScreen(
             if (customModels.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Sideloaded Custom Models",
+                        text = stringResource(R.string.sideloaded_models),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary,
@@ -284,7 +287,7 @@ fun ModelManagerScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Sideloaded offline model file.",
+                                text = stringResource(R.string.sideloaded_file),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -303,7 +306,7 @@ fun ModelManagerScreen(
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                                 ) {
-                                    Text("Delete", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.delete), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -316,7 +319,7 @@ fun ModelManagerScreen(
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
                                 ) {
                                     Text(
-                                        text = if (isLoading) (uiState.loadingStage ?: "Loading...") else if (isLoaded) "Active" else "Load Model",
+                                        text = if (isLoading) (uiState.loadingStage ?: stringResource(R.string.loading_dots)) else if (isLoaded) stringResource(R.string.active) else stringResource(R.string.load_model),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -343,14 +346,14 @@ fun ModelManagerScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                text = "Import Local Model File",
+                                text = stringResource(R.string.import_title),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.secondary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Directly load a compatible model file (.litertlm, .task, or .bin) from your device storage completely offline.",
+                                text = stringResource(R.string.import_body),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 15.sp
@@ -369,10 +372,10 @@ fun ModelManagerScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Import"
+                                contentDescription = stringResource(R.string.import)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Select & Import File", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.select_import_file), fontWeight = FontWeight.Bold)
                         }
 
                         uiState.importProgress?.let { progress ->
@@ -416,8 +419,8 @@ fun ModelManagerScreen(
     if (modelToDelete != null) {
         AlertDialog(
             onDismissRequest = { modelToDelete = null },
-            title = { Text("Delete Local Model?", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to permanently delete '${modelToDelete?.name}'? This will free up approximately ${modelToDelete?.sizeLabel} of storage space.") },
+            title = { Text(stringResource(R.string.delete_model_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.delete_model_confirm, modelToDelete?.name ?: "", modelToDelete?.sizeLabel ?: "")) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -426,12 +429,12 @@ fun ModelManagerScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { modelToDelete = null }) {
-                    Text("Cancel", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel), fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -495,7 +498,7 @@ fun PresetModelCard(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "Size: ${preset.sizeLabel}",
+                                text = stringResource(R.string.size_label, preset.sizeLabel),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -511,7 +514,7 @@ fun PresetModelCard(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "RAM: $cleanRam",
+                                text = stringResource(R.string.ram_label, cleanRam),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -564,12 +567,12 @@ fun PresetModelCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Active",
+                                contentDescription = stringResource(R.string.active),
                                 tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = "ACTIVE",
+                                text = stringResource(R.string.active_badge),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -592,9 +595,9 @@ fun PresetModelCard(
                     val warmStr = b.warmLoadMs?.let { String.format(java.util.Locale.US, "%.1fs", it / 1000.0) }
                     val coldStr = b.coldLoadMs?.let { String.format(java.util.Locale.US, "%.1fs", it / 1000.0) }
                     val timingLabel = when {
-                        warmStr != null && coldStr != null -> "⚡ Load: ~$warmStr (warm) · Cold: ~$coldStr (device est.)"
-                        coldStr != null -> "⚡ Initial Cold Load: ~$coldStr (device est.)"
-                        warmStr != null -> "⚡ Load: ~$warmStr (device est.)"
+                        warmStr != null && coldStr != null -> stringResource(R.string.bench_warm_cold, warmStr, coldStr)
+                        coldStr != null -> stringResource(R.string.bench_cold, coldStr)
+                        warmStr != null -> stringResource(R.string.bench_warm, warmStr)
                         else -> ""
                     }
                     if (timingLabel.isNotEmpty()) {
@@ -650,7 +653,7 @@ fun PresetModelCard(
                             )
                         }
                         Text(
-                            text = "Cancel",
+                            text = stringResource(R.string.cancel),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error,
@@ -695,7 +698,7 @@ fun PresetModelCard(
                                                 .background(DarkSuccess)
                                         )
                                         Text(
-                                            text = "Ready Offline",
+                                            text = stringResource(R.string.ready_offline),
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = DarkSuccess
@@ -712,11 +715,11 @@ fun PresetModelCard(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.ChatBubbleOutline,
-                                        contentDescription = "Open Chat",
+                                        contentDescription = stringResource(R.string.open_chat),
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Open Chat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.open_chat), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         } else {
@@ -734,11 +737,11 @@ fun PresetModelCard(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete model",
+                                        contentDescription = stringResource(R.string.delete_model),
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Delete", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.delete), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 Button(
@@ -760,14 +763,14 @@ fun PresetModelCard(
                                                 color = MaterialTheme.colorScheme.onPrimary
                                             )
                                             Text(
-                                                text = "Loading…",
+                                                text = stringResource(R.string.loading_ellipsis),
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
                                     } else {
                                         Text(
-                                            text = "Load Model",
+                                            text = stringResource(R.string.load_model),
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -784,7 +787,7 @@ fun PresetModelCard(
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                         ) {
                             Text(
-                                text = "Download (${preset.sizeLabel})",
+                                text = stringResource(R.string.download_size, preset.sizeLabel),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -812,7 +815,7 @@ fun DownloadProgressPanel(
     ) {
         when (state) {
             DownloadState.Idle -> {
-                Text("Initializing connection...", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.initializing_connection), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clip(RoundedCornerShape(4.dp)),
                     color = MaterialTheme.colorScheme.primary
@@ -828,7 +831,7 @@ fun DownloadProgressPanel(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Downloading: ${state.percentage}%",
+                        text = stringResource(R.string.downloading_percent, state.percentage),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.secondary
@@ -863,7 +866,7 @@ fun DownloadProgressPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Cancel",
+                        text = stringResource(R.string.cancel),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error,
@@ -875,7 +878,7 @@ fun DownloadProgressPanel(
             }
             is DownloadState.Success -> {
                 Text(
-                    text = "Download complete! Initializing local model...",
+                    text = stringResource(R.string.download_complete_init),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -884,7 +887,7 @@ fun DownloadProgressPanel(
             is DownloadState.Error -> {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Download Failed",
+                        text = stringResource(R.string.download_failed),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
@@ -909,7 +912,7 @@ fun DownloadProgressPanel(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("Retry Download", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.retry_download), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         OutlinedButton(
                             onClick = onCancel,
@@ -917,7 +920,7 @@ fun DownloadProgressPanel(
                             modifier = Modifier.height(32.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
-                            Text("Dismiss", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.dismiss), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

@@ -26,7 +26,8 @@ De app werkt niet op een emulator (de code geeft dan de melding dat een fysiek A
 ## 2. Schermen en functies
 
 De app heeft drie schermen: **Chat** (startscherm), **Modelbeheer** ("LOCAL LLM MANAGER") en
-**Instellingen** ("APP SETTINGS"). Alle teksten in de app zijn Engels.
+**Instellingen** ("APP SETTINGS"). De app is Engels- en Nederlandstalig: hij volgt de taal van je telefoon
+(Nederlands als je telefoon op Nederlands staat, anders Engels). In dit document staan de Engelse namen.
 
 ### 2.1 Chatscherm (startscherm)
 
@@ -242,7 +243,7 @@ kotlinx-serialization (JSON), AndroidX Security Crypto (versleutelde opslag).
 app/src/main/
 ├── AndroidManifest.xml          toestemmingen, startactiviteit, downloaddienst
 ├── jniLibs/arm64-v8a/           meegeleverde native bibliotheken (LiteRT, Qualcomm QNN voor de NPU)
-├── res/                         pictogrammen, thema, app-naam (strings.xml bevat alleen "Local LLM/AI")
+├── res/                         pictogrammen, thema en alle teksten (values/strings.xml = Engels, values-nl/strings.xml = Nederlands)
 └── java/com/example/auralocalai/
     ├── MainActivity.kt          start de app, vraagt meldingstoestemming, zet het thema
     ├── Navigation.kt            wisselen tussen de drie schermen

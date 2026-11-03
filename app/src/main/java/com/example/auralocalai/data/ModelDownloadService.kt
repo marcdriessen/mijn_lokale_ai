@@ -131,7 +131,7 @@ class ModelDownloadService : Service() {
                             downloadState.value = ServiceDownloadState.Error(
                                 modelId = modelId,
                                 fileName = fileName,
-                                message = "Failed to finalize downloaded model file."
+                                message = getString(R.string.err_finalize_download)
                             )
                             showCompletionNotification(modelId, fileName, false)
                         }
@@ -183,10 +183,10 @@ try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Model Downloader",
+                getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows progress of model downloads running in the background"
+                description = getString(R.string.notif_channel_desc)
                 setShowBadge(false)
             }
             notificationManager.createNotificationChannel(channel)
@@ -196,8 +196,8 @@ try {
     private fun startForegroundServiceCompat(modelId: String, fileName: String) {
         try {
             val notification = buildNotification(
-                title = "Downloading Model",
-                content = "Starting download for $fileName...",
+                title = getString(R.string.notif_downloading_model),
+                content = getString(R.string.notif_starting, fileName),
                 progress = 0,
                 indeterminate = true
             )
@@ -220,8 +220,8 @@ try {
         try {
             val speedText = formatSpeed(speed)
             val notification = buildNotification(
-                title = "Downloading $fileName",
-                content = "$percentage% completed • $speedText",
+                title = getString(R.string.notif_downloading_file, fileName),
+                content = getString(R.string.notif_progress, percentage, speedText),
                 progress = percentage,
                 indeterminate = false
             )
@@ -233,8 +233,8 @@ try {
 
     private fun showCompletionNotification(modelId: String, fileName: String, success: Boolean) {
         try {
-            val title = if (success) "Download Successful" else "Download Failed"
-            val content = if (success) "Successfully downloaded $fileName." else "Failed to download $fileName."
+            val title = if (success) getString(R.string.notif_success_title) else getString(R.string.download_failed)
+            val content = if (success) getString(R.string.notif_success, fileName) else getString(R.string.notif_failed, fileName)
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
