@@ -53,6 +53,10 @@ class ModelDownloadService : Service() {
         val downloadState = MutableStateFlow<ServiceDownloadState>(ServiceDownloadState.Idle)
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(com.example.auralocalai.AppLocale.wrap(newBase))
+    }
+
     override fun onCreate() {
         super.onCreate()
         downloader = ModelDownloader()

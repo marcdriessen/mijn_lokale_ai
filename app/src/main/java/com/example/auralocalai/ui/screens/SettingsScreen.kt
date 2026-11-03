@@ -784,6 +784,50 @@ fun SettingsScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.select_language),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val languageOptions = listOf(
+                        com.example.auralocalai.AppLocale.SYSTEM to stringResource(R.string.language_system),
+                        "en" to "English",
+                        "nl" to "Nederlands"
+                    )
+
+                    Column {
+                        languageOptions.forEach { (tag, label) ->
+                            val selectLanguage = {
+                                if (uiState.appLanguage != tag) {
+                                    viewModel.setAppLanguage(tag)
+                                    com.example.auralocalai.AppLocale.findActivity(context)?.recreate()
+                                }
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectLanguage() },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = uiState.appLanguage == tag,
+                                    onClick = { selectLanguage() },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = label,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

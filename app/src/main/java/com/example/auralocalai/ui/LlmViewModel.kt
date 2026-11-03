@@ -162,7 +162,8 @@ data class UiState(
     val detectedSupportsThinking: Boolean = false,
     val detectedSupportsVision: Boolean = false,
     val sessions: List<ChatSession> = emptyList(),
-    val currentSessionId: String? = null
+    val currentSessionId: String? = null,
+    val appLanguage: String = com.example.auralocalai.AppLocale.SYSTEM
 )
 
 class LlmViewModel(application: Application) : AndroidViewModel(application) {
@@ -348,7 +349,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 topK = initialTopK,
                 repetitionPenalty = initialRepetitionPenalty,
                 enableThinking = initialEnableThinking,
-                thinkingTokenBudget = initialThinkingBudget
+                thinkingTokenBudget = initialThinkingBudget,
+                appLanguage = com.example.auralocalai.AppLocale.getLanguage(application)
             ) 
         }
 
@@ -657,6 +659,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(themeMode = mode) }
     }
 
+    /** Saves the in-app language ("system", "en" or "nl"). The caller recreates the Activity to apply it. */
+    fun setAppLanguage(tag: String) {
+        com.example.auralocalai.AppLocale.setLanguage(getApplication(), tag)
+        _uiState.update { it.copy(appLanguage = com.example.auralocalai.AppLocale.getLanguage(getApplication())) }
+    }
+
     fun saveSystemPrompt(prompt: String) {
         val context = getApplication<Application>().applicationContext
         val prefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -861,7 +869,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun str(@StringRes id: Int, vararg args: Any): String =
-        getApplication<Application>().getString(id, *args)
+        com.example.auralocalai.AppLocale.localized(getApplication<Application>()).getString(id, *args)
 
     private fun friendlyErrorMessage(raw: String?, isGeneration: Boolean = false): String {
         if (raw.isNullOrBlank()) {

@@ -282,4 +282,6 @@
         <item quantity="one">%d message</item>
         <item quantity="other">%d messages</item>
     </plurals>
+    <string name="select_language">Language</string>
+    <string name="language_system">Use device language</string>
 </resources>

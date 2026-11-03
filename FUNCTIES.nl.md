@@ -26,8 +26,8 @@ De app werkt niet op een emulator (de code geeft dan de melding dat een fysiek A
 ## 2. Schermen en functies
 
 De app heeft drie schermen: **Chat** (startscherm), **Modelbeheer** ("LOCAL LLM MANAGER") en
-**Instellingen** ("APP SETTINGS"). De app is Engels- en Nederlandstalig: hij volgt de taal van je telefoon
-(Nederlands als je telefoon op Nederlands staat, anders Engels). In dit document staan de Engelse namen.
+**Instellingen** ("APP SETTINGS"). De app is Engels- en Nederlandstalig. Standaard volgt hij de taal van je telefoon;
+bij Instellingen → Appearance kun je ook zelf kiezen (English of Nederlands). In dit document staan de Engelse namen.
 
 ### 2.1 Chatscherm (startscherm)
 
@@ -132,7 +132,8 @@ De app heeft drie schermen: **Chat** (startscherm), **Modelbeheer** ("LOCAL LLM 
    - **Test Search Connection** – test het zoeken en toont het resultaat.
    - Alleen de korte zoekvraag gaat naar internet; het gesprek zelf niet. Plak je een webadres in je bericht,
      dan haalt de gratis variant de tekst van die pagina op via Jina Reader (r.jina.ai).
-3. **Appearance** – thema: System, Light, Dark of Amoled Dark.
+3. **Appearance** – thema: System, Light, Dark of Amoled Dark; en taal: taal van het toestel, English of Nederlands
+   (het scherm wordt direct opnieuw opgebouwd in de gekozen taal).
 4. **Hardware Acceleration Backend** – kiezen waarop het model rekent:
    Auto (NPU → GPU → CPU, aanbevolen), GPU Only (Vulkan), NPU Only (alleen Snapdragon met Hexagon-chip;
    anders uitgeschakeld) of CPU Only.

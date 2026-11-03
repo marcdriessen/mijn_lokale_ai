@@ -281,4 +281,6 @@
         <item quantity="one">%d bericht</item>
         <item quantity="other">%d berichten</item>
     </plurals>
+    <string name="select_language">Taal</string>
+    <string name="language_system">Taal van het toestel</string>
 </resources>
