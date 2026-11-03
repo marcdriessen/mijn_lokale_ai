@@ -127,7 +127,7 @@
     <string name="active">Active</string>
     <string name="import_title">Import Local Model File</string>
     <string name="import_body">Directly load a compatible model file (.litertlm, .task, or .bin) from your device storage completely offline.</string>
-    <string name="import">Import</string>
+    <string name="import_action">Import</string>
     <string name="select_import_file">Select &amp; Import File</string>
     <string name="importing_model">Importing model file...</string>
     <string name="delete_model_title">Delete Local Model?</string>

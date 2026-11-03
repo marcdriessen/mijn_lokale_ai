@@ -372,7 +372,7 @@ fun ModelManagerScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = stringResource(R.string.import)
+                                contentDescription = stringResource(R.string.import_action)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(stringResource(R.string.select_import_file), fontWeight = FontWeight.Bold)

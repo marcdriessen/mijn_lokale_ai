@@ -126,7 +126,7 @@
     <string name="active">Actief</string>
     <string name="import_title">Eigen modelbestand importeren</string>
     <string name="import_body">Laad een geschikt modelbestand (.litertlm of .task) volledig offline vanaf je toestel.</string>
-    <string name="import">Importeren</string>
+    <string name="import_action">Importeren</string>
     <string name="select_import_file">Bestand kiezen en importeren</string>
     <string name="importing_model">Modelbestand importeren...</string>
     <string name="delete_model_title">Lokaal model verwijderen?</string>
