@@ -109,7 +109,7 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
     fun scanReport(context: android.content.Context, bitmap: android.graphics.Bitmap, llm: LlmViewModel) {
         viewModelScope.launch {
             val ocr = com.example.auralocalai.data.ocr.OcrEngine
-            val needsDownload = ocr.script(context) == ocr.Script.CYRILLIC && !ocr.isCyrillicReady(context)
+            val needsDownload = ocr.script(context) == com.example.auralocalai.data.ocr.OcrEngine.Script.CYRILLIC && !ocr.isCyrillicReady(context)
             _state.update { it.copy(busy = str(if (needsDownload) R.string.ocr_downloading_cyrillic else R.string.translate_reading_photo)) }
             try {
                 val text = ocr.recognize(context, bitmap)
