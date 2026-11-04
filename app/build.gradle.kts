@@ -115,6 +115,9 @@ dependencies {
   implementation("androidx.compose.material:material-icons-core")
   implementation("androidx.compose.material:material-icons-extended")
 
+  // WorkManager for the optional daily news download (daily briefing)
+  implementation("androidx.work:work-runtime-ktx:2.9.1")
+
   // OkHttp for streaming network downloads
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
 

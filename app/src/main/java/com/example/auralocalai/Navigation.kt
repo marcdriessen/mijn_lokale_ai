@@ -13,8 +13,11 @@ import com.example.auralocalai.ui.screens.ModelManagerScreen
 import com.example.auralocalai.ui.screens.SettingsScreen
 
 @Composable
-fun MainNavigation(llmViewModel: LlmViewModel) {
+fun MainNavigation(llmViewModel: LlmViewModel, openBriefing: Boolean = false) {
   val backStack = rememberNavBackStack(Main)
+  androidx.compose.runtime.LaunchedEffect(openBriefing) {
+    if (openBriefing && backStack.lastOrNull() != Briefing) backStack.add(Briefing)
+  }
   // Shared LlmViewModel to persist state across screens
   
 
@@ -28,6 +31,7 @@ fun MainNavigation(llmViewModel: LlmViewModel) {
               viewModel = llmViewModel,
               onNavigateToModelManager = { backStack.add(ModelManager) },
               onNavigateToSettings = { backStack.add(Settings) },
+              onNavigateToBriefing = { backStack.add(Briefing) },
               modifier = Modifier.fillMaxSize()
           )
         }
@@ -35,6 +39,15 @@ fun MainNavigation(llmViewModel: LlmViewModel) {
           ModelManagerScreen(
               viewModel = llmViewModel,
               onBack = { backStack.removeLastOrNull() },
+              modifier = Modifier.fillMaxSize()
+          )
+        }
+        entry<Briefing> {
+          com.example.auralocalai.ui.screens.BriefingScreen(
+              llmViewModel = llmViewModel,
+              onBack = { backStack.removeLastOrNull() },
+              onOpenChat = { while (backStack.size > 1) backStack.removeLastOrNull() },
+              onOpenModels = { backStack.add(ModelManager) },
               modifier = Modifier.fillMaxSize()
           )
         }

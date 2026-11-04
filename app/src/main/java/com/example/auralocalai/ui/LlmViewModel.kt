@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.suspendCancellableCoroutine
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.map
@@ -853,6 +854,79 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     private var idleUnloadJob: Job? = null
 
+    private val oneShotMutex = kotlinx.coroutines.sync.Mutex()
+    private val _backgroundTaskRunning = MutableStateFlow(false)
+    /** True while the model runs a task outside the chat (daily briefing, keyword translation). */
+    val backgroundTaskRunning: StateFlow<Boolean> = _backgroundTaskRunning.asStateFlow()
+
+    /** True when a model is loaded and can answer. */
+    val isModelReady: Boolean
+        get() = inferenceEngine.isModelLoaded && _uiState.value.modelState is ModelState.Loaded
+
+    /** Context window (tokens) of the active model, used to size prompts. */
+    fun activeContextTokens(): Int {
+        val preset = ModelPreset.findByIdOrFileName(_uiState.value.activeModelId)
+        val detected = _uiState.value.detectedMaxContextTokens
+        return preset?.effectiveContextTokens
+            ?: (if (detected > 0) detected else ModelPreset.DEFAULT_CONTEXT_TOKENS)
+    }
+
+    /**
+     * Runs one prompt outside the chat (e.g. a briefing section) with its own system prompt.
+     * The chat conversation is restored afterwards. Returns null when no model is loaded,
+     * the chat is generating, or generation failed.
+     */
+    suspend fun runOneShotPrompt(
+        systemPrompt: String,
+        prompt: String,
+        onPartial: (String) -> Unit = {}
+    ): String? {
+        if (!isModelReady || _uiState.value.isGenerating) return null
+        return oneShotMutex.withLock {
+            _backgroundTaskRunning.value = true
+            idleUnloadJob?.cancel()
+            try {
+                withContext(Dispatchers.IO) {
+                    try {
+                        inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
+                        val builder = StringBuilder()
+                        inferenceEngine.generateResponse(
+                            prompt = prompt,
+                            repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
+                            turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
+                        ).collect { token ->
+                            builder.append(token)
+                            onPartial(stripThinkingBlocks(builder.toString()))
+                        }
+                        stripThinkingBlocks(builder.toString()).ifBlank { null }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("LlmViewModel", "One-shot prompt failed: ${e.message}")
+                        null
+                    } finally {
+                        // Restore the chat conversation (system prompt + history).
+                        inferenceEngine.resetConversation(
+                            systemPrompt = effectiveSystemPrompt(),
+                            initialHistory = buildEngineHistory()
+                        )
+                    }
+                }
+            } finally {
+                _backgroundTaskRunning.value = false
+                scheduleIdleUnload()
+            }
+        }
+    }
+
+    /** Starts a new chat and sends [message] in it (used by "Ask more" on a briefing card). */
+    fun startNewChatWith(message: String) {
+        viewModelScope.launch {
+            createNewSession().join()
+            sendMessage(message)
+        }
+    }
+
     private fun formatGb(bytes: Long): String =
         String.format(java.util.Locale.getDefault(), "%.1f", bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
 
@@ -1438,6 +1512,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendMessage(content: String) {
+        // The model is busy with a background task (daily briefing / keyword translation).
+        if (_backgroundTaskRunning.value) return
         val imageUri = _uiState.value.selectedImageUri
         val videoUri = _uiState.value.selectedVideoUri
         val fileUri = _uiState.value.selectedFileUri
@@ -1742,9 +1818,9 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Creates a new chat session, switches to it, and clears conversation state.
      */
-    fun createNewSession(title: String? = null) {
+    fun createNewSession(title: String? = null): Job {
         inferenceJob?.cancel()
-        viewModelScope.launch(Dispatchers.IO) {
+        return viewModelScope.launch(Dispatchers.IO) {
             val newSession = chatRepository.createSession(
                 title = title ?: str(R.string.new_chat),
                 modelId = _uiState.value.activeModelId

@@ -28,14 +28,20 @@ class MainActivity : ComponentActivity() {
         requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
     }
 
+    val openBriefing = intent?.getBooleanExtra(EXTRA_OPEN_BRIEFING, false) == true
     enableEdgeToEdge()
     setContent {
       val themeMode by llmViewModel.themeMode.collectAsState()
       AuraLocalAITheme(themeMode = themeMode) { 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { 
-          MainNavigation(llmViewModel) 
+          MainNavigation(llmViewModel, openBriefing = openBriefing) 
         } 
       }
     }
+  }
+
+  companion object {
+    /** Set by the daily-briefing notification to open the briefing screen. */
+    const val EXTRA_OPEN_BRIEFING = "open_briefing"
   }
 }
