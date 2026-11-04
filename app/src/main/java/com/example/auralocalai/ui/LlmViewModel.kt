@@ -919,6 +919,25 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** True when Brave is the chosen search provider and its API key is saved. */
+    val isBraveConfigured: Boolean
+        get() = _uiState.value.webSearchProviderId == "brave" && _uiState.value.searchApiKeyConfigured
+
+    /** Runs a Brave search with the saved key (used by the clinical Q&A). Null when Brave is not set up. */
+    suspend fun searchWithBrave(query: String, maxResults: Int, language: String): SearchOutcome? {
+        if (!isBraveConfigured) return null
+        val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        if (apiKey.isBlank()) return null
+        return webSearchClient.search(
+            providerId = "brave",
+            query = query,
+            apiKey = apiKey,
+            maxResults = maxResults,
+            country = "nl",
+            language = language
+        )
+    }
+
     /** Starts a new chat and sends [message] in it (used by "Ask more" on a briefing card). */
     fun startNewChatWith(message: String) {
         viewModelScope.launch {

@@ -7,3 +7,4 @@ import kotlinx.serialization.Serializable
 @Serializable data object ModelManager : NavKey
 @Serializable data object Settings : NavKey
 @Serializable data object Briefing : NavKey
+@Serializable data object Medical : NavKey

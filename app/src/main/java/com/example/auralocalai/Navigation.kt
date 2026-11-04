@@ -32,6 +32,7 @@ fun MainNavigation(llmViewModel: LlmViewModel, openBriefing: Boolean = false) {
               onNavigateToModelManager = { backStack.add(ModelManager) },
               onNavigateToSettings = { backStack.add(Settings) },
               onNavigateToBriefing = { backStack.add(Briefing) },
+              onNavigateToMedical = { backStack.add(Medical) },
               modifier = Modifier.fillMaxSize()
           )
         }
@@ -48,6 +49,16 @@ fun MainNavigation(llmViewModel: LlmViewModel, openBriefing: Boolean = false) {
               onBack = { backStack.removeLastOrNull() },
               onOpenChat = { while (backStack.size > 1) backStack.removeLastOrNull() },
               onOpenModels = { backStack.add(ModelManager) },
+              modifier = Modifier.fillMaxSize()
+          )
+        }
+        entry<Medical> {
+          com.example.auralocalai.ui.screens.MedicalScreen(
+              llmViewModel = llmViewModel,
+              onBack = { backStack.removeLastOrNull() },
+              onOpenChat = { while (backStack.size > 1) backStack.removeLastOrNull() },
+              onOpenModels = { backStack.add(ModelManager) },
+              onOpenSettings = { backStack.add(Settings) },
               modifier = Modifier.fillMaxSize()
           )
         }
