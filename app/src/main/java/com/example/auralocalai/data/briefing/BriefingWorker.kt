@@ -82,6 +82,7 @@ class BriefingWorker(
                 return if (runAttemptCount < 2) Result.retry() else Result.success()
             }
             repository.saveBriefing(briefing)
+            runCatching { BriefingWidgetProvider.refresh(applicationContext) }
             if (profile.notify) showReadyNotification(briefing.articles.size, profile)
             return Result.success()
         } finally {

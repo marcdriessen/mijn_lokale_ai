@@ -239,6 +239,14 @@ fun BriefingScreen(
                             )
                         }
                         DropdownMenuItem(
+                            text = { Text(stringResource(R.string.digest_title)) },
+                            leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                briefingViewModel.weeklyDigest(llmViewModel)
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text(stringResource(R.string.briefing_history)) },
                             leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
                             onClick = {
@@ -500,6 +508,40 @@ fun BriefingScreen(
         } else {
             editingProfileId = null
         }
+    }
+
+    if (state.digestBusy || state.weeklyDigest != null) {
+        AlertDialog(
+            onDismissRequest = { briefingViewModel.closeDigest() },
+            title = { Text(stringResource(R.string.digest_title)) },
+            text = {
+                if (state.digestBusy) {
+                    Column {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(stringResource(R.string.translate_ai_busy))
+                    }
+                } else {
+                    Column(modifier = Modifier.height(420.dp).verticalScroll(rememberScrollState())) {
+                        Text(state.weeklyDigest ?: "", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            },
+            confirmButton = {
+                Row {
+                    if (!state.digestBusy && state.weeklyDigest != null) {
+                        TextButton(onClick = {
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, state.weeklyDigest)
+                            }
+                            context.startActivity(Intent.createChooser(send, shareTitle))
+                        }) { Text(shareTitle) }
+                    }
+                    TextButton(onClick = { briefingViewModel.closeDigest() }) { Text(stringResource(R.string.dismiss)) }
+                }
+            }
+        )
     }
 
     if (showSources) {

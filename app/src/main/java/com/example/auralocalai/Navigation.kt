@@ -72,6 +72,7 @@ fun MainNavigation(
                   "translate" -> open(Translate)
                   "models" -> open(ModelManager)
                   "settings" -> open(Settings)
+                  "coach" -> open(Coach)
                 }
               },
               modifier = Modifier.fillMaxSize()
@@ -123,6 +124,9 @@ fun MainNavigation(
               },
               modifier = Modifier.fillMaxSize()
           )
+        }
+        entry<Coach> {
+          com.example.auralocalai.ui.screens.CoachScreen(llmViewModel = llmViewModel, onBack = home, modifier = Modifier.fillMaxSize())
         }
         entry<Settings> {
           SettingsScreen(viewModel = llmViewModel, onBack = home, modifier = Modifier.fillMaxSize())

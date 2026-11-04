@@ -48,7 +48,9 @@ data class BriefingUiState(
     val message: String? = null,
     val sourceErrors: Map<String, String> = emptyMap(),
     val sourceTestResults: Map<String, String> = emptyMap(),
-    val translatingTopicId: String? = null
+    val translatingTopicId: String? = null,
+    val weeklyDigest: String? = null,
+    val digestBusy: Boolean = false
 ) {
     val selectedProfile: BriefingProfile?
         get() = config.profiles.firstOrNull { it.id == selectedProfileId } ?: config.profiles.firstOrNull()
@@ -292,6 +294,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 } else {
                     val history = withContext(Dispatchers.IO) { repository.saveBriefing(briefing) }
                     _state.update { it.copy(history = history, current = briefing) }
+                    runCatching { com.example.auralocalai.data.briefing.BriefingWidgetProvider.refresh(getApplication()) }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -355,6 +358,36 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 }
             }
         }
+
+    /** Writes an overview of the last 7 days of briefings with the shared model. */
+    fun weeklyDigest(llm: LlmViewModel) {
+        if (!llm.isModelReady) {
+            _state.update { it.copy(message = str(R.string.translate_need_model)) }
+            return
+        }
+        val since = System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+        val articles = _state.value.history.filter { it.createdAt >= since }
+            .flatMap { displayArticles(it) }
+            .distinctBy { it.item.link.ifBlank { it.item.title } }
+            .take(40)
+        if (articles.isEmpty()) {
+            _state.update { it.copy(message = str(R.string.digest_empty)) }
+            return
+        }
+        val languageCode = _state.value.selectedProfile?.let { BriefingGenerator.languageFor(it, AppLocale.effectiveLanguage(getApplication())) } ?: "nl"
+        val languageName = AppLocale.languageNameForModel(languageCode) ?: "Dutch"
+        val list = articles.joinToString("\n") { a -> "- [${a.topicName}] ${a.title.ifBlank { a.item.title }}: ${a.summary.take(200)}" }
+        viewModelScope.launch {
+            _state.update { it.copy(digestBusy = true, weeklyDigest = null) }
+            val text = llm.runOneShotPrompt(
+                "You are a news editor. Write in $languageName. Use only the items given.",
+                "Write a weekly overview of these news items: a short intro, then per topic a heading with 2–4 bullet points of the most important developments.\n\n$list"
+            )
+            _state.update { it.copy(digestBusy = false, weeklyDigest = text ?: str(R.string.translate_ai_failed)) }
+        }
+    }
+
+    fun closeDigest() = _state.update { it.copy(weeklyDigest = null, digestBusy = false) }
 
     /** Plain-text version for sharing. */
     fun briefingAsText(briefing: Briefing, header: String, relevanceLabel: String): String = buildString {

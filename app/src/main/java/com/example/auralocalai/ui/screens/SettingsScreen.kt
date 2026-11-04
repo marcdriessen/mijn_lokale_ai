@@ -138,6 +138,55 @@ fun SettingsScreen(
                 }
             }
 
+            // Back-up & restore (no models)
+            val backupScope = rememberCoroutineScope()
+            val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/zip")
+            ) { uri ->
+                if (uri != null) backupScope.launch {
+                    val message = try {
+                        val n = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.example.auralocalai.data.backup.BackupManager.export(context, uri) }
+                        context.getString(R.string.backup_done, n)
+                    } catch (e: Exception) {
+                        context.getString(R.string.backup_failed, e.message ?: "")
+                    }
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) backupScope.launch {
+                    val message = try {
+                        val n = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.example.auralocalai.data.backup.BackupManager.restore(context, uri) }
+                        context.getString(R.string.restore_done, n)
+                    } catch (e: Exception) {
+                        context.getString(R.string.backup_failed, e.message ?: "")
+                    }
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.backup_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { exportLauncher.launch("local-llm-ai-backup.zip") }, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.backup_export))
+                        }
+                        OutlinedButton(onClick = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.backup_restore))
+                        }
+                    }
+                }
+            }
+
             // Title Card with Info
             Card(
                 modifier = Modifier.fillMaxWidth(),

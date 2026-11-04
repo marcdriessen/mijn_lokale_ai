@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material3.AssistChip
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Delete
@@ -114,6 +115,33 @@ fun ChatScreen(
     var showSearchDisclosureDialog by remember { mutableStateOf(false) }
 
     var isListening by remember { mutableStateOf(false) }
+
+    // Voice mode: answers are read aloud when they are finished.
+    var voiceMode by remember { mutableStateOf(false) }
+    var lastSpokenId by remember { mutableStateOf<String?>(null) }
+    val chatTts = remember { mutableStateOf<android.speech.tts.TextToSpeech?>(null) }
+    DisposableEffect(Unit) {
+        var engine: android.speech.tts.TextToSpeech? = null
+        engine = android.speech.tts.TextToSpeech(context) { status ->
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                engine?.setLanguage(context.resources.configuration.locales[0])
+                chatTts.value = engine
+            }
+        }
+        onDispose {
+            engine?.stop()
+            engine?.shutdown()
+            chatTts.value = null
+        }
+    }
+    LaunchedEffect(uiState.isGenerating, voiceMode) {
+        val last = uiState.messages.lastOrNull()
+        if (voiceMode && !uiState.isGenerating && last != null && !last.isUser && last.id != lastSpokenId && last.content.isNotBlank()) {
+            lastSpokenId = last.id
+            val spoken = LlmViewModel.stripThinkingBlocks(last.content).replace(Regex("[*#`_>]"), " ")
+            chatTts.value?.speak(spoken, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, last.id)
+        }
+    }
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
 
     val speechIntent = remember {
@@ -552,6 +580,20 @@ fun ChatScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        IconButton(
+                            onClick = {
+                                voiceMode = !voiceMode
+                                if (!voiceMode) chatTts.value?.stop()
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RecordVoiceOver,
+                                contentDescription = stringResource(R.string.voice_mode),
+                                tint = if (voiceMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         IconButton(
                             onClick = onHome,
                             modifier = Modifier.size(36.dp)

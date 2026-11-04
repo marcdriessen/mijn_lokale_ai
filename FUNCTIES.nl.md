@@ -34,9 +34,23 @@ Het uiterlijk is rustig en redactioneel: warm gebroken wit (of donker), donkergr
 serif-koppen zoals in een krant. Modelbeschrijvingen staan in de gekozen taal. In de chat staan antwoorden als
 gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
-**Navigatie**: onderaan staat op elk scherm dezelfde balk met vijf tabbladen: **Chat · Nieuws · Vraagbaak · Modellen ·
-Instellingen**. Elk scherm heeft dezelfde kop: een kleine regel bovenin (bijv. de datum), een grote vette titel en
-rechts ronde knoppen. Het zijmenu in de chat toont alleen je gesprekken. De terugknop gaat naar de chat.
+**Dashboard en mini-apps**: de app opent op een **dashboard** met een begroeting, een kaart van het **actieve
+model** (gedeeld door alle mini-apps; tik om te kiezen/laden, knop om te ontladen) en tegels voor de mini-apps:
+**Chat, Nieuws, Werk, Vertalen, Taalcoach, Modellen en Instellingen**. Elke mini-app heeft zijn eigen kop (kleine
+bovenregel, grote titel, terugpijl naar het dashboard, ronde knoppen) en eigen tabbladen. Teksten, links en foto's
+die je vanuit een andere app **deelt naar Local LLM/AI** openen in Vertalen.
+
+### 2.0 Privacy & beveiliging (Instellingen)
+
+- **App-slot**: vingerafdruk of schermvergrendeling bij het openen.
+- **Privacymodus**: zet alle internetfuncties uit (webzoeken, nieuws, PubMed, Brave).
+- **Automatisch anonimiseren** (standaard aan): namen (na aanhef/rol of met voorletters), BSN (met elfproef),
+  datums, telefoonnummers, e-mail, postcodes, adressen, IBAN en cliënt-/dossiernummers worden vervangen door labels
+  zoals [NAAM] en [BSN]. Als er een model geladen is, zoekt dat model nog naar overgebleven namen, die daarna ook
+  worden vervangen (het model herschrijft de tekst niet). Rapportages en de bibliotheek worden altijd
+  geanonimiseerd; voor chatbijlagen en vertalen geldt deze schakelaar. Controleer altijd zelf: geen automatisch
+  systeem is 100% waterdicht.
+- **Back-up**: gesprekken, briefings, bibliotheek en leerkaarten in één zip-bestand (zonder modellen), en terugzetten.
 
 ### 2.1 Chatscherm (startscherm)
 
@@ -213,7 +227,20 @@ Tabblad **Nieuws**. Opgezet als een moderne nieuwsapp (geïnspireerd op NU.nl, D
 - **Op de achtergrond** haalt een geplande briefing alleen het nieuws op (via nieuwsfeeds) en stuurt een melding; het
   model schrijft de artikelen als je de briefing opent.
 
-### 2.5 Vraagbaak GGZ & verslaving
+### 2.4b Nieuws: extra's
+
+- **Weekoverzicht** (menu): het model maakt een overzicht van de briefings van de afgelopen 7 dagen.
+- **Widget** op je startscherm met de koppen van de laatste briefing.
+
+### 2.5 Werk (GGZ & verslaving)
+
+De mini-app **Werk** heeft tabbladen: **Vraagbaak** (hieronder), **Psycho-educatie** (hand-outs voor cliënten op
+B1/A2-niveau in NL/BG/EN), **Meetinstrumenten** (offline optellen voor CIWA-Ar, COWS en AUDIT, met de gebruikelijke
+indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen of tekstbestand → automatisch
+geanonimiseerd → SBAR of SOAP) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
+Leitner-schema).
+
+### 2.5a Vraagbaak GGZ & verslaving
 
 Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in de psychiatrie, verslavingszorg en somatiek.
 
@@ -235,6 +262,24 @@ Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in
 - **Eerdere vragen** (klok-icoon): de laatste 30 worden bewaard.
 - Inhoud van de DSM-5-TR en Vilans-protocollen is niet vrij beschikbaar; die kun je alleen gebruiken door je eigen
   (toegestane) documenten aan je bibliotheek toe te voegen.
+
+### 2.5b Vertalen
+
+Offline vertalen met ML Kit naar Nederlands, Engels, Bulgaars of Duits: getypte tekst, een **foto** (camera of
+galerij, tekstherkenning voor Latijns schrift) of een **gedeelde pagina/tekst/foto**. Daarna eventueel met AI:
+samenvatten, eenvoudig (B1) of een e-mail maken.
+
+### 2.5c Taalcoach
+
+Oefengesprekken in Bulgaars, Engels, Duits of Nederlands op niveau A1–B2, met situaties (kennismaken, winkel, dokter,
+familie, reizen). De coach geeft een **correctie** met korte uitleg en een **antwoord** met een vraag; antwoorden
+kunnen worden voorgelezen.
+
+### 2.5d Chat: extra's
+
+- **Snelkoppelingen** boven de invoer: samenvatten, naar Nederlands, eenvoudig (B1), e-mail, naar Bulgaars.
+- **Spraakmodus** (spreker-icoon): antwoorden worden automatisch voorgelezen.
+- **Modeladvies** in Modellen: welk model het best past bij jouw telefoon en taak.
 
 ### 2.6 Op de achtergrond
 

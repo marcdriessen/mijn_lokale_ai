@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.MedicalServices
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -82,6 +83,7 @@ fun HomeScreen(
             MiniApp("news", R.string.nav_news, R.string.home_news_desc, Icons.Outlined.Newspaper, Color(0xFF3B6EB5)),
             MiniApp("work", R.string.home_work, R.string.home_work_desc, Icons.Outlined.MedicalServices, Color(0xFFB5523B)),
             MiniApp("translate", R.string.home_translate, R.string.home_translate_desc, Icons.Outlined.Translate, Color(0xFF7A5BB5)),
+            MiniApp("coach", R.string.home_coach, R.string.home_coach_desc, Icons.Outlined.RecordVoiceOver, Color(0xFFC08A1E)),
             MiniApp("models", R.string.nav_models, R.string.home_models_desc, Icons.Outlined.Dns, Color(0xFF5D6A62)),
             MiniApp("settings", R.string.nav_settings, R.string.home_settings_desc, Icons.Outlined.Settings, Color(0xFF5D6A62))
         )

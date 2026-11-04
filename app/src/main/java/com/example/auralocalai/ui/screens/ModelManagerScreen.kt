@@ -116,6 +116,9 @@ fun ModelManagerScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Advice: which model fits this phone best for which task
+            item { ModelAdviceCard() }
+
             // Device memory meter, unload button and "Try anyway" after a low-memory failure
             item {
                 MemoryStatusCard(
@@ -1042,6 +1045,40 @@ fun MemoryStatusCard(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Recommends models for this phone (by total RAM) per task. */
+@Composable
+fun ModelAdviceCard() {
+    val context = LocalContext.current
+    val totalGb = remember {
+        val am = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        val info = android.app.ActivityManager.MemoryInfo()
+        am?.getMemoryInfo(info)
+        info.totalMem / (1024.0 * 1024.0 * 1024.0)
+    }
+    val advice = when {
+        totalGb >= 10.5 -> R.string.advice_12gb
+        totalGb >= 7.0 -> R.string.advice_8gb
+        totalGb >= 5.0 -> R.string.advice_6gb
+        else -> R.string.advice_4gb
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.advice_title, String.format(java.util.Locale.getDefault(), "%.0f", totalGb)),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(stringResource(advice), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
     }
 }
