@@ -32,7 +32,8 @@ object RssParser {
                 link = link,
                 sourceName = sourceName,
                 publishedMillis = dateText?.let { parseDate(cleanText(it)) },
-                description = description
+                description = description,
+                imageUrl = extractImage(body)
             )
         }.toList()
     }
@@ -60,6 +61,23 @@ object RssParser {
             if (cleaned.startsWith("http")) return cleaned
         }
         return null
+    }
+
+    private val MEDIA_REGEX = Regex("<media:(?:content|thumbnail)\\b[^>]*url\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>", RegexOption.IGNORE_CASE)
+    private val ENCLOSURE_REGEX = Regex("<enclosure\\b([^>]*)>", RegexOption.IGNORE_CASE)
+    private val IMG_REGEX = Regex("<img\\b[^>]*src\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+
+    /** Image of an item: media:content/thumbnail, an image enclosure, or the first <img> in the text. */
+    fun extractImage(body: String): String? {
+        MEDIA_REGEX.find(body)?.groupValues?.get(1)?.let { return decodeEntities(it) }
+        ENCLOSURE_REGEX.findAll(body).forEach { m ->
+            val attrs = m.groupValues[1]
+            if (attrs.contains("image", ignoreCase = true)) {
+                Regex("url\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)?.groupValues?.get(1)?.let { return decodeEntities(it) }
+            }
+        }
+        val decoded = decodeEntities(CDATA_REGEX.replace(body) { it.groupValues[1] })
+        return IMG_REGEX.find(decoded)?.groupValues?.get(1)?.takeIf { it.startsWith("http") }
     }
 
     /** Removes CDATA, HTML tags and entities, and collapses whitespace. */

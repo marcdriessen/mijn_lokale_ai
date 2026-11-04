@@ -16,7 +16,7 @@ enum class ThemeMode {
 
 private val DarkColorScheme = darkColorScheme(
     primary = TealAccent,
-    onPrimary = Color(0xFF00201C),
+    onPrimary = Color(0xFF0F2A1C),
     primaryContainer = TealAccentContainer,
     onPrimaryContainer = OnTealAccentContainer,
     secondary = SoftBlue,
@@ -51,7 +51,7 @@ private val LightColorScheme = lightColorScheme(
     secondary = LightSecondary,
     onSecondary = Color.White,
     secondaryContainer = LightSecondaryContainer,
-    onSecondaryContainer = Color(0xFF0E2A52),
+    onSecondaryContainer = Color(0xFF1C2A23),
     tertiary = Color(0xFF1E8E5A),
     background = LightBackground,
     onBackground = LightOnSurface,

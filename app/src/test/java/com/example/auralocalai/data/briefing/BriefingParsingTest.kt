@@ -95,4 +95,46 @@ class BriefingParsingTest {
         assertEquals("a", repo.loadHistory().single().sections.single().items.single().title)
         assertTrue(repo.deleteBriefing("1").isEmpty())
     }
+
+    @Test
+    fun extractsImagesFromFeeds() {
+        val media = """<item><title>A</title><media:content url="https://img.example/a.jpg" medium="image"/></item>"""
+        assertEquals("https://img.example/a.jpg", RssParser.parse(media, "S").single().imageUrl)
+        val enclosure = """<item><title>B</title><enclosure url="https://img.example/b.png" type="image/png"/></item>"""
+        assertEquals("https://img.example/b.png", RssParser.parse(enclosure, "S").single().imageUrl)
+        val inline = """<item><title>C</title><description>&lt;img src="https://img.example/c.jpg"&gt; text</description></item>"""
+        assertEquals("https://img.example/c.jpg", RssParser.parse(inline, "S").single().imageUrl)
+    }
+
+    @Test
+    fun parsesArticleAnswerFromModel() {
+        val parsed = BriefingPrompts.parseArticle(
+            "**TITEL:** Vakbonden stellen ultimatum\nSAMENVATTING: Werkgevers krijgen tot maandag.\nBETEKENIS: Volg je arbeidsvoorwaarden."
+        )
+        assertEquals("Vakbonden stellen ultimatum", parsed.title)
+        assertEquals("Werkgevers krijgen tot maandag.", parsed.summary)
+        assertEquals("Volg je arbeidsvoorwaarden.", parsed.relevance)
+        assertEquals("Alleen tekst", BriefingPrompts.parseArticle("Alleen tekst").summary)
+    }
+
+    @Test
+    fun selectsArticlesRoundRobinAcrossTopics() {
+        val items = listOf(
+            NewsItem("Ggz wachtlijsten groeien", "a", "S", 5L),
+            NewsItem("Ggz krijgt extra geld", "b", "S", 4L),
+            NewsItem("Verslavingszorg zoekt personeel", "c", "S", 3L)
+        )
+        val topics = listOf(BriefingTopic("g", "Ggz"), BriefingTopic("v", "Verslavingszorg"))
+        val selected = TopicMatcher.selectArticles(items, topics, 2)
+        assertEquals(listOf("Ggz wachtlijsten groeien", "Verslavingszorg zoekt personeel"), selected.map { it.first.title })
+    }
+
+    @Test
+    fun migratesOldConfigToProfiles() {
+        val old = BriefingConfig(topics = DefaultBriefing.topics, sources = DefaultBriefing.sources)
+        val migrated = DefaultBriefing.migrate(old)
+        assertEquals(2, migrated.profiles.size)
+        assertTrue(migrated.sources.any { it.id == "ggznieuws" })
+        assertEquals(migrated, DefaultBriefing.migrate(migrated))
+    }
 }

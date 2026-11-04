@@ -25,7 +25,7 @@ class BriefingRepository(baseDir: File) {
     fun loadConfig(): BriefingConfig {
         if (!configFile.exists()) return DefaultBriefing.config
         return try {
-            json.decodeFromString(BriefingConfig.serializer(), configFile.readText())
+            DefaultBriefing.migrate(json.decodeFromString(BriefingConfig.serializer(), configFile.readText()))
         } catch (_: Exception) {
             DefaultBriefing.config
         }

@@ -599,7 +599,7 @@ fun PresetModelCard(
 
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = preset.description,
+                text = com.example.auralocalai.ui.modelDescriptionRes(preset.id)?.let { stringResource(it) } ?: preset.description,
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 18.sp

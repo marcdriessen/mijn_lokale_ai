@@ -47,4 +47,51 @@ object BriefingPrompts {
     /** Character budget for the article list, proportional to the model's context window (tokens). */
     fun charBudgetForContext(contextTokens: Int): Int =
         (contextTokens * 2).coerceIn(1_500, 9_000)
+
+    /** System prompt for one article: the user's own instructions steer focus and tone. */
+    fun articleSystemPrompt(languageName: String, instructions: String): String =
+        "You are an editorial news assistant writing for one reader. Write in $languageName. " +
+            "Use only the facts in the article text given; never invent facts, numbers or quotes. " +
+            (if (instructions.isNotBlank()) "The reader's instructions: ${instructions.trim()}" else "")
+
+    /**
+     * Prompt for one article. The answer must have three labelled lines so it can be parsed:
+     * TITLE, SUMMARY and RELEVANCE.
+     */
+    fun articlePrompt(item: NewsItem, topicName: String, languageName: String): String =
+        "Topic: $topicName\n" +
+            "Headline: ${item.title}\n" +
+            "Source: ${item.sourceName}\n" +
+            (if (item.description.isNotBlank()) "Article text: ${item.description.take(900)}\n" else "") +
+            "\nReply in $languageName with exactly these three lines and nothing else:\n" +
+            "TITLE: <the headline in $languageName, max 12 words>\n" +
+            "SUMMARY: <2 short sentences with the key facts>\n" +
+            "RELEVANCE: <1 or 2 sentences on what this means for the reader, based on the reader's instructions; " +
+            "say honestly if it has no direct meaning>"
+
+    data class ArticleText(val title: String, val summary: String, val relevance: String)
+
+    /** Parses the three labelled lines; tolerant of missing labels, bullets and translated labels. */
+    fun parseArticle(raw: String): ArticleText {
+        var title = ""
+        var summary = ""
+        var relevance = ""
+        val loose = mutableListOf<String>()
+        raw.lines().map { it.trim().trimStart('*', '-', '•', ' ') }.filter { it.isNotEmpty() }.forEach { line ->
+            val label = line.substringBefore(':', "").trim().trim('*').trim().lowercase()
+            val value = line.substringAfter(':', "").trim().trim('*').trim()
+            when {
+                label in TITLE_LABELS -> title = value
+                label in SUMMARY_LABELS -> summary = value
+                label in RELEVANCE_LABELS -> relevance = value
+                else -> loose += line
+            }
+        }
+        if (summary.isEmpty() && loose.isNotEmpty()) summary = loose.joinToString(" ")
+        return ArticleText(title, summary, relevance)
+    }
+
+    private val TITLE_LABELS = setOf("title", "titel", "заглавие", "headline", "kop")
+    private val SUMMARY_LABELS = setOf("summary", "samenvatting", "резюме", "обобщение")
+    private val RELEVANCE_LABELS = setOf("relevance", "betekenis", "betekenis voor jouw werk", "relevantie", "значение", "значимост")
 }

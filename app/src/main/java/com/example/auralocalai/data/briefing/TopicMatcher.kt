@@ -58,4 +58,24 @@ object TopicMatcher {
             .filter { it.isNotEmpty() && it.length <= 60 }
             .distinctBy { it.lowercase(Locale.ROOT) }
             .take(max)
+
+    /**
+     * Picks up to [max] articles for a profile, taking turns between topics so every topic gets a
+     * place, newest first within a topic, without duplicate stories.
+     */
+    fun selectArticles(items: List<NewsItem>, topics: List<BriefingTopic>, max: Int): List<Pair<NewsItem, BriefingTopic>> {
+        val perTopic = topics.filter { it.enabled }.map { topic -> topic to selectForTopic(items, topic, max) }
+        val chosen = mutableListOf<Pair<NewsItem, BriefingTopic>>()
+        val seen = mutableSetOf<String>()
+        var round = 0
+        while (chosen.size < max && perTopic.any { it.second.size > round }) {
+            for ((topic, list) in perTopic) {
+                if (chosen.size >= max) break
+                val item = list.getOrNull(round) ?: continue
+                if (seen.add(dedupeKey(item))) chosen += item to topic
+            }
+            round++
+        }
+        return chosen
+    }
 }
