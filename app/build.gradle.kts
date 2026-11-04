@@ -18,6 +18,16 @@ android {
         }
     }
 
+    // One fixed signing key for every build (local and GitHub), so a new version installs over the
+    // previous one without "app not installed" conflicts. This is a debug key, not a Play Store key.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("signing/shared-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -115,6 +125,9 @@ dependencies {
   implementation("androidx.compose.material:material-icons-core")
   implementation("androidx.compose.material:material-icons-extended")
 
+  // Biometric app lock (fingerprint / device PIN)
+  implementation("androidx.biometric:biometric:1.1.0")
+
   // WorkManager for the optional daily news download (daily briefing)
   implementation("androidx.work:work-runtime-ktx:2.9.1")
 
@@ -126,5 +139,10 @@ dependencies {
 
   // Offline OCR and Image Loading
   implementation("com.google.mlkit:text-recognition:16.0.1")
+  // Offline translation of news headlines (ML Kit Translate + Language ID)
+  implementation("com.google.mlkit:translate:17.0.3")
+  implementation("com.google.mlkit:language-id:17.0.6")
+  // Offline OCR for Cyrillic (Bulgarian); language data is downloaded once on first use.
+  implementation("cz.adaptech.tesseract4android:tesseract4android-openmp:4.9.0")
   implementation("io.coil-kt:coil-compose:2.6.0")
 }

@@ -45,7 +45,7 @@ object AppLocale {
         "en" -> "English"
         "de" -> "German"
         "fr" -> "French"
-        else -> null
+        else -> com.example.auralocalai.data.translate.TranslateLanguages.englishName(code)
     }
 
     fun setLanguage(context: Context, tag: String) {

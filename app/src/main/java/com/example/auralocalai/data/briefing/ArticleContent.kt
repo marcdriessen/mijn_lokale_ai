@@ -1,0 +1,55 @@
+package com.example.auralocalai.data.briefing
+
+/**
+ * Full article text: quality check of extracted text and feed autodetection. Pure Kotlin (tested).
+ * Extracted text is only used temporarily for the model; it is not stored in the briefing.
+ */
+object ArticleContent {
+
+    const val STATUS_FULL = "full"
+    const val STATUS_FEED = "feed"
+    const val STATUS_SUMMARY_ONLY = "summary_only"
+
+    private val NOISE = listOf(
+        "cookie", "cookies", "accepteer", "accept all", "privacy", "abonneer", "subscribe", "log in", "inloggen",
+        "javascript", "advertentie", "advertisement", "бисквитки", "абонирай"
+    )
+
+    /**
+     * True when the text looks like a real article: long enough, several paragraphs, and not mainly
+     * cookie notices, log-in walls or navigation.
+     */
+    fun isUsable(text: String): Boolean {
+        val paragraphs = text.split(Regex("\n\\s*\n")).map { it.trim() }.filter { it.length >= 40 }
+        if (text.length < 500 || paragraphs.size < 3) return false
+        val noisy = paragraphs.count { p -> NOISE.any { p.lowercase().contains(it) } }
+        return noisy * 3 < paragraphs.size
+    }
+
+    private val LINK_TAG = Regex("<link\\b[^>]*>", RegexOption.IGNORE_CASE)
+    private val ATTR = Regex("(\\w+)\\s*=\\s*[\"']([^\"']*)[\"']")
+
+    /** Finds RSS/Atom feeds announced in a web page (<link rel="alternate" type="application/rss+xml">). */
+    fun detectFeeds(html: String, pageUrl: String): List<String> =
+        LINK_TAG.findAll(html.take(200_000)).mapNotNull { tag ->
+            val attrs = ATTR.findAll(tag.value).associate { it.groupValues[1].lowercase() to it.groupValues[2] }
+            val type = attrs["type"]?.lowercase().orEmpty()
+            if (attrs["rel"]?.lowercase()?.contains("alternate") != true) return@mapNotNull null
+            if ("rss" !in type && "atom" !in type) return@mapNotNull null
+            attrs["href"]?.let { resolve(pageUrl, RssParser.decodeEntities(it)) }
+        }.distinct().toList()
+
+    /** Makes a relative link absolute. */
+    fun resolve(base: String, href: String): String = when {
+        href.startsWith("http://") || href.startsWith("https://") -> href
+        href.startsWith("//") -> base.substringBefore("//") + href
+        href.startsWith("/") -> base.substringBefore("//") + "//" + base.substringAfter("//").substringBefore('/') + href
+        else -> base.substringBeforeLast('/') + "/" + href
+    }
+
+    /** True when a downloaded body is a feed (RSS, Atom or RDF) rather than a web page. */
+    fun looksLikeFeed(body: String): Boolean {
+        val head = body.take(2_000).lowercase()
+        return "<rss" in head || "<feed" in head || "<rdf:rdf" in head
+    }
+}

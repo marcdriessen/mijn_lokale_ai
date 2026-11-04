@@ -15,6 +15,8 @@ jobs:
     name: Build, Test & Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -50,6 +52,22 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Direct download for the phone: the newest APK as a plain file (no zip) on one fixed release page.
+      # Link: https://github.com/<owner>/<repo>/releases/tag/laatste-versie
+      - name: Publish APK on the "laatste-versie" release
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk LokaleAI.apk
+          NOTES="Nieuwste testversie van Local LLM/AI. Gebouwd uit commit ${GITHUB_SHA::7} op $(date -u '+%Y-%m-%d %H:%M') UTC. Tik op LokaleAI.apk om te downloaden."
+          if gh release view laatste-versie >/dev/null 2>&1; then
+            gh release edit laatste-versie --notes "$NOTES"
+          else
+            gh release create laatste-versie --title "Laatste testversie" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
+          fi
+          gh release upload laatste-versie LokaleAI.apk --clobber
 
       - name: Upload Unit Test Reports
         if: always()

@@ -48,6 +48,7 @@ class NewsFetcher(
                     listOf(source.url)
                 }
                 val items = urls.flatMap { url -> RssParser.parse(download(url), source.name) }
+                    .map { if (source.category == SourceCategory.NEWS) it else it.copy(sourceCategory = source.category) }
                 SourceFetchResult(source, items)
             } catch (e: Exception) {
                 SourceFetchResult(source, emptyList(), e.message ?: e.javaClass.simpleName)
@@ -80,6 +81,53 @@ class NewsFetcher(
         }
     }
 
+    /** Picture and readable text of an article page. */
+    data class ArticlePage(val imageUrl: String?, val text: String)
+
+    /**
+     * Downloads an article page once and returns both its preview image and its main text.
+     * Google News redirect links cannot be read this way (null).
+     */
+    suspend fun fetchArticle(articleUrl: String, maxChars: Int = 6_000): ArticlePage? = withContext(Dispatchers.IO) {
+        if (articleUrl.isBlank() || articleUrl.contains("news.google.com")) return@withContext null
+        try {
+            val request = Request.Builder()
+                .url(articleUrl)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "text/html")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val source = response.body?.source() ?: return@withContext null
+                source.request(MAX_ARTICLE_BYTES)
+                val html = source.buffer.snapshot().utf8().take(MAX_ARTICLE_BYTES.toInt())
+                val image = OG_IMAGE_REGEXES.firstNotNullOfOrNull { regex -> regex.find(html)?.groupValues?.get(1) }
+                    ?.let { RssParser.decodeEntities(it) }
+                    ?.takeIf { it.startsWith("http") }
+                val text = com.example.auralocalai.data.translate.PageTextExtractor.extract(html, maxChars = maxChars).text
+                ArticlePage(image, text)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * For a source the user adds: when the address is a web page instead of a feed, returns the feed
+     * the page announces (rel="alternate"). Returns the address itself when it already is a feed.
+     */
+    suspend fun discoverFeed(url: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val body = download(url)
+            when {
+                ArticleContent.looksLikeFeed(body) -> url
+                else -> ArticleContent.detectFeeds(body, url).firstOrNull()
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun download(url: String): String {
         val request = Request.Builder()
             .url(url)
@@ -98,6 +146,7 @@ class NewsFetcher(
         const val MAX_SEARCH_QUERIES = 12
         const val MAX_FEED_CHARS = 2_000_000
         const val MAX_HTML_BYTES = 300_000L
+        const val MAX_ARTICLE_BYTES = 800_000L
         private val OG_IMAGE_REGEXES = listOf(
             Regex("<meta[^>]+property=[\"']og:image(?::url)?[\"'][^>]+content=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE),
             Regex("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image(?::url)?[\"']", RegexOption.IGNORE_CASE),

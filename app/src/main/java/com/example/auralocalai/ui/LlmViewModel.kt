@@ -142,6 +142,10 @@ data class UiState(
     val loadingStage: String? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val preferredBackend: String = "AUTO",
+    /** Chat answers via English: question translated to English, answer translated back (ML Kit, offline). */
+    val pivotEnglish: Boolean = false,
+    /** Short status shown while the answer is translated back. */
+    val pivotStatus: String? = null,
     val socInfo: SocInfo? = null,
     val importProgress: Float? = null,
     val modelLoadBenchmarks: Map<String, ModelLoadBenchmark> = emptyMap(),
@@ -357,6 +361,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 enableThinking = initialEnableThinking,
                 thinkingTokenBudget = initialThinkingBudget,
                 appLanguage = com.example.auralocalai.AppLocale.getLanguage(application),
+                pivotEnglish = prefs.getBoolean("chat_pivot_english", false),
                 autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0)
             ) 
         }
@@ -876,9 +881,93 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
      * The chat conversation is restored afterwards. Returns null when no model is loaded,
      * the chat is generating, or generation failed.
      */
+    private val pivotTranslator by lazy { com.example.auralocalai.data.translate.MlKitNewsTranslator() }
+
+    /** Turns "answer via English" on or off (remembered). */
+    fun setPivotEnglish(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+            .putBoolean("chat_pivot_english", enabled).apply()
+        _uiState.update { it.copy(pivotEnglish = enabled) }
+    }
+
+    /** True when "via English" applies: switched on and the app is not in English. */
+    private fun pivotActive(): Boolean =
+        _uiState.value.pivotEnglish && com.example.auralocalai.AppLocale.effectiveLanguage(getApplication()) != "en"
+
+    /** File name of the loaded model (for reloading on the CPU after a GPU failure). */
+    private var loadedModelFile: String? = null
+
+    private fun gpuFailurePrefs() =
+        getApplication<Application>().getSharedPreferences("gpu_invoke_failures", Context.MODE_PRIVATE)
+
+    /** "Failed to invoke the compiled model" (status 13): the GPU path of this model breaks on this phone. */
+    private fun isGpuInvokeFailure(message: String?): Boolean {
+        val m = message ?: return false
+        return m.contains("Failed to invoke", ignoreCase = true) ||
+            (m.contains("Status Code: 13", ignoreCase = true) && m.contains("executor", ignoreCase = true))
+    }
+
+    /**
+     * Reloads the current model on the CPU after a GPU failure and remembers this for the model,
+     * so next time it starts on the CPU directly. Returns true when the model runs again.
+     */
+    private suspend fun fallbackToCpu(): Boolean {
+        val file = loadedModelFile ?: return false
+        val modelId = _uiState.value.activeModelId ?: return false
+        if (inferenceEngine.activeBackend == "CPU") return false
+        gpuFailurePrefs().edit().putBoolean(file, true).apply()
+        Log.w("LlmViewModel", "GPU invoke failed for $file; reloading on CPU")
+        val matchingPreset = ModelPreset.presets.firstOrNull { it.id == modelId }
+        _uiState.update { it.copy(loadingStage = str(R.string.stage_switching_cpu)) }
+        return withContext(Dispatchers.IO) {
+            inferenceEngine.unloadModel()
+            ModelSafetyValidator.awaitMemorySettle(getApplication<Application>())
+            val result = inferenceEngine.loadModel(
+                modelPath = File(storageDir, file).absolutePath,
+                preferredBackend = "CPU_ONLY",
+                contextTurns = _uiState.value.contextWindowSize,
+                systemPrompt = effectiveSystemPrompt(),
+                initialHistory = buildEngineHistory(),
+                samplerConfig = SamplerConfig(
+                    topK = _uiState.value.topK,
+                    topP = _uiState.value.topP.toDouble(),
+                    temperature = _uiState.value.temperature.toDouble(),
+                    seed = 0
+                ),
+                thinkingConfig = ThinkingConfig(
+                    enableThinking = matchingPreset?.defaultThinkingEnabled ?: _uiState.value.enableThinking,
+                    thinkingTokenBudget = _uiState.value.thinkingTokenBudget
+                ),
+                forceLoad = true,
+                onStageUpdate = {}
+            )
+            _uiState.update {
+                it.copy(
+                    loadingStage = null,
+                    activeBackend = inferenceEngine.activeBackend,
+                    modelState = if (result.isSuccess) it.modelState else ModelState.Error(friendlyErrorMessage(result.exceptionOrNull()?.message)),
+                    activeModelId = if (result.isSuccess) it.activeModelId else null
+                )
+            }
+            result.isSuccess
+        }
+    }
+
+    private fun chatSampler(temperature: Double? = null) = SamplerConfig(
+        topK = _uiState.value.topK,
+        topP = _uiState.value.topP.toDouble(),
+        temperature = temperature ?: _uiState.value.temperature.toDouble(),
+        seed = 0
+    )
+
+    /**
+     * Runs a single task with the loaded model (outside the chat). [temperature] lets precise tasks
+     * (reports, anonymizing, translation) use a low value regardless of the chat setting.
+     */
     suspend fun runOneShotPrompt(
         systemPrompt: String,
         prompt: String,
+        temperature: Double? = null,
         onPartial: (String) -> Unit = {}
     ): String? {
         if (!isModelReady || _uiState.value.isGenerating) return null
@@ -888,17 +977,43 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) {
                     try {
-                        inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
-                        val builder = StringBuilder()
-                        inferenceEngine.generateResponse(
-                            prompt = prompt,
-                            repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
-                            turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
-                        ).collect { token ->
-                            builder.append(token)
-                            onPartial(stripThinkingBlocks(builder.toString()))
+                        var attempt = 0
+                        var answer: String? = null
+                        while (true) {
+                            try {
+                                inferenceEngine.resetConversation(
+                                    systemPrompt = systemPrompt,
+                                    initialHistory = emptyList(),
+                                    samplerConfig = chatSampler(temperature)
+                                )
+                                val builder = StringBuilder()
+                                inferenceEngine.generateResponse(
+                                    prompt = prompt,
+                                    repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
+                                    turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
+                                ).collect { token ->
+                                    builder.append(token)
+                                    onPartial(stripThinkingBlocks(builder.toString()))
+                                }
+                                answer = stripThinkingBlocks(builder.toString()).ifBlank { null }
+                                break
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.w("LlmViewModel", "One-shot prompt failed: ${e.message}")
+                                if (attempt == 0 && e.message?.contains("prefill", ignoreCase = true) == true) {
+                                    attempt++
+                                    kotlinx.coroutines.delay(800L)
+                                    continue
+                                }
+                                if (attempt == 0 && isGpuInvokeFailure(e.message) && fallbackToCpu()) {
+                                    attempt++
+                                    continue
+                                }
+                                break
+                            }
                         }
-                        stripThinkingBlocks(builder.toString()).ifBlank { null }
+                        answer
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -908,7 +1023,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         // Restore the chat conversation (system prompt + history).
                         inferenceEngine.resetConversation(
                             systemPrompt = effectiveSystemPrompt(),
-                            initialHistory = buildEngineHistory()
+                            initialHistory = buildEngineHistory(),
+                            samplerConfig = chatSampler()
                         )
                     }
                 }
@@ -936,6 +1052,25 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             country = "nl",
             language = language
         )
+    }
+
+    /**
+     * Removes personal data: fixed rules first, then (when a model is loaded) the local model lists
+     * remaining names, which are masked with the same rules. The model never rewrites the text.
+     */
+    suspend fun anonymize(text: String): com.example.auralocalai.data.privacy.Anonymizer.Result {
+        val first = com.example.auralocalai.data.privacy.Anonymizer.anonymize(text)
+        if (!isModelReady || first.text.isBlank()) return first
+        val names = com.example.auralocalai.data.privacy.Anonymizer.parseNames(
+            runOneShotPrompt(
+                com.example.auralocalai.data.privacy.Anonymizer.NAME_FINDER_SYSTEM,
+                com.example.auralocalai.data.privacy.Anonymizer.nameFinderPrompt(first.text),
+                temperature = 0.1
+            )
+        )
+        if (names.isEmpty()) return first
+        val second = com.example.auralocalai.data.privacy.Anonymizer.anonymize(first.text, names)
+        return com.example.auralocalai.data.privacy.Anonymizer.Result(second.text, first.replacements + second.replacements)
     }
 
     /** Starts a new chat and sends [message] in it (used by "Ask more" on a briefing card). */
@@ -1061,8 +1196,13 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         val lower = raw.lowercase()
         return when {
             // Conversation lifecycle
+            lower.contains("not prefilled") || lower.contains("prefill") ->
+                str(R.string.err_not_prefilled)
             lower.contains("conversation is not alive") || lower.contains("not alive") ->
                 str(R.string.err_conversation_reset)
+
+            lower.contains("failed to invoke") ->
+                str(R.string.err_gpu_invoke)
 
             lower.contains("cancellationexception") || lower.contains("job was cancelled") ->
                 str(R.string.err_generation_stopped)
@@ -1193,9 +1333,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 thinkingTokenBudget = _uiState.value.thinkingTokenBudget
             )
 
+            val knownGpuFailure = gpuFailurePrefs().getBoolean(fileName, false)
+            val backend = if (knownGpuFailure && _uiState.value.preferredBackend == "AUTO") "CPU_ONLY" else _uiState.value.preferredBackend
             val result = inferenceEngine.loadModel(
                 modelPath = File(storageDir, fileName).absolutePath,
-                preferredBackend = _uiState.value.preferredBackend,
+                preferredBackend = backend,
                 contextTurns = _uiState.value.contextWindowSize,
                 systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory(),
@@ -1208,7 +1350,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             )
             val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
             if (result.isSuccess) {
+                loadedModelFile = fileName
                 recordModelLoadBenchmark(modelId, elapsedMs)
+                // Remembered so the morning briefing can load the same model in the background.
+                getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+                    .putString(com.example.auralocalai.data.briefing.BackgroundModel.PREF_LAST_MODEL_FILE, fileName)
+                    .apply()
                 val supportsThinking = inferenceEngine.detectedSupportsThinking
                 _uiState.update { 
                     it.copy(
@@ -1302,30 +1449,28 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             try {
-                val image = InputImage.fromFilePath(context, uri)
-                val task = recognizer.process(image)
-                val visionText = task.awaitTask()
-                
-                _uiState.update { 
+                val bitmap = com.example.auralocalai.data.ocr.OcrEngine.loadBitmap(context, uri)
+                    ?: throw IllegalStateException(str(R.string.could_not_open_file))
+                val text = try {
+                    com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
+                } finally {
+                    bitmap.recycle()
+                }
+                _uiState.update {
                     it.copy(
-                        extractedOcrText = visionText.text,
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
                         isAttachmentProcessing = false
                     )
                 }
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _uiState.update { it.copy(attachmentError = str(R.string.ocr_cyrillic_missing), isAttachmentProcessing = false) }
             } catch (e: Exception) {
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         attachmentError = str(R.string.ocr_failed, e.localizedMessage ?: ""),
                         isAttachmentProcessing = false
                     )
-                }
-            } finally {
-                try {
-                    recognizer.close()
-                } catch (ce: Exception) {
-                    Log.w("LlmViewModel", "Error closing image recognizer: ${ce.message}")
                 }
             }
         }
@@ -1394,91 +1539,27 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (ext.equals("pdf", ignoreCase = true)) {
-                    val pfd = context.contentResolver.openFileDescriptor(uri, "r")
-                    if (pfd == null) {
-                        _uiState.update { 
-                            it.copy(
-                                attachmentError = str(R.string.could_not_open_file),
-                                isAttachmentProcessing = false
-                            )
-                        }
+                // PDF (first pages, text recognition), Word, ODT, RTF, HTML or text; Cyrillic included.
+                val maxTextChars = 24_000
+                val text = when (val result = com.example.auralocalai.data.work.DocumentReader.read(context, uri, maxPdfPages = 3)) {
+                    is com.example.auralocalai.data.work.DocumentReader.Result.Text ->
+                        if (result.text.length > maxTextChars) {
+                            result.text.take(maxTextChars) + "\n\n[Attachment truncated to first $maxTextChars characters for context & memory safety]"
+                        } else result.text
+                    com.example.auralocalai.data.work.DocumentReader.Result.OldWordFormat -> {
+                        _uiState.update { it.copy(attachmentError = str(R.string.report_doc_unsupported), isAttachmentProcessing = false) }
                         return@launch
                     }
-                    val pdfRenderer = PdfRenderer(pfd)
-                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                    try {
-                        val pageCount = pdfRenderer.pageCount
-                        val combinedText = StringBuilder()
-                        val maxPages = minOf(pageCount, 3)
-
-                        for (i in 0 until maxPages) {
-                            val page = pdfRenderer.openPage(i)
-                            try {
-                                val width = page.width / 2
-                                val height = page.height / 2
-                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                                try {
-                                    val canvas = Canvas(bitmap)
-                                    canvas.drawColor(Color.WHITE)
-                                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-
-                                    val image = InputImage.fromBitmap(bitmap, 0)
-                                    val visionText = recognizer.process(image).awaitTask()
-                                    combinedText.append(visionText.text).append("\n")
-                                } finally {
-                                    bitmap.recycle()
-                                }
-                            } finally {
-                                page.close()
-                            }
-                        }
-
-                        _uiState.update { 
-                            it.copy(
-                                extractedOcrText = combinedText.toString(),
-                                isAttachmentProcessing = false
-                            )
-                        }
-                    } finally {
-                        try {
-                            recognizer.close()
-                        } catch (ce: Exception) {
-                            Log.w("LlmViewModel", "Error closing PDF recognizer: ${ce.message}")
-                        }
-                        try {
-                            pdfRenderer.close()
-                        } catch (pe: Exception) {
-                            Log.w("LlmViewModel", "Error closing PdfRenderer: ${pe.message}")
-                        }
-                        try {
-                            pfd.close()
-                        } catch (fe: Exception) {
-                            Log.w("LlmViewModel", "Error closing pfd: ${fe.message}")
-                        }
-                    }
-                } else {
-                    val maxTextChars = 24_000
-                    val text = context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val reader = stream.bufferedReader()
-                        val buffer = CharArray(maxTextChars)
-                        val numRead = reader.read(buffer, 0, maxTextChars)
-                        if (numRead > 0) {
-                            val fileContent = String(buffer, 0, numRead)
-                            if (reader.read() != -1) {
-                                "$fileContent\n\n[Attachment truncated to first $maxTextChars characters for context & memory safety]"
-                            } else {
-                                fileContent
-                            }
-                        } else ""
-                    }
-                    _uiState.update { 
-                        it.copy(
-                            extractedOcrText = text,
-                            isAttachmentProcessing = false
-                        )
-                    }
+                    com.example.auralocalai.data.work.DocumentReader.Result.Empty -> ""
                 }
+                _uiState.update {
+                    it.copy(
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
+                        isAttachmentProcessing = false
+                    )
+                }
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _uiState.update { it.copy(attachmentError = str(R.string.ocr_cyrillic_missing), isAttachmentProcessing = false) }
             } catch (e: Exception) {
                 val errorMsg = when {
                     e.message?.contains("dynamite", ignoreCase = true) == true ||
@@ -1610,7 +1691,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 (contextCapacity * 3 / 4).coerceAtLeast(600)
             )
 
-            val effectiveMode = _uiState.value.chatSearchOverride ?: _uiState.value.webSearchMode
+            val effectiveMode = if (com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())) WebSearchMode.OFF
+                else _uiState.value.chatSearchOverride ?: _uiState.value.webSearchMode
             if (_uiState.value.chatSearchOverride != null) {
                 _uiState.update { it.copy(chatSearchOverride = null) }
             }
@@ -1714,7 +1796,19 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             if (currentPrefix.isNotBlank()) {
                 turnParts += currentPrefix.trimEnd()
             }
-            turnParts += messageText
+            val appLang = com.example.auralocalai.AppLocale.effectiveLanguage(getApplication())
+            val usePivot = pivotActive()
+            if (usePivot) {
+                _uiState.update { it.copy(pivotStatus = str(R.string.pivot_translating_question)) }
+                val english = withContext(Dispatchers.IO) {
+                    runCatching { pivotTranslator.translateFrom(messageText, appLang, "en") }.getOrNull()
+                }
+                turnParts += (english ?: messageText)
+                turnParts += com.example.auralocalai.data.translate.PivotTranslation.ANSWER_IN_ENGLISH
+                _uiState.update { it.copy(pivotStatus = str(R.string.pivot_thinking_english)) }
+            } else {
+                turnParts += messageText
+            }
             val currentTurn = turnParts.joinToString("\n\n")
 
             // Extract downsampled bitmap natively if a vision-capable model is loaded (from image or video keyframe)
@@ -1759,37 +1853,71 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     enableThinking = _uiState.value.enableThinking,
                     thinkingTokenBudget = _uiState.value.thinkingTokenBudget
                 )
-                inferenceEngine.generateResponse(
-                    prompt = currentTurn,
-                    image = imageBitmap,
-                    repetitionPenaltyConfig = repetitionConfig,
-                    turnThinkingConfig = turnThinkingConfig
-                )
-                    .onCompletion { cause ->
-                        if (cause is kotlinx.coroutines.CancellationException) {
-                            wasCancelled = true
-                        }
-                    }
-                    .collect { partialToken ->
-                        if (tFirst == null) {
-                            tFirst = System.nanoTime()
-                        }
-                        tokenCount++
-                        accumulatedBuilder.append(partialToken)
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastUpdateTime > 100) {
-                            val currentSnapshot = accumulatedBuilder.toString()
-                            _uiState.update { state ->
-                                val updatedMessages = ArrayList(state.messages)
-                                if (updatedMessages.isNotEmpty()) {
-                                    val oldMessage = updatedMessages.last()
-                                    updatedMessages[updatedMessages.lastIndex] = oldMessage.copy(content = currentSnapshot)
+                // "Session is not prefilled yet": the engine was still rebuilding the conversation.
+                // Wait a moment and try once more before showing an error.
+                var generationAttempt = 0
+                while (true) {
+                    try {
+                        inferenceEngine.generateResponse(
+                            prompt = currentTurn,
+                            image = imageBitmap,
+                            repetitionPenaltyConfig = repetitionConfig,
+                            turnThinkingConfig = turnThinkingConfig
+                        )
+                            .onCompletion { cause ->
+                                if (cause is kotlinx.coroutines.CancellationException) {
+                                    wasCancelled = true
                                 }
-                                state.copy(messages = updatedMessages)
                             }
-                            lastUpdateTime = currentTime
+                            .collect { partialToken ->
+                                if (tFirst == null) {
+                                    tFirst = System.nanoTime()
+                                }
+                                tokenCount++
+                                accumulatedBuilder.append(partialToken)
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastUpdateTime > 100) {
+                                    val currentSnapshot = accumulatedBuilder.toString()
+                                    _uiState.update { state ->
+                                        val updatedMessages = ArrayList(state.messages)
+                                        if (updatedMessages.isNotEmpty()) {
+                                            val oldMessage = updatedMessages.last()
+                                            updatedMessages[updatedMessages.lastIndex] = oldMessage.copy(content = currentSnapshot)
+                                        }
+                                        state.copy(messages = updatedMessages)
+                                    }
+                                    lastUpdateTime = currentTime
+                                }
+                            }
+                        break
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (generationAttempt == 0 && accumulatedBuilder.isEmpty() && e.message?.contains("prefill", ignoreCase = true) == true) {
+                            generationAttempt++
+                            kotlinx.coroutines.delay(800L)
+                            continue
+                        }
+                        // GPU path broke ("Failed to invoke the compiled model"): reload on the CPU and try again.
+                        if (generationAttempt < 2 && accumulatedBuilder.isEmpty() && isGpuInvokeFailure(e.message) && fallbackToCpu()) {
+                            generationAttempt = 2
+                            continue
+                        }
+                        throw e
+                    }
+                }
+                // "Via English": translate the finished English answer back (structure and code kept).
+                if (usePivot && accumulatedBuilder.isNotEmpty()) {
+                    _uiState.update { it.copy(pivotStatus = str(R.string.pivot_translating_answer)) }
+                    val englishAnswer = stripThinkingBlocks(accumulatedBuilder.toString())
+                    val translated = withContext(Dispatchers.IO) {
+                        com.example.auralocalai.data.translate.PivotTranslation.translateMarkdown(englishAnswer) { line ->
+                            runCatching { pivotTranslator.translateFrom(line, "en", appLang) }.getOrNull()
                         }
                     }
+                    accumulatedBuilder.clear()
+                    accumulatedBuilder.append(translated)
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 wasCancelled = true
                 throw e
@@ -1832,7 +1960,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                             searchQuery = searchOutcome?.query
                         )
                     }
-                    state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null)
+                    state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null, pivotStatus = null)
                 }
                 saveMessages(_uiState.value.messages)
                 scheduleIdleUnload()
@@ -2060,6 +2188,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        runCatching { pivotTranslator.close() }
         val context = getApplication<Application>().applicationContext
         context.stopService(Intent(context, ModelDownloadService::class.java))
         inferenceJob?.cancel()

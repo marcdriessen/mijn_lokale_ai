@@ -49,3 +49,7 @@
 -keep class com.google.android.gms.dynamite.** { *; }
 -dontwarn com.google.mlkit.**
 -dontwarn com.google.android.gms.**
+
+# Tesseract4Android (JNI)
+-keep class com.googlecode.tesseract.android.** { *; }
+-keep class com.googlecode.leptonica.android.** { *; }

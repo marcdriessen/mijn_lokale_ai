@@ -29,6 +29,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Delete
@@ -95,7 +99,8 @@ fun ChatScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToBriefing: () -> Unit = {},
-    onNavigateToMedical: () -> Unit = {}
+    onNavigateToMedical: () -> Unit = {},
+    onHome: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -110,6 +115,33 @@ fun ChatScreen(
     var showSearchDisclosureDialog by remember { mutableStateOf(false) }
 
     var isListening by remember { mutableStateOf(false) }
+
+    // Voice mode: answers are read aloud when they are finished.
+    var voiceMode by remember { mutableStateOf(false) }
+    var lastSpokenId by remember { mutableStateOf<String?>(null) }
+    val chatTts = remember { mutableStateOf<android.speech.tts.TextToSpeech?>(null) }
+    DisposableEffect(Unit) {
+        var engine: android.speech.tts.TextToSpeech? = null
+        engine = android.speech.tts.TextToSpeech(context) { status ->
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                engine?.setLanguage(context.resources.configuration.locales[0])
+                chatTts.value = engine
+            }
+        }
+        onDispose {
+            engine?.stop()
+            engine?.shutdown()
+            chatTts.value = null
+        }
+    }
+    LaunchedEffect(uiState.isGenerating, voiceMode) {
+        val last = uiState.messages.lastOrNull()
+        if (voiceMode && !uiState.isGenerating && last != null && !last.isUser && last.id != lastSpokenId && last.content.isNotBlank()) {
+            lastSpokenId = last.id
+            val spoken = LlmViewModel.stripThinkingBlocks(last.content).replace(Regex("[*#`_>]"), " ")
+            chatTts.value?.speak(spoken, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, last.id)
+        }
+    }
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
 
     val speechIntent = remember {
@@ -226,6 +258,11 @@ fun ChatScreen(
         onDispose {
             recognizer?.destroy()
         }
+    }
+
+    // In-app dictation (offline when possible); one sentence per tap.
+    val chatDictation = com.example.auralocalai.ui.components.rememberDictation(continuous = false) { heard ->
+        textInput = if (textInput.isBlank()) heard else if (textInput.endsWith(" ")) "$textInput$heard" else "$textInput $heard"
     }
 
     fun toggleListening() {
@@ -458,59 +495,6 @@ fun ChatScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    FilledTonalButton(
-                        onClick = {
-                            coroutineScope.launch { drawerState.close() }
-                            onNavigateToBriefing()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Newspaper, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.briefing_title), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    FilledTonalButton(
-                        onClick = {
-                            coroutineScope.launch { drawerState.close() }
-                            onNavigateToMedical()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.MedicalServices, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.medical_title), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                coroutineScope.launch { drawerState.close() }
-                                onNavigateToModelManager()
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                        ) {
-                            Text(stringResource(R.string.models), fontSize = 12.sp)
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                coroutineScope.launch { drawerState.close() }
-                                onNavigateToSettings()
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                        ) {
-                            Text(stringResource(R.string.settings), fontSize = 12.sp)
-                        }
-                    }
                 }
             }
         }
@@ -601,7 +585,52 @@ fun ChatScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        IconButton(
+                            onClick = {
+                                voiceMode = !voiceMode
+                                if (!voiceMode) chatTts.value?.stop()
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RecordVoiceOver,
+                                contentDescription = stringResource(R.string.voice_mode),
+                                tint = if (voiceMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onHome,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = stringResource(R.string.home_dashboard),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         if (uiState.messages.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    // Copy the whole conversation (the model itself cannot do this).
+                                    val text = uiState.messages.joinToString("\n\n") { msg ->
+                                        val role = if (msg.isUser) context.getString(R.string.share_role_user) else "AI"
+                                        "[$role]: ${LlmViewModel.stripThinkingBlocks(msg.content)}"
+                                    }
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("chat", text))
+                                    Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = stringResource(R.string.chat_copy),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                             IconButton(
                                 onClick = {
                                     val formattedChat = uiState.messages.joinToString("\n\n") { msg ->
@@ -636,39 +665,6 @@ fun ChatScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-                        }
-                        IconButton(
-                            onClick = onNavigateToBriefing,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Newspaper,
-                                contentDescription = stringResource(R.string.briefing_title),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = onNavigateToModelManager,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Dns,
-                                contentDescription = stringResource(R.string.model_catalog),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = onNavigateToSettings,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = stringResource(R.string.app_settings),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
                         }
                     }
                 }
@@ -709,6 +705,33 @@ fun ChatScreen(
             LaunchedEffect(lastContentLength) {
                 if (uiState.isGenerating && isAtBottom && uiState.messages.isNotEmpty()) {
                     listState.scrollToItem(uiState.messages.size - 1)
+                }
+            }
+
+            // Warn when the loaded model is known to be weak in Dutch/Bulgarian.
+            val weakModels = setOf("qwen3-0.6b", "qwen-1.5b", "qwen3-1.7b", "qwen2.5-coder-1.5b", "deepseek-1.5b")
+            val appLang = com.example.auralocalai.AppLocale.effectiveLanguage(context)
+            var weakDismissed by remember(uiState.activeModelId) { mutableStateOf(false) }
+            if (!weakDismissed && uiState.modelState is ModelState.Loaded && uiState.activeModelId?.let { it in weakModels } == true && appLang in setOf("nl", "bg")) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.weak_model_warning),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onNavigateToModelManager) { Text(stringResource(R.string.models), fontWeight = FontWeight.Bold) }
+                        IconButton(onClick = { weakDismissed = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.dismiss), modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
 
@@ -806,6 +829,65 @@ fun ChatScreen(
                     }
                 }
 
+                // "Via English" status while the question/answer is translated.
+                uiState.pivotStatus?.let { status ->
+                    if (uiState.isGenerating) {
+                        Text(
+                            "🌐 $status",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 6.dp)
+                        )
+                    }
+                }
+                // Shortcuts: put an instruction in front of the typed text (or start a new one).
+                if (!uiState.isGenerating) {
+                    val shortcuts = listOf(
+                        stringResource(R.string.shortcut_summarize) to stringResource(R.string.shortcut_summarize_prompt),
+                        stringResource(R.string.shortcut_translate_nl) to stringResource(R.string.shortcut_translate_nl_prompt),
+                        stringResource(R.string.shortcut_simplify) to stringResource(R.string.shortcut_simplify_prompt),
+                        stringResource(R.string.shortcut_email) to stringResource(R.string.shortcut_email_prompt),
+                        stringResource(R.string.shortcut_bulgarian) to stringResource(R.string.shortcut_bulgarian_prompt)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Choice per chat: answer directly, or via English (better with small models).
+                        if (com.example.auralocalai.AppLocale.effectiveLanguage(context) != "en") {
+                            FilterChip(
+                                selected = uiState.pivotEnglish,
+                                onClick = {
+                                    viewModel.setPivotEnglish(!uiState.pivotEnglish)
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(if (!uiState.pivotEnglish) R.string.pivot_on_toast else R.string.pivot_off_toast),
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                },
+                                label = { Text(stringResource(R.string.pivot_chip), fontSize = 12.sp) },
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        }
+                        shortcuts.forEach { (label, prompt) ->
+                            AssistChip(
+                                onClick = {
+                                    if (textInput.isBlank()) {
+                                        textInput = "$prompt\n\n"
+                                    } else {
+                                        viewModel.sendMessage("$prompt\n\n$textInput")
+                                        textInput = ""
+                                    }
+                                },
+                                label = { Text(label, fontSize = 12.sp) },
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        }
+                    }
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -961,18 +1043,18 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    if (isListening) {
+                                    if (chatDictation.isListening) {
                                         PulsingListeningIndicator()
                                     }
                                     IconButton(
-                                        onClick = { toggleListening() },
+                                        onClick = { chatDictation.toggle() },
                                         enabled = !uiState.isGenerating,
                                         modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Mic,
-                                            contentDescription = if (isListening) stringResource(R.string.stop_listening) else stringResource(R.string.voice_input),
-                                            tint = if (isListening) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
+                                            contentDescription = if (chatDictation.isListening) stringResource(R.string.stop_listening) else stringResource(R.string.voice_input),
+                                            tint = if (chatDictation.isListening) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -9,6 +10,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <queries>
+        <!-- Ground News app (opened from a news article). -->
+        <package android:name="com.checkitt" />
+        <package android:name="com.groundnews" />
+        <package android:name="com.ground.news" />
+        <package android:name="news.ground.app" />
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
@@ -40,10 +46,29 @@
         <!-- VNDK Support library -->
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
         
+        <!-- WorkManager foreground service for the morning briefing (long-running background job) -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <service
             android:name=".data.ModelDownloadService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- Home-screen widget with the latest briefing headlines -->
+        <receiver
+            android:name=".data.briefing.BriefingWidgetProvider"
+            android:label="@string/widget_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/briefing_widget_info" />
+        </receiver>
 
         <activity
             android:name=".MainActivity"
@@ -53,7 +78,27 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Share to Local LLM/AI": texts, links and photos open the Translate mini-app -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
         </activity>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

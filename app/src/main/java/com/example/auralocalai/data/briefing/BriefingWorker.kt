@@ -13,12 +13,16 @@ import androidx.core.content.ContextCompat
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
+import android.content.pm.ServiceInfo
+import com.example.auralocalai.data.translate.MlKitNewsTranslator
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.example.auralocalai.AppLocale
+import com.example.auralocalai.AppSecurity
 import com.example.auralocalai.MainActivity
 import com.example.auralocalai.R
 import java.util.Calendar
@@ -46,22 +50,68 @@ class BriefingWorker(
             val day = now.get(Calendar.DAY_OF_WEEK)
             if (day == Calendar.SATURDAY || day == Calendar.SUNDAY) return Result.success()
         }
+        if (profile.topics.none { it.enabled }) return Result.success()
+        if (AppSecurity.isPrivacyMode(applicationContext)) return Result.success()
 
-        val topics = profile.topics.filter { it.enabled }
-        if (topics.isEmpty()) return Result.success()
-        val keywords = topics.flatMap { it.allKeywords }.distinctBy { it.lowercase() }
-
-        // Background runs use the RSS feeds only (web search needs the encrypted API key and the UI).
-        val results = NewsFetcher().fetchAll(config.sources, keywords)
-        val items = results.flatMap { it.items }
-        if (items.isEmpty()) {
-            return if (runAttemptCount < 2) Result.retry() else Result.success()
+        val started = System.currentTimeMillis()
+        // Keep the job alive longer than the normal 10 minutes when Android allows it.
+        try {
+            setForeground(foregroundInfo(profile))
+        } catch (_: Exception) {
+            // Not allowed right now (e.g. background start restrictions): continue within the normal limit.
         }
-        repository.saveCache(FetchCache(System.currentTimeMillis(), items))
 
-        val matched = TopicMatcher.selectArticles(items, topics, profile.maxArticles).size
-        if (profile.notify) showReadyNotification(matched, profile)
-        return Result.success()
+        val appLanguage = AppLocale.effectiveLanguage(applicationContext)
+        val languageCode = BriefingGenerator.languageFor(profile, appLanguage)
+        val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"
+        val translator = MlKitNewsTranslator()
+        val model = BackgroundModel(applicationContext)
+        try {
+            // Background runs use the news feeds (web search needs the encrypted key and the UI).
+            val modelLoaded = try { model.load() } catch (_: Exception) { false }
+            val briefing = BriefingGenerator(repository, NewsFetcher(), translator) { doi -> com.example.auralocalai.data.medical.StudyLookup.lookup(doi) }.build(
+                profile = profile,
+                config = config,
+                languageCode = languageCode,
+                languageName = languageName,
+                forceRefresh = true,
+                model = if (modelLoaded) BriefingGenerator.ModelCall { system, prompt -> model.run(system, prompt) } else null,
+                modelDeadline = started + MODEL_TIME_BUDGET_MS
+            )
+            if (briefing.articles.isEmpty()) {
+                return if (runAttemptCount < 2) Result.retry() else Result.success()
+            }
+            repository.saveBriefing(briefing)
+            runCatching { BriefingWidgetProvider.refresh(applicationContext) }
+            if (profile.notify) showReadyNotification(briefing.articles.size, profile)
+            return Result.success()
+        } finally {
+            translator.close()
+            try { model.unload() } catch (_: Exception) {}
+        }
+    }
+
+    private fun foregroundInfo(profile: BriefingProfile): ForegroundInfo {
+        val context = applicationContext
+        val localized = AppLocale.localized(context)
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(PROGRESS_CHANNEL_ID, localized.getString(R.string.briefing_notif_channel), NotificationManager.IMPORTANCE_LOW)
+            )
+        }
+        val notification = NotificationCompat.Builder(context, PROGRESS_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_download)
+            .setContentTitle(profile.name)
+            .setContentText(localized.getString(R.string.briefing_preparing))
+            .setOngoing(true)
+            .setSilent(true)
+            .build()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(PROGRESS_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(PROGRESS_NOTIFICATION_ID, notification)
+        }
     }
 
     private fun showReadyNotification(articleCount: Int, profile: BriefingProfile) {
@@ -106,6 +156,12 @@ class BriefingWorker(
         const val CHANNEL_ID = "daily_briefing_channel"
         const val NOTIFICATION_ID = 2001
         const val KEY_PROFILE_ID = "profile_id"
+        const val PROGRESS_CHANNEL_ID = "daily_briefing_progress"
+        const val PROGRESS_NOTIFICATION_ID = 2101
+        /** Stop asking the model after this long, so the job finishes within Android's limits. */
+        const val MODEL_TIME_BUDGET_MS = 8L * 60L * 1000L
+        /** The background job starts this long before the chosen time, so the briefing is ready on time. */
+        const val LEAD_TIME_MS = 30L * 60L * 1000L
     }
 }
 
@@ -120,7 +176,8 @@ object BriefingScheduler {
         workManager.cancelAllWorkByTag(TAG)
         config.profiles.filter { it.scheduleEnabled }.forEach { profile ->
             val periodDays = if (profile.schedule == BriefingFrequency.WEEKLY) 7L else 1L
-            val delayMs = nextRunAt(profile, Calendar.getInstance()) - System.currentTimeMillis()
+            // Start early so the briefing is finished (and the notification arrives) around the chosen time.
+            val delayMs = nextRunAt(profile, Calendar.getInstance()) - BriefingWorker.LEAD_TIME_MS - System.currentTimeMillis()
             val request = PeriodicWorkRequestBuilder<BriefingWorker>(periodDays, TimeUnit.DAYS)
                 .setInitialDelay(delayMs.coerceAtLeast(0L), TimeUnit.MILLISECONDS)
                 .setInputData(Data.Builder().putString(BriefingWorker.KEY_PROFILE_ID, profile.id).build())
