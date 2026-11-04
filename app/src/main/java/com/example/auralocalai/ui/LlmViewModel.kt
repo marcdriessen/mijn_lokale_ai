@@ -669,6 +669,26 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun setAppLanguage(tag: String) {
         com.example.auralocalai.AppLocale.setLanguage(getApplication(), tag)
         _uiState.update { it.copy(appLanguage = com.example.auralocalai.AppLocale.getLanguage(getApplication())) }
+        // The answer-language instruction is part of the system prompt: rebuild the conversation.
+        if (inferenceEngine.isModelLoaded && !_uiState.value.isGenerating) {
+            viewModelScope.launch(Dispatchers.IO) {
+                inferenceEngine.resetConversation(
+                    systemPrompt = effectiveSystemPrompt(),
+                    initialHistory = buildEngineHistory()
+                )
+            }
+        }
+    }
+
+    /**
+     * The system prompt sent to the model: the user's instructions plus an instruction to answer
+     * in the app language (Dutch, Bulgarian, English, ...), unless the user writes in another language.
+     */
+    internal fun effectiveSystemPrompt(): String {
+        val base = _uiState.value.systemPrompt
+        val code = com.example.auralocalai.AppLocale.effectiveLanguage(getApplication())
+        val name = com.example.auralocalai.AppLocale.languageNameForModel(code) ?: return base
+        return "$base Always reply in $name, unless the user clearly writes in another language."
     }
 
     fun saveSystemPrompt(prompt: String) {
@@ -682,7 +702,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         if (inferenceEngine.isModelLoaded && !_uiState.value.isGenerating) {
             viewModelScope.launch(Dispatchers.IO) {
                 inferenceEngine.resetConversation(
-                    systemPrompt = prompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = buildEngineHistory()
                 )
             }
@@ -736,7 +756,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     thinkingTokenBudget = thinkingBudget
                 )
                 inferenceEngine.resetConversation(
-                    systemPrompt = _uiState.value.systemPrompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = buildEngineHistory(),
                     samplerConfig = sampler,
                     thinkingConfig = thinking
@@ -766,7 +786,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         // Reset the engine conversation so that any cancelled C++ decode state is cleaned up
         viewModelScope.launch(Dispatchers.IO) {
             inferenceEngine.resetConversation(
-                systemPrompt = _uiState.value.systemPrompt,
+                systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory()
             )
         }
@@ -1084,7 +1104,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 modelPath = File(storageDir, fileName).absolutePath,
                 preferredBackend = _uiState.value.preferredBackend,
                 contextTurns = _uiState.value.contextWindowSize,
-                systemPrompt = _uiState.value.systemPrompt,
+                systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory(),
                 samplerConfig = sampler,
                 thinkingConfig = thinking,
@@ -1746,7 +1766,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (inferenceEngine.isModelLoaded) {
                 inferenceEngine.resetConversation(
-                    systemPrompt = _uiState.value.systemPrompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = emptyList()
                 )
             }
@@ -1776,7 +1796,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (inferenceEngine.isModelLoaded) {
                 inferenceEngine.resetConversation(
-                    systemPrompt = _uiState.value.systemPrompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = buildEngineHistory()
                 )
             }
@@ -1815,7 +1835,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     if (inferenceEngine.isModelLoaded) {
                         inferenceEngine.resetConversation(
-                            systemPrompt = _uiState.value.systemPrompt,
+                            systemPrompt = effectiveSystemPrompt(),
                             initialHistory = buildEngineHistory()
                         )
                     }
@@ -1892,7 +1912,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         // history has to be dropped as well.
         viewModelScope.launch(Dispatchers.IO) {
             inferenceEngine.resetConversation(
-                systemPrompt = _uiState.value.systemPrompt,
+                systemPrompt = effectiveSystemPrompt(),
                 initialHistory = emptyList()
             )
         }

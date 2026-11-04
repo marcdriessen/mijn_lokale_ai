@@ -797,7 +797,8 @@ fun SettingsScreen(
                     val languageOptions = listOf(
                         com.example.auralocalai.AppLocale.SYSTEM to stringResource(R.string.language_system),
                         "en" to "English",
-                        "nl" to "Nederlands"
+                        "nl" to "Nederlands",
+                        "bg" to "Български"
                     )
 
                     Column {

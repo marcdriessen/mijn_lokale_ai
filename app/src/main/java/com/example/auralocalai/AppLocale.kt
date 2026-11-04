@@ -17,7 +17,7 @@ import java.util.Locale
 object AppLocale {
     const val PREF_KEY = "app_language"
     const val SYSTEM = "system"
-    val SUPPORTED = listOf(SYSTEM, "en", "nl")
+    val SUPPORTED = listOf(SYSTEM, "en", "nl", "bg")
 
     private const val PREFS_NAME = "app_settings"
 
@@ -30,6 +30,22 @@ object AppLocale {
         val stored = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(PREF_KEY, SYSTEM) ?: SYSTEM
         return if (stored in SUPPORTED) stored else SYSTEM
+    }
+
+    /** The language the app actually shows: the chosen one, or the device language for "system". */
+    fun effectiveLanguage(context: Context): String {
+        val tag = getLanguage(context)
+        return if (tag == SYSTEM) Locale.getDefault().language.ifBlank { "en" } else tag
+    }
+
+    /** English name of a language code, for instructions to the model. Null when unknown. */
+    fun languageNameForModel(code: String): String? = when (code) {
+        "nl" -> "Dutch"
+        "bg" -> "Bulgarian"
+        "en" -> "English"
+        "de" -> "German"
+        "fr" -> "French"
+        else -> null
     }
 
     fun setLanguage(context: Context, tag: String) {
