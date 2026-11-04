@@ -142,6 +142,10 @@ data class UiState(
     val loadingStage: String? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val preferredBackend: String = "AUTO",
+    /** Chat answers via English: question translated to English, answer translated back (ML Kit, offline). */
+    val pivotEnglish: Boolean = false,
+    /** Short status shown while the answer is translated back. */
+    val pivotStatus: String? = null,
     val socInfo: SocInfo? = null,
     val importProgress: Float? = null,
     val modelLoadBenchmarks: Map<String, ModelLoadBenchmark> = emptyMap(),
@@ -357,6 +361,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 enableThinking = initialEnableThinking,
                 thinkingTokenBudget = initialThinkingBudget,
                 appLanguage = com.example.auralocalai.AppLocale.getLanguage(application),
+                pivotEnglish = prefs.getBoolean("chat_pivot_english", false),
                 autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0)
             ) 
         }
@@ -876,6 +881,19 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
      * The chat conversation is restored afterwards. Returns null when no model is loaded,
      * the chat is generating, or generation failed.
      */
+    private val pivotTranslator by lazy { com.example.auralocalai.data.translate.MlKitNewsTranslator() }
+
+    /** Turns "answer via English" on or off (remembered). */
+    fun setPivotEnglish(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+            .putBoolean("chat_pivot_english", enabled).apply()
+        _uiState.update { it.copy(pivotEnglish = enabled) }
+    }
+
+    /** True when "via English" applies: switched on and the app is not in English. */
+    private fun pivotActive(): Boolean =
+        _uiState.value.pivotEnglish && com.example.auralocalai.AppLocale.effectiveLanguage(getApplication()) != "en"
+
     /** File name of the loaded model (for reloading on the CPU after a GPU failure). */
     private var loadedModelFile: String? = null
 
@@ -1778,7 +1796,19 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             if (currentPrefix.isNotBlank()) {
                 turnParts += currentPrefix.trimEnd()
             }
-            turnParts += messageText
+            val appLang = com.example.auralocalai.AppLocale.effectiveLanguage(getApplication())
+            val usePivot = pivotActive()
+            if (usePivot) {
+                _uiState.update { it.copy(pivotStatus = str(R.string.pivot_translating_question)) }
+                val english = withContext(Dispatchers.IO) {
+                    runCatching { pivotTranslator.translateFrom(messageText, appLang, "en") }.getOrNull()
+                }
+                turnParts += (english ?: messageText)
+                turnParts += com.example.auralocalai.data.translate.PivotTranslation.ANSWER_IN_ENGLISH
+                _uiState.update { it.copy(pivotStatus = str(R.string.pivot_thinking_english)) }
+            } else {
+                turnParts += messageText
+            }
             val currentTurn = turnParts.joinToString("\n\n")
 
             // Extract downsampled bitmap natively if a vision-capable model is loaded (from image or video keyframe)
@@ -1876,6 +1906,18 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         throw e
                     }
                 }
+                // "Via English": translate the finished English answer back (structure and code kept).
+                if (usePivot && accumulatedBuilder.isNotEmpty()) {
+                    _uiState.update { it.copy(pivotStatus = str(R.string.pivot_translating_answer)) }
+                    val englishAnswer = stripThinkingBlocks(accumulatedBuilder.toString())
+                    val translated = withContext(Dispatchers.IO) {
+                        com.example.auralocalai.data.translate.PivotTranslation.translateMarkdown(englishAnswer) { line ->
+                            runCatching { pivotTranslator.translateFrom(line, "en", appLang) }.getOrNull()
+                        }
+                    }
+                    accumulatedBuilder.clear()
+                    accumulatedBuilder.append(translated)
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 wasCancelled = true
                 throw e
@@ -1918,7 +1960,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                             searchQuery = searchOutcome?.query
                         )
                     }
-                    state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null)
+                    state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null, pivotStatus = null)
                 }
                 saveMessages(_uiState.value.messages)
                 scheduleIdleUnload()
@@ -2146,6 +2188,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        runCatching { pivotTranslator.close() }
         val context = getApplication<Application>().applicationContext
         context.stopService(Intent(context, ModelDownloadService::class.java))
         inferenceJob?.cancel()

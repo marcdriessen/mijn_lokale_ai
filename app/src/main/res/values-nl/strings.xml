@@ -832,4 +832,14 @@
     <string name="briefing_skip_paywall">Betaalde nieuwssites overslaan</string>
     <string name="briefing_skip_paywall_desc">Laat sites weg waar de meeste artikelen achter een betaalmuur zitten (bijv. NRC, Volkskrant, FD, NYT, FT), ook als Google Nieuws ernaar verwijst.</string>
     <string name="briefing_ground_news_copied">Kop gekopieerd. Plak hem in de zoekbalk van Ground News om de berichtgeving te vergelijken.</string>
+    <string name="pivot_chip">🌐 Via Engels</string>
+    <string name="pivot_on_toast">Via Engels staat aan: je vraag wordt naar het Engels vertaald, het model antwoordt in het Engels en het antwoord wordt terugvertaald. Betere antwoorden van kleine modellen; het antwoord verschijnt als het klaar is.</string>
+    <string name="pivot_off_toast">Via Engels staat uit: het model antwoordt direct in jouw taal.</string>
+    <string name="pivot_translating_question">Je vraag wordt naar het Engels vertaald…</string>
+    <string name="pivot_thinking_english">Het model antwoordt in het Engels; de vertaling volgt…</string>
+    <string name="pivot_translating_answer">Het antwoord wordt terugvertaald…</string>
+    <string name="tts_language_missing">De stem voor deze taal is niet geïnstalleerd. Installeer die via Instellingen › Systeem › Talen › Tekst-naar-spraak.</string>
+    <string name="coach_auto_speak">Antwoorden voorlezen</string>
+    <string name="coach_auto_speak_on">De coach spreekt zijn antwoorden nu uit</string>
+    <string name="coach_auto_speak_off">Antwoorden worden niet meer voorgelezen</string>
 </resources>

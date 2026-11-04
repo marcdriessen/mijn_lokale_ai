@@ -51,6 +51,10 @@ import com.example.auralocalai.ui.CoachViewModel
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.components.AppHeader
 import com.example.auralocalai.ui.components.CircleIconButton
+import com.example.auralocalai.ui.components.DictationStatus
+import com.example.auralocalai.ui.components.rememberDictation
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import java.util.Locale
 
 @Composable
@@ -63,7 +67,11 @@ fun CoachScreen(
     val state by coachViewModel.state.collectAsState()
     val context = LocalContext.current
     var input by remember { mutableStateOf("") }
+    val coachDictation = rememberDictation(languageCode = state.targetLanguage, continuous = false) { heard ->
+        input = listOf(input.trim(), heard).filter { it.isNotBlank() }.joinToString(" ")
+    }
     val listState = rememberLazyListState()
+    var autoSpeak by remember { mutableStateOf(false) }
 
     val tts = remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(Unit) {
@@ -81,6 +89,14 @@ fun CoachScreen(
             coachViewModel.clearMessage()
         }
     }
+    // Talk-back mode: the coach's replies are read aloud in the language you practise.
+    LaunchedEffect(state.turns.size) {
+        val last = state.turns.lastOrNull()
+        if (autoSpeak && last != null && !last.fromLearner) {
+            tts.value?.setLanguage(Locale.forLanguageTag(state.targetLanguage))
+            tts.value?.speak(last.text, TextToSpeech.QUEUE_FLUSH, null, "coach_auto")
+        }
+    }
     LaunchedEffect(state.turns.size, state.busy) {
         val count = listState.layoutInfo.totalItemsCount
         if (state.turns.isNotEmpty() && count > 0) listState.animateScrollToItem(count - 1)
@@ -96,6 +112,14 @@ fun CoachScreen(
     Scaffold(
         topBar = {
             AppHeader(title = stringResource(R.string.home_coach), subtitle = stringResource(R.string.home_coach_desc), onBack = onBack) {
+                CircleIconButton(
+                    Icons.Default.VolumeUp,
+                    stringResource(R.string.coach_auto_speak),
+                    accent = autoSpeak
+                ) {
+                    autoSpeak = !autoSpeak
+                    Toast.makeText(context, context.getString(if (autoSpeak) R.string.coach_auto_speak_on else R.string.coach_auto_speak_off), Toast.LENGTH_SHORT).show()
+                }
                 CircleIconButton(Icons.Default.Refresh, stringResource(R.string.coach_restart)) { coachViewModel.reset() }
             }
         },
@@ -176,7 +200,16 @@ fun CoachScreen(
                 }
                 if (state.busy) item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
             }
+            DictationStatus(coachDictation, modifier = Modifier.padding(horizontal = 12.dp))
             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                // Speak in the language you practise (e.g. Bulgarian).
+                IconButton(onClick = { coachDictation.toggle() }) {
+                    Icon(
+                        if (coachDictation.isListening) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = stringResource(R.string.voice_input),
+                        tint = if (coachDictation.isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+                }
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },

@@ -832,4 +832,14 @@
     <string name="briefing_skip_paywall">Пропускай платени новинарски сайтове</string>
     <string name="briefing_skip_paywall_desc">Пропуска сайтове, при които повечето статии са платени (напр. NYT, FT, Капитал), също когато Google Новини води към тях.</string>
     <string name="briefing_ground_news_copied">Заглавието е копирано. Поставете го в търсачката на Ground News, за да сравните отразяването.</string>
+    <string name="pivot_chip">🌐 Чрез английски</string>
+    <string name="pivot_on_toast">Чрез английски е включено: въпросът се превежда на английски, моделът отговаря на английски и отговорът се превежда обратно. По-добри отговори от малки модели.</string>
+    <string name="pivot_off_toast">Чрез английски е изключено: моделът отговаря директно на вашия език.</string>
+    <string name="pivot_translating_question">Въпросът се превежда на английски…</string>
+    <string name="pivot_thinking_english">Моделът отговаря на английски; преводът следва…</string>
+    <string name="pivot_translating_answer">Отговорът се превежда обратно…</string>
+    <string name="tts_language_missing">Гласът за този език не е инсталиран. Инсталирайте го от Настройки › Система › Езици › Синтезиран говор.</string>
+    <string name="coach_auto_speak">Четене на отговорите на глас</string>
+    <string name="coach_auto_speak_on">Треньорът вече изговаря отговорите си</string>
+    <string name="coach_auto_speak_off">Отговорите вече не се четат на глас</string>
 </resources>

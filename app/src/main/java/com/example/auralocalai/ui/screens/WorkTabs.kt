@@ -67,6 +67,8 @@ import com.example.auralocalai.ui.components.DictationButton
 import com.example.auralocalai.ui.components.DictationStatus
 import com.example.auralocalai.ui.components.rememberDictation
 import com.example.auralocalai.ui.components.rememberPhotoCapture
+import com.example.auralocalai.ui.components.rememberSpeaker
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 
 @Composable
 private fun BusyBar(busy: String?) {
@@ -79,8 +81,9 @@ private fun BusyBar(busy: String?) {
 }
 
 @Composable
-private fun ResultCard(text: String) {
+private fun ResultCard(text: String, languageCode: String) {
     val context = LocalContext.current
+    val speaker = rememberSpeaker()
     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text, style = MaterialTheme.typography.bodyMedium)
@@ -97,6 +100,11 @@ private fun ResultCard(text: String) {
                     }
                     context.startActivity(Intent.createChooser(send, context.getString(R.string.briefing_share)))
                 }, label = { Text(stringResource(R.string.briefing_share)) }, leadingIcon = { Icon(Icons.Default.Share, null, Modifier.size(16.dp)) })
+                AssistChip(
+                    onClick = { speaker.toggle(text, languageCode) },
+                    label = { Text(stringResource(if (speaker.isSpeaking) R.string.dictation_stop else R.string.briefing_read_aloud)) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, null, Modifier.size(16.dp)) }
+                )
             }
         }
     }
@@ -157,7 +165,7 @@ fun PsychoEducationTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
         BusyBar(state.busy)
         if (state.psychoOutput.isNotBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
-            ResultCard(state.psychoOutput)
+            ResultCard(state.psychoOutput, state.psychoLanguage)
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(stringResource(R.string.work_check_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -370,7 +378,7 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
         BusyBar(state.busy)
         if (state.reportOutput.isNotBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
-            ResultCard(state.reportOutput)
+            ResultCard(state.reportOutput, com.example.auralocalai.AppLocale.effectiveLanguage(context))
             Button(
                 onClick = { saveDocx.launch(workViewModel.suggestedReportFileName()) },
                 shape = RoundedCornerShape(24.dp),

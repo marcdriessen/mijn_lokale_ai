@@ -260,6 +260,11 @@ fun ChatScreen(
         }
     }
 
+    // In-app dictation (offline when possible); one sentence per tap.
+    val chatDictation = com.example.auralocalai.ui.components.rememberDictation(continuous = false) { heard ->
+        textInput = if (textInput.isBlank()) heard else if (textInput.endsWith(" ")) "$textInput$heard" else "$textInput $heard"
+    }
+
     fun toggleListening() {
         if (isListening) {
             try {
@@ -824,6 +829,17 @@ fun ChatScreen(
                     }
                 }
 
+                // "Via English" status while the question/answer is translated.
+                uiState.pivotStatus?.let { status ->
+                    if (uiState.isGenerating) {
+                        Text(
+                            "🌐 $status",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 6.dp)
+                        )
+                    }
+                }
                 // Shortcuts: put an instruction in front of the typed text (or start a new one).
                 if (!uiState.isGenerating) {
                     val shortcuts = listOf(
@@ -840,6 +856,22 @@ fun ChatScreen(
                             .padding(start = 16.dp, end = 16.dp, top = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        // Choice per chat: answer directly, or via English (better with small models).
+                        if (com.example.auralocalai.AppLocale.effectiveLanguage(context) != "en") {
+                            FilterChip(
+                                selected = uiState.pivotEnglish,
+                                onClick = {
+                                    viewModel.setPivotEnglish(!uiState.pivotEnglish)
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(if (!uiState.pivotEnglish) R.string.pivot_on_toast else R.string.pivot_off_toast),
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                },
+                                label = { Text(stringResource(R.string.pivot_chip), fontSize = 12.sp) },
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        }
                         shortcuts.forEach { (label, prompt) ->
                             AssistChip(
                                 onClick = {
@@ -1011,18 +1043,18 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    if (isListening) {
+                                    if (chatDictation.isListening) {
                                         PulsingListeningIndicator()
                                     }
                                     IconButton(
-                                        onClick = { toggleListening() },
+                                        onClick = { chatDictation.toggle() },
                                         enabled = !uiState.isGenerating,
                                         modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Mic,
-                                            contentDescription = if (isListening) stringResource(R.string.stop_listening) else stringResource(R.string.voice_input),
-                                            tint = if (isListening) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
+                                            contentDescription = if (chatDictation.isListening) stringResource(R.string.stop_listening) else stringResource(R.string.voice_input),
+                                            tint = if (chatDictation.isListening) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }

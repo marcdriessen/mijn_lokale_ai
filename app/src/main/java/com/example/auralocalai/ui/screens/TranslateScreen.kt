@@ -60,6 +60,11 @@ import com.example.auralocalai.ui.TranslateViewModel
 import com.example.auralocalai.ui.components.AppHeader
 import com.example.auralocalai.ui.components.ScriptSelector
 import com.example.auralocalai.ui.components.rememberPhotoCapture
+import com.example.auralocalai.ui.components.rememberSpeaker
+import com.example.auralocalai.ui.components.rememberDictation
+import com.example.auralocalai.ui.components.DictationButton
+import com.example.auralocalai.ui.components.DictationStatus
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 
 @Composable
 fun TranslateScreen(
@@ -95,6 +100,10 @@ fun TranslateScreen(
 
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) translateViewModel.translateImage(context, uri = uri)
+    }
+    val speaker = rememberSpeaker()
+    val translateDictation = rememberDictation { heard ->
+        translateViewModel.setInput(listOf(translateViewModel.state.value.input.trim(), heard).filter { it.isNotBlank() }.joinToString(" "))
     }
     val camera = rememberPhotoCapture { bitmap -> translateViewModel.translateImage(context, bitmap = bitmap) }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -152,6 +161,7 @@ fun TranslateScreen(
                     Text(stringResource(R.string.translate_pick_photo))
                 }
             }
+            DictationButton(translateDictation, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp))
             OutlinedButton(
                 onClick = { documentPicker.launch(DocumentReader.PICKER_TYPES) },
                 enabled = state.busy == null,
@@ -171,6 +181,7 @@ fun TranslateScreen(
                 Text(state.sourceTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
             }
+            DictationStatus(translateDictation)
             OutlinedTextField(
                 value = state.input,
                 onValueChange = { translateViewModel.setInput(it) },
@@ -239,6 +250,11 @@ fun TranslateScreen(
                                 }
                                 context.startActivity(Intent.createChooser(send, context.getString(R.string.briefing_share)))
                             }, label = { Text(stringResource(R.string.briefing_share)) }, leadingIcon = { Icon(Icons.Default.Share, null, Modifier.size(16.dp)) })
+                            AssistChip(
+                                onClick = { speaker.toggle(state.output, state.targetLanguage) },
+                                label = { Text(stringResource(if (speaker.isSpeaking) R.string.dictation_stop else R.string.briefing_read_aloud)) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.VolumeUp, null, Modifier.size(16.dp)) }
+                            )
                             AssistChip(
                                 onClick = { saveDocx.launch(translateViewModel.suggestedFileName()) },
                                 label = { Text(stringResource(R.string.translate_save_docx)) },

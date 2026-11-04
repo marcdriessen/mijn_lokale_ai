@@ -833,4 +833,14 @@
     <string name="briefing_skip_paywall">Skip paid news sites</string>
     <string name="briefing_skip_paywall_desc">Leaves out sites where most articles are behind a paywall (e.g. NRC, Volkskrant, FD, NYT, FT), also when Google News links to them.</string>
     <string name="briefing_ground_news_copied">Headline copied. Paste it in the Ground News search bar to compare coverage.</string>
+    <string name="pivot_chip">🌐 Via English</string>
+    <string name="pivot_on_toast">Via English is on: your question is translated to English, the model answers in English and the answer is translated back. Better answers from small models; the answer appears when it is complete.</string>
+    <string name="pivot_off_toast">Via English is off: the model answers directly in your language.</string>
+    <string name="pivot_translating_question">Translating your question to English…</string>
+    <string name="pivot_thinking_english">The model is answering in English; the translation follows…</string>
+    <string name="pivot_translating_answer">Translating the answer back…</string>
+    <string name="tts_language_missing">The voice for this language is not installed. Install it via Settings › System › Languages › Text-to-speech.</string>
+    <string name="coach_auto_speak">Read replies aloud</string>
+    <string name="coach_auto_speak_on">The coach now speaks its replies</string>
+    <string name="coach_auto_speak_off">Replies are no longer read aloud</string>
 </resources>
