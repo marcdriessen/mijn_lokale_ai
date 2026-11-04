@@ -114,7 +114,7 @@
     <string name="cat_compact">4 GB RAM</string>
     <string name="cat_uncensored">Ongecensureerd</string>
     <string name="cat_coding">💻 Programmeren</string>
-    <string name="model_manager_title">MODELBEHEER</string>
+    <string name="model_manager_title">Modellen</string>
     <string name="storage_dir_title">Opslagmap voor modellen</string>
     <string name="storage_dir_body" formatted="false">Alle taalmodellen worden gedownload naar de beveiligde opslagmap van de app. Modellen blijven 100% offline.</string>
     <string name="hf_token_configured_badge">🔑 HF-token: ingesteld ✓</string>
@@ -146,7 +146,7 @@
     <string name="download_complete_init">Download klaar! Lokaal model wordt voorbereid...</string>
     <string name="retry_download">Opnieuw downloaden</string>
     <string name="dismiss">Sluiten</string>
-    <string name="settings_title">APP-INSTELLINGEN</string>
+    <string name="settings_title">Instellingen</string>
     <string name="token_settings">Tokeninstellingen</string>
     <string name="hf_auth_title">Inloggen bij Hugging Face</string>
     <string name="hf_auth_body">Sommige afgeschermde modellen hebben een Hugging Face-toegangstoken (leesrechten) nodig om te downloaden. Je token wordt veilig in de app opgeslagen en alleen tijdens het downloaden naar Hugging Face gestuurd.</string>
@@ -453,4 +453,19 @@
     <string name="briefing_original_title">Originele kop: %1$s</string>
     <string name="briefing_language">Taal van de briefing</string>
     <string name="briefing_language_app">Taal van de app</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_news">Nieuws</string>
+    <string name="nav_qa">Vraagbaak</string>
+    <string name="nav_models">Modellen</string>
+    <string name="nav_settings">Instellingen</string>
+    <string name="header_models_subtitle">AI op je telefoon</string>
+    <string name="medical_title_short">Vraagbaak</string>
+    <string name="medical_subtitle">GGZ &amp; verslavingszorg</string>
+    <string name="briefing_more">Meer</string>
+    <string name="briefing_your_selection">Jouw selectie</string>
+    <string name="briefing_edit_topics">Onderwerpen bewerken</string>
+    <string name="briefing_update_now">Nu bijwerken</string>
+    <string name="briefing_in_focus">In focus</string>
+    <string name="briefing_just_in">Net binnen</string>
+    <string name="briefing_time_in_topic">%1$s in %2$s</string>
 </resources>

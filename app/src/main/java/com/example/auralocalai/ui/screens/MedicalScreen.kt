@@ -113,26 +113,14 @@ fun MedicalScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.medical_title), fontWeight = FontWeight.Bold, fontSize = 18.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showLibrary = true }) {
-                        Icon(Icons.Default.LibraryBooks, contentDescription = stringResource(R.string.medical_library))
-                    }
-                    IconButton(onClick = { showHistory = true }) {
-                        Icon(Icons.Default.History, contentDescription = stringResource(R.string.medical_history))
-                    }
-                    IconButton(onClick = { showSettings = true }) {
-                        Icon(Icons.Default.Tune, contentDescription = stringResource(R.string.medical_sources_settings))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
+            com.example.auralocalai.ui.components.AppHeader(
+                title = stringResource(R.string.medical_title_short),
+                subtitle = stringResource(R.string.medical_subtitle)
+            ) {
+                com.example.auralocalai.ui.components.CircleIconButton(Icons.Default.LibraryBooks, stringResource(R.string.medical_library)) { showLibrary = true }
+                com.example.auralocalai.ui.components.CircleIconButton(Icons.Default.History, stringResource(R.string.medical_history)) { showHistory = true }
+                com.example.auralocalai.ui.components.CircleIconButton(Icons.Default.Tune, stringResource(R.string.medical_sources_settings)) { showSettings = true }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()

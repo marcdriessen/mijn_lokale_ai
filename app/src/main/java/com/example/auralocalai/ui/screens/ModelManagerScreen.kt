@@ -100,18 +100,10 @@ fun ModelManagerScreen(
  
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.model_manager_title), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.primary) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back), tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
-            }
+            com.example.auralocalai.ui.components.AppHeader(
+                title = stringResource(R.string.model_manager_title),
+                subtitle = stringResource(R.string.header_models_subtitle)
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()

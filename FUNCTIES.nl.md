@@ -34,6 +34,10 @@ Het uiterlijk is rustig en redactioneel: warm gebroken wit (of donker), donkergr
 serif-koppen zoals in een krant. Modelbeschrijvingen staan in de gekozen taal. In de chat staan antwoorden als
 gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
+**Navigatie**: onderaan staat op elk scherm dezelfde balk met vijf tabbladen: **Chat · Nieuws · Vraagbaak · Modellen ·
+Instellingen**. Elk scherm heeft dezelfde kop: een kleine regel bovenin (bijv. de datum), een grote vette titel en
+rechts ronde knoppen. Het zijmenu in de chat toont alleen je gesprekken. De terugknop gaat naar de chat.
+
 ### 2.1 Chatscherm (startscherm)
 
 **Bovenbalk**
@@ -166,13 +170,19 @@ gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
 ### 2.4 Nieuwsbriefings
 
-Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade. Opgezet zoals een moderne nieuwsapp:
-bovenaan de briefings als knoppen en **tabbladen per onderwerp** ("Alles", Ggz, Verslavingszorg, …), dan de naam van
-de briefing met datum, editie en "bijgewerkt … geleden", één groot **hoofdbericht** met foto, en daaronder **Meer
-nieuws** als compacte lijst (rubriekslabel, vette kop, bron en tijd, kleine foto rechts). Tik op een bericht voor de
-**detailpagina** met grote foto, vertaalde kop (plus de originele kop), samenvatting, **"Betekenis voor jouw werk"**,
-**Lees het artikel bij …**, **Vraag verder** en **Ground News**.
+Tabblad **Nieuws**. Opgezet als een moderne nieuwsapp (geïnspireerd op NU.nl, DW en Ground News):
 
+- **Kop**: datum + "Nieuws", met ronde knoppen voor **briefing bewerken**, **nieuwe briefing** (+) en een **menu**
+  (nieuws opnieuw ophalen, voorlezen, delen, eerdere briefings, bronnen).
+- **Briefings als pillen** (gekozen = donker gevuld; klokje = automatisch gepland).
+- **Jouw selectie** met rechts **Onderwerpen bewerken**, de status ("bijgewerkt … geleden · volgende uitvoering …") en
+  de knop **Genereer briefing / Nu bijwerken**.
+- **IN FOCUS**-regel om op onderwerp te filteren (Alles, Ggz, Verslavingszorg, …).
+- **Hoofdbericht** als grote foto met de kop erover, daarna **kaarten** (onderwerp en bron, vette kop met vierkante foto,
+  bron · tijd en een menu met "lees artikel" en "delen"), en de rest als **Net binnen**-tijdlijn ("26 min. geleden in
+  Ggz", kop en foto).
+- Tik op een bericht voor de **detailpagina** met grote foto, vertaalde kop (plus originele kop), samenvatting,
+  **"Betekenis voor jouw werk"**, **Lees het artikel bij …**, **Vraag verder** en **Ground News**.
 - **Taal van de briefing** per briefing in te stellen (Nederlands, English, Български of de taal van de app; standaard
   Nederlands voor de ggz-briefing). Het model vertaalt Engelse berichten naar die taal. Berichten die (nog) niet door
   het model zijn verwerkt, krijgen het label "origineel".

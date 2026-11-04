@@ -114,7 +114,7 @@
     <string name="cat_compact">4 GB RAM</string>
     <string name="cat_uncensored">Без цензура</string>
     <string name="cat_coding">💻 Програмиране</string>
-    <string name="model_manager_title">УПРАВЛЕНИЕ НА МОДЕЛИ</string>
+    <string name="model_manager_title">Модели</string>
     <string name="storage_dir_title">Папка за модели</string>
     <string name="storage_dir_body" formatted="false">Всички езикови модели се изтеглят в защитената папка на приложението. Моделите остават 100% офлайн.</string>
     <string name="hf_token_configured_badge">🔑 HF токен: настроен ✓</string>
@@ -146,7 +146,7 @@
     <string name="download_complete_init">Изтеглянето завърши! Моделът се подготвя...</string>
     <string name="retry_download">Изтегли отново</string>
     <string name="dismiss">Затвори</string>
-    <string name="settings_title">НАСТРОЙКИ</string>
+    <string name="settings_title">Настройки</string>
     <string name="token_settings">Настройки на токена</string>
     <string name="hf_auth_title">Вход в Hugging Face</string>
     <string name="hf_auth_body">Някои защитени модели изискват токен за достъп до Hugging Face (права за четене), за да бъдат изтеглени. Токенът се пази сигурно в приложението и се изпраща до Hugging Face само при изтегляне.</string>
@@ -453,4 +453,19 @@
     <string name="briefing_original_title">Оригинално заглавие: %1$s</string>
     <string name="briefing_language">Език на бюлетина</string>
     <string name="briefing_language_app">Езикът на приложението</string>
+    <string name="nav_chat">Чат</string>
+    <string name="nav_news">Новини</string>
+    <string name="nav_qa">Справочник</string>
+    <string name="nav_models">Модели</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="header_models_subtitle">AI на телефона ви</string>
+    <string name="medical_title_short">Справочник</string>
+    <string name="medical_subtitle">Психиатрия и зависимости</string>
+    <string name="briefing_more">Още</string>
+    <string name="briefing_your_selection">Вашата селекция</string>
+    <string name="briefing_edit_topics">Редактирай теми</string>
+    <string name="briefing_update_now">Обнови сега</string>
+    <string name="briefing_in_focus">Във фокус</string>
+    <string name="briefing_just_in">Току-що</string>
+    <string name="briefing_time_in_topic">%1$s в %2$s</string>
 </resources>

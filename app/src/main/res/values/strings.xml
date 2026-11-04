@@ -115,7 +115,7 @@
     <string name="cat_compact">4GB RAM</string>
     <string name="cat_uncensored">Uncensored</string>
     <string name="cat_coding">💻 Coding</string>
-    <string name="model_manager_title">LOCAL LLM MANAGER</string>
+    <string name="model_manager_title">Models</string>
     <string name="storage_dir_title">Model Storage Directory</string>
     <string name="storage_dir_body" formatted="false">All large language models are downloaded to secure, external app file storage. Models remain 100% offline.</string>
     <string name="hf_token_configured_badge">🔑 HF Token: Configured ✓</string>
@@ -147,7 +147,7 @@
     <string name="download_complete_init">Download complete! Initializing local model...</string>
     <string name="retry_download">Retry Download</string>
     <string name="dismiss">Dismiss</string>
-    <string name="settings_title">APP SETTINGS</string>
+    <string name="settings_title">Settings</string>
     <string name="token_settings">Token Settings</string>
     <string name="hf_auth_title">Hugging Face Authentication</string>
     <string name="hf_auth_body">Some gated, highly-capable models require a Hugging Face User Access Token (read permission) to download. Your token is stored securely in local app settings and only sent directly to Hugging Face during downloads.</string>
@@ -454,4 +454,19 @@
     <string name="briefing_original_title">Original headline: %1$s</string>
     <string name="briefing_language">Language of the briefing</string>
     <string name="briefing_language_app">App language</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_news">News</string>
+    <string name="nav_qa">Q&amp;A</string>
+    <string name="nav_models">Models</string>
+    <string name="nav_settings">Settings</string>
+    <string name="header_models_subtitle">On-device AI</string>
+    <string name="medical_title_short">Q&amp;A</string>
+    <string name="medical_subtitle">Mental health &amp; addiction care</string>
+    <string name="briefing_more">More</string>
+    <string name="briefing_your_selection">Your selection</string>
+    <string name="briefing_edit_topics">Edit topics</string>
+    <string name="briefing_update_now">Update now</string>
+    <string name="briefing_in_focus">In focus</string>
+    <string name="briefing_just_in">Just in</string>
+    <string name="briefing_time_in_topic">%1$s in %2$s</string>
 </resources>
