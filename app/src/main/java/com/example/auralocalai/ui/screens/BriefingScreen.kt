@@ -130,6 +130,8 @@ fun BriefingScreen(
     var showSources by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var isSpeaking by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf<String?>(null) }
+    var detailArticle by remember { mutableStateOf<BriefingArticle?>(null) }
     val modelReady = llmState.modelState is ModelState.Loaded
     val profile = state.selectedProfile
 
@@ -193,254 +195,271 @@ fun BriefingScreen(
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
     ) { padding ->
-        LazyColumn(
+        val briefing = state.current
+        val allArticles = briefing?.let { briefingViewModel.displayArticles(it) } ?: emptyList()
+        val tabs = allArticles.map { it.topicName }.distinct()
+        val articles = if (selectedTab == null) allArticles else allArticles.filter { it.topicName == selectedTab }
+
+        Column(
             modifier = Modifier
                 .padding(padding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
         ) {
-            // Profile switcher
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    state.config.profiles.forEach { p ->
-                        FilterChip(
-                            selected = p.id == profile?.id,
-                            onClick = { briefingViewModel.selectProfile(p.id) },
-                            label = { Text(p.name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            leadingIcon = if (p.scheduleEnabled) {
-                                { Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp)) }
-                            } else null,
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                    }
+            // Briefing (profile) switcher
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                state.config.profiles.forEach { p ->
                     FilterChip(
-                        selected = false,
-                        onClick = { editingProfileId = briefingViewModel.addProfile() },
-                        label = { Text(stringResource(R.string.briefing_new_profile), fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        selected = p.id == profile?.id,
+                        onClick = {
+                            selectedTab = null
+                            briefingViewModel.selectProfile(p.id)
+                        },
+                        label = { Text(p.name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        leadingIcon = if (p.scheduleEnabled) {
+                            { Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                        } else null,
                         shape = RoundedCornerShape(20.dp)
                     )
                 }
+                FilterChip(
+                    selected = false,
+                    onClick = { editingProfileId = briefingViewModel.addProfile() },
+                    label = { Text(stringResource(R.string.briefing_new_profile), fontSize = 12.sp) },
+                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                    shape = RoundedCornerShape(20.dp)
+                )
             }
 
-            if (profile == null) {
-                item { Text(stringResource(R.string.briefing_empty), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                return@LazyColumn
+            // Topic tabs, like the sections of a news app
+            if (tabs.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp)
+                ) {
+                    NewsTab(stringResource(R.string.briefing_tab_all), selectedTab == null) { selectedTab = null }
+                    tabs.forEach { tab -> NewsTab(tab, selectedTab == tab) { selectedTab = tab } }
+                }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            val briefing = state.current
-            val shownAt = briefing?.createdAt ?: System.currentTimeMillis()
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                if (profile == null) {
+                    item { Text(stringResource(R.string.briefing_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
+                    return@LazyColumn
+                }
 
-            // Editorial masthead
-            item {
-                Column {
-                    Text(
-                        text = (DateFormat.getDateInstance(DateFormat.FULL, locale).format(Date(shownAt)) + " · " + editionLabel(context, shownAt))
-                            .uppercase(locale),
-                        style = MaterialTheme.typography.labelMedium,
-                        letterSpacing = 1.2.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = profile.name,
-                        style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    val intro = profile.instructions.substringBefore(". ").trim().trimEnd('.')
-                    if (intro.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                // Status line + actions
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        val shownAt = briefing?.createdAt ?: System.currentTimeMillis()
                         Text(
-                            text = "$intro.",
+                            text = profile.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val updated = if (briefing != null) {
+                            stringResource(
+                                R.string.briefing_updated,
+                                DateUtils.getRelativeTimeSpanString(shownAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+                            )
+                        } else ""
+                        Text(
+                            text = listOf(
+                                DateFormat.getDateInstance(DateFormat.FULL, locale).format(Date(shownAt)),
+                                editionLabel(context, shownAt),
+                                updated
+                            ).filter { it.isNotBlank() }.joinToString(" · "),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (profile.scheduleEnabled) {
+                            val next = BriefingScheduler.nextRunAt(profile, Calendar.getInstance())
+                            Text(
+                                text = stringResource(
+                                    R.string.briefing_next_run,
+                                    DateUtils.getRelativeTimeSpanString(next, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (!modelReady) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        stringResource(R.string.briefing_load_model_translate),
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TextButton(onClick = onOpenModels) { Text(stringResource(R.string.models), fontWeight = FontWeight.Bold) }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        if (state.isRunning) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(state.progress ?: "", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                TextButton(onClick = { briefingViewModel.stop() }) {
+                                    Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(stringResource(R.string.briefing_stop))
+                                }
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Button(
+                                    onClick = { briefingViewModel.generate(llmViewModel) },
+                                    shape = RoundedCornerShape(24.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp)
+                                ) {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.briefing_generate), fontWeight = FontWeight.SemiBold)
+                                }
+                                RoundIconButton(Icons.Default.Refresh, stringResource(R.string.briefing_refresh)) {
+                                    briefingViewModel.generate(llmViewModel, forceRefresh = true)
+                                }
+                                if (briefing != null) {
+                                    RoundIconButton(
+                                        if (isSpeaking) Icons.Default.Stop else Icons.Default.RecordVoiceOver,
+                                        if (isSpeaking) stringResource(R.string.briefing_stop_reading) else stringResource(R.string.briefing_read_aloud)
+                                    ) {
+                                        val engine = tts.value
+                                        if (engine == null) {
+                                            Toast.makeText(context, context.getString(R.string.briefing_tts_unavailable), Toast.LENGTH_SHORT).show()
+                                        } else if (isSpeaking) {
+                                            engine.stop()
+                                            isSpeaking = false
+                                        } else {
+                                            engine.speak(briefingViewModel.briefingAsSpeech(briefing), TextToSpeech.QUEUE_FLUSH, null, "briefing")
+                                            isSpeaking = true
+                                        }
+                                    }
+                                    val header = stringResource(R.string.briefing_share_header, formatDateTime(context, briefing.createdAt))
+                                    val relevanceLabel = stringResource(R.string.briefing_relevance_label)
+                                    val shareTitle = stringResource(R.string.briefing_share)
+                                    RoundIconButton(Icons.Default.Share, shareTitle) {
+                                        val send = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, briefingViewModel.briefingAsText(briefing, header, relevanceLabel))
+                                        }
+                                        context.startActivity(Intent.createChooser(send, shareTitle))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (articles.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.briefing_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.padding(16.dp)
                         )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        profile.topics.forEach { topic ->
-                            TagChip(
-                                text = topic.name,
-                                active = topic.enabled,
-                                onClick = { briefingViewModel.toggleTopic(profile.id, topic.id) }
-                            )
-                        }
-                    }
-                    if (profile.scheduleEnabled) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val next = BriefingScheduler.nextRunAt(profile, Calendar.getInstance())
-                        Text(
-                            text = stringResource(
-                                R.string.briefing_next_run,
-                                DateUtils.getRelativeTimeSpanString(next, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
-                            ),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            if (!modelReady) {
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                stringResource(R.string.briefing_load_model_first),
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.weight(1f)
-                            )
-                            TextButton(onClick = onOpenModels) { Text(stringResource(R.string.models), fontWeight = FontWeight.Bold) }
-                        }
-                    }
-                }
-            }
-
-            // Actions / progress
-            item {
-                if (state.isRunning) {
-                    Column {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(state.progress ?: "", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { briefingViewModel.stop() }) {
-                                Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(stringResource(R.string.briefing_stop))
-                            }
-                        }
                     }
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(
-                            onClick = { briefingViewModel.generate(llmViewModel) },
-                            shape = RoundedCornerShape(24.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.briefing_generate), fontWeight = FontWeight.SemiBold)
-                        }
-                        RoundIconButton(Icons.Default.Refresh, stringResource(R.string.briefing_refresh)) {
-                            briefingViewModel.generate(llmViewModel, forceRefresh = true)
-                        }
-                        if (briefing != null) {
-                            RoundIconButton(
-                                if (isSpeaking) Icons.Default.Stop else Icons.Default.RecordVoiceOver,
-                                if (isSpeaking) stringResource(R.string.briefing_stop_reading) else stringResource(R.string.briefing_read_aloud)
-                            ) {
-                                val engine = tts.value
-                                if (engine == null) {
-                                    Toast.makeText(context, context.getString(R.string.briefing_tts_unavailable), Toast.LENGTH_SHORT).show()
-                                } else if (isSpeaking) {
-                                    engine.stop()
-                                    isSpeaking = false
-                                } else {
-                                    engine.speak(briefingViewModel.briefingAsSpeech(briefing), TextToSpeech.QUEUE_FLUSH, null, "briefing")
-                                    isSpeaking = true
-                                }
-                            }
-                            val header = stringResource(R.string.briefing_share_header, formatDateTime(context, briefing.createdAt))
-                            val relevanceLabel = stringResource(R.string.briefing_relevance_label)
-                            val shareTitle = stringResource(R.string.briefing_share)
-                            RoundIconButton(Icons.Default.Share, shareTitle) {
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, briefingViewModel.briefingAsText(briefing, header, relevanceLabel))
-                                }
-                                context.startActivity(Intent.createChooser(send, shareTitle))
-                            }
-                        }
+                    val hero = articles.first()
+                    item(key = "hero_" + (briefing?.id ?: "")) {
+                        HeroArticle(
+                            article = hero,
+                            isWriting = allArticles.indexOf(hero) == state.streamingArticleIndex,
+                            onClick = { detailArticle = hero }
+                        )
                     }
-                }
-            }
-
-            if (briefing == null) {
-                item {
-                    Text(
-                        stringResource(R.string.briefing_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp)
-                    )
-                }
-            } else {
-                val articles = briefingViewModel.displayArticles(briefing)
-                item {
-                    Column {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                stringResource(R.string.briefing_selected_for_you),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                stringResource(R.string.briefing_article_count, articles.size),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
-                }
-                itemsIndexed(articles, key = { index, a -> "${briefing.id}_$index" }) { index, article ->
-                    EditorialArticleCard(
-                        article = article,
-                        isWriting = state.streamingArticleIndex == index,
-                        canAskMore = modelReady && !state.isRunning,
-                        onAskMore = {
-                            llmViewModel.startNewChatWith(
-                                context.getString(
-                                    R.string.briefing_follow_up_article,
-                                    article.title.ifBlank { article.item.title },
-                                    article.summary.trim(),
-                                    article.item.link
+                    if (articles.size > 1) {
+                        item {
+                            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)) {
+                                Text(
+                                    stringResource(R.string.briefing_more_news).uppercase(locale),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                            )
-                            onOpenChat()
+                            }
                         }
-                    )
-                }
-                if (state.sourceErrors.isNotEmpty()) {
-                    item {
-                        val names = state.sourceErrors.keys.joinToString { id -> state.config.sources.firstOrNull { it.id == id }?.name ?: id }
-                        Text(stringResource(R.string.briefing_sources_failed, names), fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                        itemsIndexed(articles.drop(1), key = { index, _ -> "row_${briefing?.id}_$index" }) { _, article ->
+                            ArticleRow(
+                                article = article,
+                                isWriting = allArticles.indexOf(article) == state.streamingArticleIndex,
+                                onClick = { detailArticle = article }
+                            )
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
                     }
-                }
-                item {
-                    Column {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(modifier = Modifier.height(10.dp))
+                    if (state.sourceErrors.isNotEmpty()) {
+                        item {
+                            val names = state.sourceErrors.keys.joinToString { id -> state.config.sources.firstOrNull { it.id == id }?.name ?: id }
+                            Text(
+                                stringResource(R.string.briefing_sources_failed, names),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                    item {
                         Text(
                             stringResource(R.string.briefing_disclaimer),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 24.dp)
+                            modifier = Modifier.padding(16.dp)
                         )
                     }
                 }
             }
         }
+    }
+
+    detailArticle?.let { article ->
+        ArticleDetailDialog(
+            article = article,
+            canAskMore = modelReady && !state.isRunning,
+            onAskMore = {
+                llmViewModel.startNewChatWith(
+                    context.getString(
+                        R.string.briefing_follow_up_article,
+                        article.title.ifBlank { article.item.title },
+                        article.summary.trim(),
+                        article.item.link
+                    )
+                )
+                detailArticle = null
+                onOpenChat()
+            },
+            onDismiss = { detailArticle = null }
+        )
     }
 
     editingProfileId?.let { id ->
@@ -537,145 +556,294 @@ private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVecto
 }
 
 @Composable
-private fun EditorialArticleCard(
+private fun NewsTab(text: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
+            maxLines = 1
+        )
+        Box(
+            modifier = Modifier
+                .height(3.dp)
+                .width(28.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (selected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent)
+        )
+    }
+}
+
+/** Image with a placeholder (source name) when there is no picture. */
+@Composable
+private fun ArticleImage(article: BriefingArticle, modifier: Modifier, placeholderStyle: androidx.compose.ui.text.TextStyle) {
+    Box(modifier = modifier.background(MaterialTheme.colorScheme.primaryContainer)) {
+        if (!article.item.imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = article.item.imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                text = article.item.sourceName,
+                style = placeholderStyle,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArticleMeta(article: BriefingArticle) {
+    val context = LocalContext.current
+    val time = article.item.publishedMillis?.let {
+        DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = listOfNotNull(article.item.sourceName, time).joinToString(" · "),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (!article.processed && article.title.isBlank()) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = context.getString(R.string.briefing_not_translated),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun TopicLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 0.8.sp,
+        color = MaterialTheme.colorScheme.primary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
+/** Top story: full-width picture, label, big headline and a short teaser. */
+@Composable
+private fun HeroArticle(article: BriefingArticle, isWriting: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        ArticleImage(
+            article = article,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(210.dp)
+                .clip(RoundedCornerShape(14.dp)),
+            placeholderStyle = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.weight(1f)) { TopicLabel(article.topicName) }
+            if (isWriting) CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = article.title.ifBlank { article.item.title },
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        val teaser = article.summary.ifBlank { article.item.description }
+        if (teaser.isNotBlank()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                teaser.trim(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        ArticleMeta(article)
+    }
+}
+
+/** Compact list item: label, bold headline, meta and a small picture on the right. */
+@Composable
+private fun ArticleRow(article: BriefingArticle, isWriting: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.weight(1f)) { TopicLabel(article.topicName) }
+                if (isWriting) CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+            }
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = article.title.ifBlank { article.item.title },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ArticleMeta(article)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        ArticleImage(
+            article = article,
+            modifier = Modifier
+                .size(width = 104.dp, height = 78.dp)
+                .clip(RoundedCornerShape(10.dp)),
+            placeholderStyle = MaterialTheme.typography.labelMedium
+        )
+    }
+}
+
+/** Full article view: picture, headline, summary, "what this means for your work" and links. */
+@Composable
+private fun ArticleDetailDialog(
     article: BriefingArticle,
-    isWriting: Boolean,
     canAskMore: Boolean,
-    onAskMore: () -> Unit
+    onAskMore: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val item = article.item
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        // Image with topic label
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            if (!item.imageUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = item.imageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Text(
-                    text = item.sourceName,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f),
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    maxLines = 2
-                )
-            }
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.surface,
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
-                Text(
-                    text = article.topicName.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-        }
-
-        Column(modifier = Modifier.padding(18.dp)) {
-            val meta = listOfNotNull(item.sourceName, item.publishedMillis?.let { formatDate(context, it) }).joinToString(" · ")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = meta.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    letterSpacing = 0.6.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-                if (isWriting) CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = article.title.ifBlank { item.title },
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            val summary = article.summary.ifBlank { item.description.take(280) }
-            if (summary.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(summary.trim(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f))
-            }
-            if (article.relevance.isNotBlank()) {
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                ) {
-                    Box(
+                Box {
+                    ArticleImage(
+                        article = article,
                         modifier = Modifier
-                            .width(3.dp)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.primary)
+                            .fillMaxWidth()
+                            .height(250.dp),
+                        placeholderStyle = MaterialTheme.typography.headlineMedium
                     )
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            stringResource(R.string.briefing_relevance_label).uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(article.relevance.trim(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                    ) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back))
+                        }
                     }
                 }
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { openUrl(context, item.link) }
-                    .padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    stringResource(R.string.briefing_read_at, item.sourceName),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(Icons.Default.NorthEast, contentDescription = null, modifier = Modifier.size(16.dp))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onAskMore, enabled = canAskMore, contentPadding = PaddingValues(horizontal = 0.dp)) {
-                    Text(stringResource(R.string.briefing_ask_more), style = MaterialTheme.typography.labelMedium)
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                TextButton(
-                    onClick = {
-                        val query = URLEncoder.encode("site:ground.news ${article.title.ifBlank { item.title }}", "UTF-8")
-                        openUrl(context, "https://www.google.com/search?q=$query")
-                    },
-                    contentPadding = PaddingValues(horizontal = 0.dp)
-                ) {
-                    Text(stringResource(R.string.briefing_ground_news), style = MaterialTheme.typography.labelMedium)
+                Column(modifier = Modifier.padding(20.dp)) {
+                    TopicLabel(article.topicName)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = article.title.ifBlank { item.title },
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ArticleMeta(article)
+                    if (article.title.isNotBlank() && article.title != item.title) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.briefing_original_title, item.title),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    val summary = article.summary.ifBlank { item.description }
+                    if (summary.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(summary.trim(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+                    }
+                    if (article.relevance.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    stringResource(R.string.briefing_relevance_label).uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.8.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(article.relevance.trim(), style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { openUrl(context, item.link) },
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                    ) {
+                        Text(stringResource(R.string.briefing_read_at, item.sourceName), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(Icons.Default.NorthEast, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onAskMore, enabled = canAskMore, shape = RoundedCornerShape(24.dp), modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.briefing_ask_more))
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                val query = URLEncoder.encode("site:ground.news ${article.title.ifBlank { item.title }}", "UTF-8")
+                                openUrl(context, "https://www.google.com/search?q=$query")
+                            },
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.briefing_ground_news))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -705,6 +873,11 @@ private fun ProfileEditorDialog(
     var mode by remember(profile.id) { mutableStateOf(profile.mode) }
     var domains by remember(profile.id) { mutableStateOf(profile.webDomains.joinToString(", ")) }
     var maxArticles by remember(profile.id) { mutableStateOf(profile.maxArticles) }
+    var language by remember(profile.id) {
+        mutableStateOf(
+            profile.language.ifBlank { if (profile.id == com.example.auralocalai.data.briefing.DefaultBriefing.CARE_PROFILE_ID) "nl" else "app" }
+        )
+    }
     var newTopic by remember { mutableStateOf("") }
     var editingTopic by remember { mutableStateOf<BriefingTopic?>(null) }
     var frequencyMenu by remember { mutableStateOf(false) }
@@ -725,7 +898,8 @@ private fun ProfileEditorDialog(
         webDomains = TopicMatcher.parseKeywordList(domains, max = 30).map {
             it.lowercase().removePrefix("https://").removePrefix("http://").removePrefix("www.").substringBefore('/')
         },
-        maxArticles = maxArticles
+        maxArticles = maxArticles,
+        language = language
     )
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -899,6 +1073,18 @@ private fun ProfileEditorDialog(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 8.dp))
                         Text(stringResource(R.string.briefing_max_articles, maxArticles), style = MaterialTheme.typography.bodyMedium)
                         Slider(value = maxArticles.toFloat(), onValueChange = { maxArticles = it.toInt() }, valueRange = 3f..12f, steps = 8)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 8.dp))
+                        Text(stringResource(R.string.briefing_language), style = MaterialTheme.typography.bodyMedium)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .horizontalScroll(rememberScrollState())
+                        ) {
+                            listOf("nl" to "Nederlands", "en" to "English", "bg" to "Български", "app" to stringResource(R.string.briefing_language_app)).forEach { (code, label) ->
+                                FilterChip(selected = language == code, onClick = { language = code }, label = { Text(label, fontSize = 12.sp) })
+                            }
+                        }
                     }
                 }
 

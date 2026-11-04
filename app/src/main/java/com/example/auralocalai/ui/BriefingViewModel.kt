@@ -262,7 +262,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             }
             _state.update { it.copy(isRunning = true, progress = str(R.string.briefing_fetching), message = null, sourceErrors = emptyMap()) }
             try {
-                val languageCode = AppLocale.effectiveLanguage(getApplication())
+                val languageCode = profile.language.takeIf { it in BRIEFING_LANGUAGES }
+                    ?: if (profile.id == DefaultBriefing.CARE_PROFILE_ID && profile.language.isEmpty()) "nl"
+                    else AppLocale.effectiveLanguage(getApplication())
                 val items = mutableListOf<NewsItem>()
                 if (profile.mode != SourceMode.WEB) items += loadRssItems(_state.value.config, topics, forceRefresh)
                 if (profile.mode != SourceMode.RSS) items += searchWeb(profile, topics, llm, languageCode)
@@ -330,7 +332,12 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private fun Briefing.withArticleText(index: Int, raw: String): Briefing {
         val parsed = BriefingPrompts.parseArticle(raw)
         return copy(articles = articles.mapIndexed { i, a ->
-            if (i == index) a.copy(title = parsed.title, summary = parsed.summary, relevance = parsed.relevance) else a
+            if (i == index) a.copy(
+                title = parsed.title,
+                summary = parsed.summary,
+                relevance = parsed.relevance,
+                processed = parsed.summary.isNotBlank() || parsed.title.isNotBlank()
+            ) else a
         })
     }
 
@@ -419,5 +426,6 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     companion object {
         const val CACHE_MAX_AGE_MS = 3L * 60L * 60L * 1000L
         const val MAX_WEB_TOPICS = 4
+        val BRIEFING_LANGUAGES = listOf("nl", "en", "bg")
     }
 }

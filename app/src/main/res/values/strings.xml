@@ -446,4 +446,12 @@
     <string name="model_desc_supergemma4_e4b_abliterated">Larger community version of Gemma 4 E4B without refusals, with an 8,192-token context and fast drafting (MTP). Image support not yet confirmed.</string>
     <string name="model_desc_qwen3_4b">Alibaba\'s 4-billion-parameter hybrid model. Strong in complex questions, maths and multi-step reasoning, with a thinking switch.</string>
     <string name="model_desc_gemma4_e4b">Google\'s best on-device multimodal model: the strongest reasoning and image understanding in this list. Best choice for Dutch and Bulgarian.</string>
+    <string name="briefing_tab_all">All</string>
+    <string name="briefing_updated">updated %1$s</string>
+    <string name="briefing_load_model_translate">Load a local model to have the news summarized and translated. Without a model you see the original headlines.</string>
+    <string name="briefing_more_news">More news</string>
+    <string name="briefing_not_translated">· original</string>
+    <string name="briefing_original_title">Original headline: %1$s</string>
+    <string name="briefing_language">Language of the briefing</string>
+    <string name="briefing_language_app">App language</string>
 </resources>

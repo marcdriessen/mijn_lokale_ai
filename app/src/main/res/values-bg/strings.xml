@@ -445,4 +445,12 @@
     <string name="model_desc_supergemma4_e4b_abliterated">По-голяма общностна версия на Gemma 4 E4B без откази, с контекст от 8192 токена и бързо чернови предсказване (MTP). Поддръжката на изображения не е потвърдена.</string>
     <string name="model_desc_qwen3_4b">Хибридният модел на Alibaba с 4 милиарда параметъра. Силен в сложни въпроси, математика и многостъпково разсъждение, с превключвател за мислене.</string>
     <string name="model_desc_gemma4_e4b">Най-добрият мултимодален модел на Google за устройства: най-силното разсъждение и разбиране на изображения в списъка. Най-добър избор за нидерландски и български.</string>
+    <string name="briefing_tab_all">Всички</string>
+    <string name="briefing_updated">обновено %1$s</string>
+    <string name="briefing_load_model_translate">Заредете локален модел, за да се обобщят и преведат новините. Без модел виждате оригиналните заглавия.</string>
+    <string name="briefing_more_news">Още новини</string>
+    <string name="briefing_not_translated">· оригинал</string>
+    <string name="briefing_original_title">Оригинално заглавие: %1$s</string>
+    <string name="briefing_language">Език на бюлетина</string>
+    <string name="briefing_language_app">Езикът на приложението</string>
 </resources>

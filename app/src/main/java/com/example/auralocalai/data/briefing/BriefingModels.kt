@@ -61,7 +61,9 @@ data class BriefingArticle(
     val topicName: String,
     val title: String = "",
     val summary: String = "",
-    val relevance: String = ""
+    val relevance: String = "",
+    /** True when the model rewrote (and translated) the article. */
+    val processed: Boolean = false
 )
 
 @Serializable
@@ -100,7 +102,9 @@ data class BriefingProfile(
     val hour: Int = 8,
     val minute: Int = 0,
     val startDateMillis: Long = 0L,
-    val notify: Boolean = true
+    val notify: Boolean = true,
+    /** Language the model writes the briefing in ("nl", "en", "bg"), or "" for the app language. */
+    val language: String = ""
 ) {
     val mode: SourceMode get() = runCatching { SourceMode.valueOf(sourceMode) }.getOrDefault(SourceMode.RSS)
     val schedule: BriefingFrequency get() = runCatching { BriefingFrequency.valueOf(frequency) }.getOrDefault(BriefingFrequency.DAILY)
@@ -195,7 +199,8 @@ object DefaultBriefing {
         ),
         sourceMode = SourceMode.RSS.name,
         webDomains = listOf("ggznieuws.nl", "skipr.nl", "zorgvisie.nl", "nos.nl", "trimbos.nl", "nu.nl"),
-        maxArticles = 6
+        maxArticles = 6,
+        language = "nl"
     )
 
     val worldProfile: BriefingProfile = BriefingProfile(

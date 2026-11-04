@@ -166,10 +166,16 @@ gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
 ### 2.4 Nieuwsbriefings
 
-Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade. De opmaak is redactioneel, zoals een
-krant: datum en editie (ochtend/middag/avond), de naam van de briefing als grote serif-kop, een korte intro en
-onderwerp-labels, en daaronder **"Voor jou geselecteerd"** met artikelkaarten.
+Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade. Opgezet zoals een moderne nieuwsapp:
+bovenaan de briefings als knoppen en **tabbladen per onderwerp** ("Alles", Ggz, Verslavingszorg, …), dan de naam van
+de briefing met datum, editie en "bijgewerkt … geleden", één groot **hoofdbericht** met foto, en daaronder **Meer
+nieuws** als compacte lijst (rubriekslabel, vette kop, bron en tijd, kleine foto rechts). Tik op een bericht voor de
+**detailpagina** met grote foto, vertaalde kop (plus de originele kop), samenvatting, **"Betekenis voor jouw werk"**,
+**Lees het artikel bij …**, **Vraag verder** en **Ground News**.
 
+- **Taal van de briefing** per briefing in te stellen (Nederlands, English, Български of de taal van de app; standaard
+  Nederlands voor de ggz-briefing). Het model vertaalt Engelse berichten naar die taal. Berichten die (nog) niet door
+  het model zijn verwerkt, krijgen het label "origineel".
 - **Meerdere briefings (profielen)** bovenaan als knoppen, plus **Nieuwe briefing**. Standaard:
   "Dagelijks nieuws over ggz en verslavingszorg" en "Wereldnieuws".
 - **Artikelkaart**: afbeelding (uit de feed of de artikelpagina) met onderwerp-label, bron en datum, een titel en

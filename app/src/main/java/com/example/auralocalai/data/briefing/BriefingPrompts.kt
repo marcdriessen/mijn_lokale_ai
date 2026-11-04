@@ -50,7 +50,8 @@ object BriefingPrompts {
 
     /** System prompt for one article: the user's own instructions steer focus and tone. */
     fun articleSystemPrompt(languageName: String, instructions: String): String =
-        "You are an editorial news assistant writing for one reader. Write in $languageName. " +
+        "You are an editorial news assistant writing for one reader. You ALWAYS write in $languageName, " +
+            "also when the article is in English or another language: then you translate it into $languageName. " +
             "Use only the facts in the article text given; never invent facts, numbers or quotes. " +
             (if (instructions.isNotBlank()) "The reader's instructions: ${instructions.trim()}" else "")
 
@@ -63,11 +64,13 @@ object BriefingPrompts {
             "Headline: ${item.title}\n" +
             "Source: ${item.sourceName}\n" +
             (if (item.description.isNotBlank()) "Article text: ${item.description.take(900)}\n" else "") +
-            "\nReply in $languageName with exactly these three lines and nothing else:\n" +
-            "TITLE: <the headline in $languageName, max 12 words>\n" +
+            "\nThe article may be in another language. Translate and write everything in $languageName.\n" +
+            "Reply with exactly these three lines and nothing else:\n" +
+            "TITLE: <the headline translated into $languageName, max 12 words>\n" +
             "SUMMARY: <2 short sentences with the key facts>\n" +
             "RELEVANCE: <1 or 2 sentences on what this means for the reader, based on the reader's instructions; " +
-            "say honestly if it has no direct meaning>"
+            "say honestly if it has no direct meaning>\n" +
+            "Remember: TITLE, SUMMARY and RELEVANCE must be written in $languageName."
 
     data class ArticleText(val title: String, val summary: String, val relevance: String)
 

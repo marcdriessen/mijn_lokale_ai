@@ -445,4 +445,12 @@
     <string name="model_desc_supergemma4_e4b_abliterated">Grotere communityversie van Gemma 4 E4B zonder weigeringen, met een context van 8.192 tokens en snelle tekstvoorspelling (MTP). Beeldondersteuning nog niet bevestigd.</string>
     <string name="model_desc_qwen3_4b">Alibaba’s hybride model met 4 miljard parameters. Sterk in complexe vragen, rekenen en redeneren in meerdere stappen, met een denkschakelaar.</string>
     <string name="model_desc_gemma4_e4b">Google’s beste multimodale model voor op het toestel: het sterkste redeneren en beeldbegrip in deze lijst. Beste keuze voor Nederlands en Bulgaars.</string>
+    <string name="briefing_tab_all">Alles</string>
+    <string name="briefing_updated">bijgewerkt %1$s</string>
+    <string name="briefing_load_model_translate">Laad een lokaal model om het nieuws te laten samenvatten en vertalen. Zonder model zie je de originele koppen.</string>
+    <string name="briefing_more_news">Meer nieuws</string>
+    <string name="briefing_not_translated">· origineel</string>
+    <string name="briefing_original_title">Originele kop: %1$s</string>
+    <string name="briefing_language">Taal van de briefing</string>
+    <string name="briefing_language_app">Taal van de app</string>
 </resources>
