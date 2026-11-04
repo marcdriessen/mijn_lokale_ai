@@ -248,7 +248,12 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
             val name = displayName(context, uri)
             _state.update { it.copy(importing = name) }
             try {
-                val text = if (name.endsWith(".pdf", ignoreCase = true)) ocrPdf(context, uri) else readText(context, uri)
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                val kind = com.example.auralocalai.data.work.DocumentText.detect(bytes, name)
+                val text = when (kind) {
+                    com.example.auralocalai.data.work.DocumentText.Kind.PDF -> ocrPdf(context, uri)
+                    else -> com.example.auralocalai.data.work.DocumentText.extract(bytes, kind, MAX_TEXT_CHARS).orEmpty()
+                }
                 // Personal data never enters the library.
                 val passages = PassageIndex.chunk(com.example.auralocalai.data.privacy.Anonymizer.anonymize(text).text)
                 if (passages.isEmpty()) {
@@ -276,14 +281,6 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
         }
         return uri.lastPathSegment ?: "document"
     }
-
-    private fun readText(context: Context, uri: Uri): String =
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            val reader = stream.bufferedReader()
-            val buffer = CharArray(MAX_TEXT_CHARS)
-            val read = reader.read(buffer, 0, MAX_TEXT_CHARS)
-            if (read > 0) String(buffer, 0, read) else ""
-        } ?: ""
 
     private suspend fun ocrPdf(context: Context, uri: Uri): String {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return ""

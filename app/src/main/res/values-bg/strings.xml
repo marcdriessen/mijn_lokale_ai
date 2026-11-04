@@ -585,7 +585,7 @@
     <string name="report_privacy">Диктуваните, сканираните и импортираните текстове се анонимизират автоматично: имена, номера, дати, адреси и телефони се заменят с етикети като [NAAM]. Всичко остава на телефона. Винаги проверявайте преди употреба.</string>
     <string name="report_dictate">Диктувай</string>
     <string name="report_scan">Сканирай</string>
-    <string name="report_import">Файл / Word</string>
+    <string name="report_import">Документ</string>
     <string name="report_hint">Бележки за предаването (без имена или други лични данни)</string>
     <string name="report_generate">Структурирай като %1$s</string>
     <string name="anon_busy">Премахване на лични данни…</string>

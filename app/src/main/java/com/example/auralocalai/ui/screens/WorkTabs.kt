@@ -59,6 +59,7 @@ import com.example.auralocalai.data.work.ScaleScoring
 import com.example.auralocalai.data.work.ScoreBand
 import com.example.auralocalai.data.work.Flashcards
 import com.example.auralocalai.data.work.DocxIO
+import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.WorkViewModel
 
@@ -291,7 +292,7 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
             OutlinedButton(onClick = { scan.launch(null) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Default.CameraAlt, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_scan))
             }
-            OutlinedButton(onClick = { importLauncher.launch(arrayOf(DocxIO.MIME, "application/msword", "text/*")) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
+            OutlinedButton(onClick = { importLauncher.launch(DocumentReader.PICKER_TYPES) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Default.Description, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_import))
             }
         }

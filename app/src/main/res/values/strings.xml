@@ -586,7 +586,7 @@
     <string name="report_privacy">Dictated, scanned and imported texts are anonymized automatically: names, BSN, dates, addresses, phone numbers and client numbers are replaced by labels such as [NAAM]. Everything stays on this phone. Always check before use.</string>
     <string name="report_dictate">Dictate</string>
     <string name="report_scan">Scan</string>
-    <string name="report_import">File / Word</string>
+    <string name="report_import">Document</string>
     <string name="report_hint">Notes for the handover (no names or other personal data)</string>
     <string name="report_generate">Structure as %1$s</string>
     <string name="anon_busy">Removing personal data…</string>

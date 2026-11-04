@@ -236,7 +236,8 @@ Tabblad **Nieuws**. Opgezet als een moderne nieuwsapp (geïnspireerd op NU.nl, D
 
 De mini-app **Werk** heeft tabbladen: **Vraagbaak** (hieronder), **Psycho-educatie** (hand-outs voor cliënten op
 B1/A2-niveau in NL/BG/EN), **Meetinstrumenten** (offline optellen voor CIWA-Ar, COWS en AUDIT, met de gebruikelijke
-indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen, tekstbestand of Word-document (.docx) →
+indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen of een document inlezen: PDF (tekstherkenning op de telefoon,
+max. 20 pagina's), Word (.docx), OpenDocument (.odt), RTF, HTML of tekstbestand (.txt, .md, .csv) →
 automatisch geanonimiseerd → SOEP, SBAR of SOAP → desgewenst opslaan als Word-document; oude .doc-bestanden eerst
 in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
 Leitner-schema).
@@ -247,7 +248,7 @@ Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in
 
 - **Waarschuwing** bovenaan: geen patiëntgegevens invoeren; antwoorden ondersteunen het professionele oordeel.
 - Je stelt een vraag en kiest waar gezocht wordt (knoppen):
-  - **Mijn bibliotheek**: eigen PDF's, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
+  - **Mijn bibliotheek**: eigen PDF-, Word- (.docx), ODT-, RTF-, HTML-, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
     (max. 40 pagina's) en in tekstdelen opgeknipt; zoeken gebeurt offline op de telefoon;
   - **Vertrouwde sites** via Brave (één zoekopdracht per vraag, beperkt tot de ingestelde sites): GGZ Standaarden,
     Akwa GGZ, Trimbos, NISPA, Farmacotherapeutisch Kompas, Richtlijnendatabase, NHG en Vilans. Sites zijn aan/uit te

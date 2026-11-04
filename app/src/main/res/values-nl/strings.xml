@@ -585,7 +585,7 @@
     <string name="report_privacy">Gedicteerde, gescande en ingelezen teksten worden automatisch geanonimiseerd: namen, BSN, datums, adressen, telefoonnummers en cliëntnummers worden vervangen door labels zoals [NAAM]. Alles blijft op deze telefoon. Controleer altijd vóór gebruik.</string>
     <string name="report_dictate">Dicteren</string>
     <string name="report_scan">Scannen</string>
-    <string name="report_import">Bestand / Word</string>
+    <string name="report_import">Document</string>
     <string name="report_hint">Aantekeningen voor de overdracht (geen namen of andere persoonsgegevens)</string>
     <string name="report_generate">Structureer als %1$s</string>
     <string name="anon_busy">Persoonsgegevens verwijderen…</string>

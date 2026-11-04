@@ -11,6 +11,7 @@ import com.example.auralocalai.data.work.Flashcard
 import com.example.auralocalai.data.work.FlashcardDeck
 import com.example.auralocalai.data.work.Flashcards
 import com.example.auralocalai.data.work.DocxIO
+import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.data.work.WorkPrompts
 import com.example.auralocalai.data.translate.awaitResult
 import kotlinx.coroutines.Dispatchers
@@ -123,42 +124,32 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Imports a text or Word (.docx) file into the notes (anonymized). Word files switch the format to SOEP. */
+    /**
+     * Imports a document into the notes (anonymized): PDF (on-device text recognition), Word (.docx),
+     * OpenDocument (.odt), RTF, HTML or plain text. Documents switch the format to SOEP.
+     */
     fun importReportFile(context: android.content.Context, uri: android.net.Uri, llm: LlmViewModel) {
         viewModelScope.launch {
             _state.update { it.copy(busy = str(R.string.report_reading_file)) }
-            val name = withContext(Dispatchers.IO) { displayName(context, uri) }
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@runCatching null
-                    when {
-                        DocxIO.looksLikeDocx(bytes) -> DocxIO.readText(bytes.inputStream()) to true
-                        bytes.size >= 8 && bytes[0] == 0xD0.toByte() && bytes[1] == 0xCF.toByte() -> "" to true // old .doc
-                        else -> bytes.toString(Charsets.UTF_8).take(30_000) to false
-                    }
-                }.getOrNull()
+            val result = runCatching {
+                DocumentReader.read(context, uri) { page, pages ->
+                    _state.update { it.copy(busy = str(R.string.medical_import_page, page, pages)) }
+                }
+            }.getOrElse { e ->
+                _state.update { it.copy(busy = null, message = str(R.string.ocr_failed, e.message ?: "")) }
+                return@launch
             }
             _state.update { it.copy(busy = null) }
-            val text = result?.first
-            when {
-                result == null -> _state.update { it.copy(message = str(R.string.translate_nothing)) }
-                result.second && text.isNullOrBlank() -> _state.update { it.copy(message = str(R.string.report_doc_unsupported)) }
-                text.isNullOrBlank() -> _state.update { it.copy(message = str(R.string.translate_nothing)) }
-                else -> {
-                    if (result.second) {
-                        _state.update { it.copy(reportFormat = "SOEP", reportSourceName = name?.substringBeforeLast('.')) }
-                    }
-                    addReportText(text, llm)
+            when (result) {
+                DocumentReader.Result.OldWordFormat -> _state.update { it.copy(message = str(R.string.report_doc_unsupported)) }
+                DocumentReader.Result.Empty -> _state.update { it.copy(message = str(R.string.translate_nothing)) }
+                is DocumentReader.Result.Text -> {
+                    _state.update { it.copy(reportFormat = "SOEP", reportSourceName = result.name?.substringBeforeLast('.')) }
+                    addReportText(result.text.take(30_000), llm)
                 }
             }
         }
     }
-
-    private fun displayName(context: android.content.Context, uri: android.net.Uri): String? = runCatching {
-        context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-            if (c.moveToFirst()) c.getString(0) else null
-        }
-    }.getOrNull()
 
     /** Suggested file name for saving the structured report as Word. */
     fun suggestedReportFileName(): String {
