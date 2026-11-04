@@ -1209,6 +1209,10 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
             if (result.isSuccess) {
                 recordModelLoadBenchmark(modelId, elapsedMs)
+                // Remembered so the morning briefing can load the same model in the background.
+                getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+                    .putString(com.example.auralocalai.data.briefing.BackgroundModel.PREF_LAST_MODEL_FILE, fileName)
+                    .apply()
                 val supportsThinking = inferenceEngine.detectedSupportsThinking
                 _uiState.update { 
                     it.copy(

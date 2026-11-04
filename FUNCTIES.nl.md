@@ -183,6 +183,14 @@ Tabblad **Nieuws**. Opgezet als een moderne nieuwsapp (geïnspireerd op NU.nl, D
   Ggz", kop en foto).
 - Tik op een bericht voor de **detailpagina** met grote foto, vertaalde kop (plus originele kop), samenvatting,
   **"Betekenis voor jouw werk"**, **Lees het artikel bij …**, **Vraag verder** en **Ground News**.
+- **Vertalen** gebeurt in twee stappen: eerst vertaalt **Google ML Kit** (offline op de telefoon; taalpakketten van
+  ~30 MB worden één keer gedownload) de kop en de korte tekst van elk Engels of Bulgaars bericht naar de taal van de
+  briefing. Daarna schrijft het geladen model (als dat er is) de samenvatting en de betekenis, op basis van de vertaalde
+  tekst. Zonder model krijg je dus toch Nederlandse koppen en tekst.
+- **Op de achtergrond klaar**: bij een geplande briefing (bijv. 08:00) begint de app **30 minuten eerder**, haalt het
+  nieuws op, vertaalt het, laadt zelf het **laatst gebruikte model** om samen te vatten (als het geheugen dat toelaat)
+  en stuurt een melding zodra de briefing **helemaal klaar** is. In de app zie je een nieuwe briefing ook pas als hij
+  af is; tot die tijd blijft de vorige staan.
 - **Taal van de briefing** per briefing in te stellen (Nederlands, English, Български of de taal van de app; standaard
   Nederlands voor de ggz-briefing). Het model vertaalt Engelse berichten naar die taal. Berichten die (nog) niet door
   het model zijn verwerkt, krijgen het label "origineel".

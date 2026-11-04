@@ -347,7 +347,7 @@
     <string name="briefing_failed">Бюлетинът е неуспешен: %1$s</string>
     <string name="briefing_notif_channel">Дневен бюлетин</string>
     <string name="briefing_notif_title">Вашият дневен бюлетин е готов</string>
-    <string name="briefing_notif_text">%1$d статии по вашите теми. Докоснете, за да ги обобщите.</string>
+    <string name="briefing_notif_text">Вашият бюлетин с %1$d статии е готов.</string>
     <string name="briefing_follow_up_message">Разкажи ми повече за тази новинарска тема: %1$s.\n\nОбобщение досега:\n%2$s\n\nСтатии:\n%3$s</string>
     <string name="medical_title">Справочник психиатрия и зависимости</string>
     <string name="medical_warning">Никога не въвеждайте данни на пациенти (имена, дати на раждане, подробности за случая): думите за търсене се изпращат до PubMed и Brave. Отговорите подпомагат професионалната ви преценка, но не я заменят.</string>
@@ -468,4 +468,6 @@
     <string name="briefing_in_focus">Във фокус</string>
     <string name="briefing_just_in">Току-що</string>
     <string name="briefing_time_in_topic">%1$s в %2$s</string>
+    <string name="briefing_preparing">Бюлетинът ви се подготвя…</string>
+    <string name="briefing_translating">Превод %1$d от %2$d…</string>
 </resources>

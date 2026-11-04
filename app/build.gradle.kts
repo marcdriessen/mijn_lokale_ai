@@ -126,5 +126,8 @@ dependencies {
 
   // Offline OCR and Image Loading
   implementation("com.google.mlkit:text-recognition:16.0.1")
+  // Offline translation of news headlines (ML Kit Translate + Language ID)
+  implementation("com.google.mlkit:translate:17.0.3")
+  implementation("com.google.mlkit:language-id:17.0.6")
   implementation("io.coil-kt:coil-compose:2.6.0")
 }

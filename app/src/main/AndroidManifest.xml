@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -40,6 +41,12 @@
         <!-- VNDK Support library -->
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
         
+        <!-- WorkManager foreground service for the morning briefing (long-running background job) -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <service
             android:name=".data.ModelDownloadService"
             android:foregroundServiceType="dataSync"

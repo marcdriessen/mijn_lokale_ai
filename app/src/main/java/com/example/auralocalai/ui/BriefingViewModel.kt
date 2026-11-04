@@ -9,6 +9,8 @@ import com.example.auralocalai.R
 import com.example.auralocalai.data.briefing.Briefing
 import com.example.auralocalai.data.briefing.BriefingArticle
 import com.example.auralocalai.data.briefing.BriefingConfig
+import com.example.auralocalai.data.briefing.BriefingGenerator
+import com.example.auralocalai.data.translate.MlKitNewsTranslator
 import com.example.auralocalai.data.briefing.BriefingProfile
 import com.example.auralocalai.data.briefing.BriefingPrompts
 import com.example.auralocalai.data.briefing.BriefingRepository
@@ -250,111 +252,59 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         _state.update { it.copy(isRunning = false, progress = null, streamingArticleIndex = -1) }
     }
 
-    /** Builds a new editorial briefing for the selected profile. */
+    /**
+     * Builds a new briefing for the selected profile in the background. The previous briefing stays
+     * on screen; the new one replaces it only when it is completely finished.
+     */
     fun generate(llm: LlmViewModel, forceRefresh: Boolean = false) {
         if (_state.value.isRunning) return
         val profile = _state.value.selectedProfile ?: return
         runJob = viewModelScope.launch {
-            val topics = profile.topics.filter { it.enabled }
-            if (topics.isEmpty()) {
+            if (profile.topics.none { it.enabled }) {
                 _state.update { it.copy(message = str(R.string.briefing_no_topics)) }
                 return@launch
             }
             _state.update { it.copy(isRunning = true, progress = str(R.string.briefing_fetching), message = null, sourceErrors = emptyMap()) }
+            val translator = MlKitNewsTranslator()
             try {
-                val languageCode = profile.language.takeIf { it in BRIEFING_LANGUAGES }
-                    ?: if (profile.id == DefaultBriefing.CARE_PROFILE_ID && profile.language.isEmpty()) "nl"
-                    else AppLocale.effectiveLanguage(getApplication())
-                val items = mutableListOf<NewsItem>()
-                if (profile.mode != SourceMode.WEB) items += loadRssItems(_state.value.config, topics, forceRefresh)
-                if (profile.mode != SourceMode.RSS) items += searchWeb(profile, topics, llm, languageCode)
-
-                val selected = TopicMatcher.selectArticles(items, topics, profile.maxArticles.coerceIn(1, 15))
-                val now = System.currentTimeMillis()
-                var briefing = Briefing(
-                    id = now.toString(),
-                    createdAt = now,
-                    language = languageCode,
-                    profileId = profile.id,
-                    profileName = profile.name,
-                    articles = selected.map { (item, topic) -> BriefingArticle(item, topic.name) }
+                val languageCode = BriefingGenerator.languageFor(profile, AppLocale.effectiveLanguage(getApplication()))
+                val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"
+                val webItems = if (profile.mode != SourceMode.RSS) searchWeb(profile, profile.topics.filter { it.enabled }, llm, languageCode) else emptyList()
+                val generator = BriefingGenerator(repository, fetcher, translator)
+                val model = if (llm.isModelReady) BriefingGenerator.ModelCall { system, prompt -> llm.runOneShotPrompt(system, prompt) } else null
+                val briefing = generator.build(
+                    profile = profile,
+                    config = _state.value.config,
+                    languageCode = languageCode,
+                    languageName = languageName,
+                    forceRefresh = forceRefresh,
+                    extraItems = webItems,
+                    model = model,
+                    onProgress = { p -> _state.update { it.copy(progress = progressText(p)) } },
+                    onSourceErrors = { errors -> _state.update { it.copy(sourceErrors = it.sourceErrors + errors) } }
                 )
-                _state.update { it.copy(current = briefing) }
-
-                if (selected.isEmpty()) {
+                if (briefing.articles.isEmpty()) {
                     _state.update { it.copy(message = str(R.string.briefing_no_news)) }
                 } else {
-                    // Preview images for articles whose feed had none.
-                    _state.update { it.copy(progress = str(R.string.briefing_images)) }
-                    val images = coroutineScope {
-                        briefing.articles.map { article ->
-                            async { if (article.item.imageUrl.isNullOrBlank()) fetcher.fetchPreviewImage(article.item.link) else article.item.imageUrl }
-                        }.awaitAll()
-                    }
-                    briefing = briefing.copy(articles = briefing.articles.mapIndexed { i, a -> a.copy(item = a.item.copy(imageUrl = images[i])) })
-                    _state.update { it.copy(current = briefing) }
-
-                    if (llm.isModelReady) {
-                        val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"
-                        val systemPrompt = BriefingPrompts.articleSystemPrompt(languageName, profile.instructions)
-                        briefing.articles.forEachIndexed { index, article ->
-                            _state.update {
-                                it.copy(
-                                    progress = str(R.string.briefing_writing, index + 1, briefing.articles.size),
-                                    streamingArticleIndex = index
-                                )
-                            }
-                            val prompt = BriefingPrompts.articlePrompt(article.item, article.topicName, languageName)
-                            val raw = llm.runOneShotPrompt(systemPrompt, prompt) { partial ->
-                                briefing = briefing.withArticleText(index, partial)
-                                _state.update { it.copy(current = briefing) }
-                            }
-                            if (raw != null) {
-                                briefing = briefing.withArticleText(index, raw)
-                                _state.update { it.copy(current = briefing) }
-                            }
-                        }
-                    }
+                    val history = withContext(Dispatchers.IO) { repository.saveBriefing(briefing) }
+                    _state.update { it.copy(history = history, current = briefing) }
                 }
-
-                val history = withContext(Dispatchers.IO) { repository.saveBriefing(briefing) }
-                _state.update { it.copy(history = history, current = briefing) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(message = str(R.string.briefing_failed, e.message ?: "")) }
             } finally {
+                translator.close()
                 _state.update { it.copy(isRunning = false, progress = null, streamingArticleIndex = -1) }
             }
         }
     }
 
-    private fun Briefing.withArticleText(index: Int, raw: String): Briefing {
-        val parsed = BriefingPrompts.parseArticle(raw)
-        return copy(articles = articles.mapIndexed { i, a ->
-            if (i == index) a.copy(
-                title = parsed.title,
-                summary = parsed.summary,
-                relevance = parsed.relevance,
-                processed = parsed.summary.isNotBlank() || parsed.title.isNotBlank()
-            ) else a
-        })
-    }
-
-    private suspend fun loadRssItems(config: BriefingConfig, topics: List<BriefingTopic>, forceRefresh: Boolean): List<NewsItem> {
-        val cache = withContext(Dispatchers.IO) { repository.loadCache() }
-        val cacheIsFresh = System.currentTimeMillis() - cache.fetchedAt < CACHE_MAX_AGE_MS && cache.items.isNotEmpty()
-        if (!forceRefresh && cacheIsFresh) return cache.items
-
-        val keywords = topics.flatMap { it.allKeywords }.distinctBy { it.lowercase() }
-        val results = fetcher.fetchAll(config.sources, keywords)
-        val errors = results.filter { it.error != null }.associate { it.source.id to (it.error ?: "") }
-        _state.update { it.copy(sourceErrors = it.sourceErrors + errors) }
-        val items = results.flatMap { it.items }
-        if (items.isNotEmpty()) {
-            withContext(Dispatchers.IO) { repository.saveCache(FetchCache(System.currentTimeMillis(), items)) }
-        }
-        return items
+    private fun progressText(p: BriefingGenerator.Progress): String = when (p.stage) {
+        BriefingGenerator.Stage.FETCHING -> str(R.string.briefing_fetching)
+        BriefingGenerator.Stage.IMAGES -> str(R.string.briefing_images)
+        BriefingGenerator.Stage.TRANSLATING -> str(R.string.briefing_translating, p.done, p.total)
+        BriefingGenerator.Stage.WRITING -> str(R.string.briefing_writing, p.done, p.total)
     }
 
     /** Site-restricted Brave search per topic (counts towards the monthly Brave limit). */

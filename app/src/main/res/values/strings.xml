@@ -348,7 +348,7 @@
     <string name="briefing_failed">Briefing failed: %1$s</string>
     <string name="briefing_notif_channel">Daily briefing</string>
     <string name="briefing_notif_title">Your daily briefing is ready</string>
-    <string name="briefing_notif_text">%1$d articles on your topics. Tap to summarize them.</string>
+    <string name="briefing_notif_text">Your briefing with %1$d articles is ready.</string>
     <string name="briefing_follow_up_message">Tell me more about this news topic: %1$s.\n\nSummary so far:\n%2$s\n\nArticles:\n%3$s</string>
     <string name="medical_title">Clinical Q&amp;A</string>
     <string name="medical_warning">Never enter patient data (names, dates of birth, case details): search terms are sent to PubMed and Brave. Answers support your professional judgement and do not replace it.</string>
@@ -469,4 +469,6 @@
     <string name="briefing_in_focus">In focus</string>
     <string name="briefing_just_in">Just in</string>
     <string name="briefing_time_in_topic">%1$s in %2$s</string>
+    <string name="briefing_preparing">Preparing your briefing…</string>
+    <string name="briefing_translating">Translating %1$d of %2$d…</string>
 </resources>

@@ -347,7 +347,7 @@
     <string name="briefing_failed">Briefing mislukt: %1$s</string>
     <string name="briefing_notif_channel">Dagelijkse briefing</string>
     <string name="briefing_notif_title">Je dagelijkse briefing staat klaar</string>
-    <string name="briefing_notif_text">%1$d artikelen over jouw onderwerpen. Tik om ze samen te vatten.</string>
+    <string name="briefing_notif_text">Je briefing met %1$d berichten staat klaar.</string>
     <string name="briefing_follow_up_message">Vertel me meer over dit nieuwsonderwerp: %1$s.\n\nSamenvatting tot nu toe:\n%2$s\n\nArtikelen:\n%3$s</string>
     <string name="medical_title">Vraagbaak GGZ &amp; verslaving</string>
     <string name="medical_warning">Voer nooit patiëntgegevens in (namen, geboortedata, casusdetails): zoektermen gaan naar PubMed en Brave. Antwoorden ondersteunen je professionele oordeel en vervangen het niet.</string>
@@ -468,4 +468,6 @@
     <string name="briefing_in_focus">In focus</string>
     <string name="briefing_just_in">Net binnen</string>
     <string name="briefing_time_in_topic">%1$s in %2$s</string>
+    <string name="briefing_preparing">Je briefing wordt voorbereid…</string>
+    <string name="briefing_translating">Vertalen %1$d van %2$d…</string>
 </resources>
