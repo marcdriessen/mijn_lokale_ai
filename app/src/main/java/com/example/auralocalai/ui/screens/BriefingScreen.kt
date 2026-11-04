@@ -248,8 +248,9 @@ fun BriefingScreen(
                                         engine.stop()
                                         isSpeaking = false
                                     } else {
-                                        engine.speak(briefingViewModel.briefingAsSpeech(briefing), TextToSpeech.QUEUE_FLUSH, null, "briefing")
-                                        isSpeaking = true
+                                        isSpeaking = com.example.auralocalai.ui.components.TtsVoices.speak(
+                                            context, engine, briefingViewModel.briefingAsSpeech(briefing), briefingLanguage, "briefing"
+                                        )
                                     }
                                 }
                             )

@@ -939,4 +939,6 @@
     <string name="full_article_unavailable">The full text cannot be read here (paid or blocked) and no free version was found. Use “Read in the app” to log in, or open the source.</string>
     <string name="full_article_show_original">Show original</string>
     <string name="full_article_show_translation">Show translation</string>
+    <string name="tts_language_missing_named">No %1$s voice is installed on this phone, so it is not read aloud. Install it: Settings › System › Languages › Text-to-speech › Speech Services by Google › Install voice data.</string>
+    <string name="briefing_fulltext_progress">Preparing full articles… %1$d of %2$d</string>
 </resources>

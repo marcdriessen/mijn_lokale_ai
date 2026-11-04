@@ -93,8 +93,7 @@ fun CoachScreen(
     LaunchedEffect(state.turns.size) {
         val last = state.turns.lastOrNull()
         if (autoSpeak && last != null && !last.fromLearner) {
-            tts.value?.setLanguage(Locale.forLanguageTag(state.targetLanguage))
-            tts.value?.speak(last.text, TextToSpeech.QUEUE_FLUSH, null, "coach_auto")
+            tts.value?.let { com.example.auralocalai.ui.components.TtsVoices.speak(context, it, last.text, state.targetLanguage, "coach_auto") }
         }
     }
     LaunchedEffect(state.turns.size, state.busy) {
@@ -188,8 +187,7 @@ fun CoachScreen(
                                 }
                                 if (!turn.fromLearner) {
                                     IconButton(onClick = {
-                                        tts.value?.setLanguage(Locale.forLanguageTag(state.targetLanguage))
-                                        tts.value?.speak(turn.text, TextToSpeech.QUEUE_FLUSH, null, "coach")
+                                        tts.value?.let { com.example.auralocalai.ui.components.TtsVoices.speak(context, it, turn.text, state.targetLanguage, "coach") }
                                     }, modifier = Modifier.size(32.dp)) {
                                         Icon(Icons.Default.VolumeUp, contentDescription = stringResource(R.string.briefing_read_aloud), modifier = Modifier.size(18.dp))
                                     }

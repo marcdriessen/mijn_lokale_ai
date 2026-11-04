@@ -24,7 +24,7 @@ class BriefingGenerator(
     private val studyLookup: (suspend (String) -> LinkedStudy?)? = null
 ) {
 
-    enum class Stage { FETCHING, RANKING, IMAGES, TRANSLATING, WRITING }
+    enum class Stage { FETCHING, RANKING, IMAGES, FULLTEXT, TRANSLATING, WRITING }
 
     data class Progress(val stage: Stage, val done: Int = 0, val total: Int = 0)
 
@@ -43,6 +43,8 @@ class BriefingGenerator(
         model: ModelCall? = null,
         /** Stop calling the model after this moment (epoch millis), e.g. to stay within a background time limit. */
         modelDeadline: Long = Long.MAX_VALUE,
+        /** Read and translate the whole articles in advance (stored with the briefing). */
+        prepareFullText: Boolean = true,
         onProgress: (Progress) -> Unit = {},
         onSourceErrors: (Map<String, String>) -> Unit = {}
     ): Briefing {
@@ -143,6 +145,20 @@ class BriefingGenerator(
                         else -> ArticleContent.STATUS_SUMMARY_ONLY
                     }
                 )
+            }
+
+            // Prepare the whole article in advance, translated into the briefing language, so it can be read
+            // immediately when opened (also for the scheduled briefing made before the chosen time).
+            if (translator != null && prepareFullText) {
+                articles = articles.mapIndexed { i, a ->
+                    val paragraphs = fullTexts[i].split(Regex("\n\\s*\n")).map { it.trim() }.filter { it.isNotBlank() }.take(MAX_FULL_PARAGRAPHS)
+                    if (paragraphs.isEmpty()) return@mapIndexed a
+                    onProgress(Progress(Stage.FULLTEXT, i + 1, articles.size))
+                    val translated = paragraphs.map { p ->
+                        FullParagraph(runCatching { translator.translate(p, languageCode) }.getOrNull() ?: p, p)
+                    }
+                    a.copy(fullText = translated)
+                }
             }
 
             // Research news: find the underlying study via its DOI (Europe PMC, then Crossref).
@@ -251,6 +267,7 @@ class BriefingGenerator(
     companion object {
         const val CACHE_MAX_AGE_MS = 3L * 60L * 60L * 1000L
         const val MAX_MORE_ITEMS = 60
+        const val MAX_FULL_PARAGRAPHS = 60
 
         /** Language the briefing is written in: the profile's choice, Dutch for the care briefing, else the app language. */
         fun languageFor(profile: BriefingProfile, appLanguage: String): String =

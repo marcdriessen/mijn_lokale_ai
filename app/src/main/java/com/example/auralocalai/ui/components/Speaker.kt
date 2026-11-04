@@ -21,17 +21,12 @@ class Speaker internal constructor() {
     var isSpeaking by mutableStateOf(false)
         internal set
 
+    internal var context: android.content.Context? = null
+
     fun speak(text: String, languageCode: String) {
         val engine = tts ?: return
-        val clean = text.replace(Regex("[*#`_>|]"), " ").replace(Regex("\\[(NAAM|BSN|EGN|DATUM|ADRES|TELEFOON|E-MAIL|POSTCODE|IBAN|NUMMER)]"), " ")
-        val result = engine.setLanguage(Locale.forLanguageTag(dictationLanguageTag(languageCode)))
-        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) onMissingLanguage()
-        // Long texts are split, because TTS engines limit the length of one utterance.
-        val chunks = clean.split(Regex("(?<=[.!?])\\s+|\\n+")).filter { it.isNotBlank() }
-        chunks.forEachIndexed { i, chunk ->
-            engine.speak(chunk, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "speak_$i")
-        }
-        isSpeaking = chunks.isNotEmpty()
+        val ctx = context ?: return
+        isSpeaking = TtsVoices.speak(ctx, engine, text, languageCode)
     }
 
     fun stop() {
@@ -61,6 +56,7 @@ fun rememberSpeaker(): Speaker {
                 })
             }
         }
+        speaker.context = context
         speaker.onMissingLanguage = {
             Toast.makeText(context, context.getString(R.string.tts_language_missing), Toast.LENGTH_LONG).show()
         }

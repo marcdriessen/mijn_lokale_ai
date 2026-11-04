@@ -938,4 +938,6 @@
     <string name="full_article_unavailable">De volledige tekst kan hier niet gelezen worden (betaald of geblokkeerd) en er is geen gratis versie gevonden. Gebruik ‘Lezen in de app’ om in te loggen, of open de bron.</string>
     <string name="full_article_show_original">Origineel tonen</string>
     <string name="full_article_show_translation">Vertaling tonen</string>
+    <string name="tts_language_missing_named">Er is geen %1$s stem geïnstalleerd op deze telefoon, dus er wordt niet voorgelezen. Installeer hem via Instellingen › Systeem › Talen › Tekst-naar-spraak › Spraakservices van Google › Spraakgegevens installeren.</string>
+    <string name="briefing_fulltext_progress">Volledige artikelen klaarzetten… %1$d van %2$d</string>
 </resources>

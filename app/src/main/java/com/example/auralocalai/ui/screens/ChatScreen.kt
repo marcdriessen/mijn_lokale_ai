@@ -139,7 +139,9 @@ fun ChatScreen(
         if (voiceMode && !uiState.isGenerating && last != null && !last.isUser && last.id != lastSpokenId && last.content.isNotBlank()) {
             lastSpokenId = last.id
             val spoken = LlmViewModel.stripThinkingBlocks(last.content).replace(Regex("[*#`_>]"), " ")
-            chatTts.value?.speak(spoken, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, last.id)
+            chatTts.value?.let {
+                com.example.auralocalai.ui.components.TtsVoices.speak(context, it, spoken, com.example.auralocalai.AppLocale.effectiveLanguage(context), last.id)
+            }
         }
     }
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }

@@ -302,6 +302,24 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun loadFullArticle(article: com.example.auralocalai.data.briefing.BriefingArticle, languageCode: String) {
         if (_state.value.fullArticle?.link == article.item.link) return
         fullArticleJob?.cancel()
+        // Prepared in advance (scheduled or earlier briefing): show it right away, no download or translation.
+        if (article.fullText.isNotEmpty()) {
+            val same = article.fullText.all { it.text == it.original }
+            _state.update {
+                it.copy(
+                    fullArticle = FullArticle(
+                        link = article.item.link,
+                        sourceName = article.item.sourceName,
+                        paragraphs = article.fullText.map { p -> p.text to p.original },
+                        loading = false,
+                        done = article.fullText.size,
+                        total = article.fullText.size,
+                        alreadyInLanguage = same
+                    )
+                )
+            }
+            return
+        }
         _state.update { it.copy(fullArticle = FullArticle(article.item.link, article.item.sourceName)) }
         fullArticleJob = viewModelScope.launch {
             var source = article.item
@@ -502,6 +520,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private fun progressText(p: BriefingGenerator.Progress): String = when (p.stage) {
         BriefingGenerator.Stage.FETCHING -> str(R.string.briefing_fetching)
         BriefingGenerator.Stage.RANKING -> str(R.string.briefing_ranking)
+        BriefingGenerator.Stage.FULLTEXT -> str(R.string.briefing_fulltext_progress, p.done, p.total)
         BriefingGenerator.Stage.IMAGES -> str(R.string.briefing_images)
         BriefingGenerator.Stage.TRANSLATING -> str(R.string.briefing_translating, p.done, p.total)
         BriefingGenerator.Stage.WRITING -> str(R.string.briefing_writing, p.done, p.total)

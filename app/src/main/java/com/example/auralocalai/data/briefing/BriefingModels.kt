@@ -92,8 +92,14 @@ data class BriefingArticle(
     /** The study behind a research news item, found via its DOI. */
     val study: LinkedStudy? = null,
     /** Source that was replaced because it was behind a paywall or blocked (the news is shown from a free source). */
-    val replacedSource: String = ""
+    val replacedSource: String = "",
+    /** The whole article, prepared in advance and translated into the briefing language (paragraph by paragraph). */
+    val fullText: List<FullParagraph> = emptyList()
 )
+
+/** One paragraph of a prepared article: the translation and the original text. */
+@Serializable
+data class FullParagraph(val text: String, val original: String = "")
 
 @Serializable
 data class Briefing(

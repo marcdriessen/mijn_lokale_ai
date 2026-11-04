@@ -938,4 +938,6 @@
     <string name="full_article_unavailable">Пълният текст не може да се прочете (платен или блокиран) и няма безплатна версия.</string>
     <string name="full_article_show_original">Покажи оригинала</string>
     <string name="full_article_show_translation">Покажи превода</string>
+    <string name="tts_language_missing_named">На телефона няма инсталиран глас за %1$s. Инсталирайте го: Настройки › Система › Езици › Синтезиран говор › Речеви услуги от Google › Инсталиране на гласови данни.</string>
+    <string name="briefing_fulltext_progress">Подготовка на пълните статии… %1$d от %2$d</string>
 </resources>
