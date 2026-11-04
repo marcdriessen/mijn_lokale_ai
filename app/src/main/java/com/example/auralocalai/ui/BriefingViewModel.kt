@@ -214,7 +214,21 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val cleanName = name.trim().ifEmpty { android.net.Uri.parse(cleanUrl).host ?: cleanUrl }
-        updateConfig { it.copy(sources = it.sources + NewsSource("src_" + System.currentTimeMillis(), cleanName, cleanUrl)) }
+        if (cleanUrl.contains(NewsSource.SEARCH_PLACEHOLDER)) {
+            updateConfig { it.copy(sources = it.sources + NewsSource("src_" + System.currentTimeMillis(), cleanName, cleanUrl)) }
+            return
+        }
+        // A normal web address: look for the feed the site announces (feed autodetection).
+        _state.update { it.copy(message = str(R.string.briefing_feed_searching)) }
+        viewModelScope.launch {
+            val feed = fetcher.discoverFeed(cleanUrl)
+            if (feed == null) {
+                _state.update { it.copy(message = str(R.string.briefing_feed_not_found)) }
+            } else {
+                updateConfig { it.copy(sources = it.sources + NewsSource("src_" + System.currentTimeMillis(), cleanName, feed)) }
+                _state.update { it.copy(message = if (feed == cleanUrl) str(R.string.briefing_feed_added) else str(R.string.briefing_feed_found, feed)) }
+            }
+        }
     }
 
     fun restoreDefaultSources() = updateConfig { config ->

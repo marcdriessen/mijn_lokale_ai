@@ -852,4 +852,12 @@
     <string name="personalize_subtitle">Choose topics to see stories put together especially for you</string>
     <string name="personalize_save">Save</string>
     <string name="personalize_saved">Topics saved. Tap “Update now” to fetch news for them.</string>
+    <string name="briefing_text_full">full article</string>
+    <string name="briefing_text_intro">intro only</string>
+    <string name="briefing_all_results">All results (%1$d)</string>
+    <string name="briefing_feed_searching">Looking for the news feed of this site…</string>
+    <string name="briefing_feed_not_found">No news feed found on this address. Try the address of the site’s RSS page.</string>
+    <string name="briefing_feed_added">Source added</string>
+    <string name="briefing_feed_found">Feed found and added: %1$s</string>
+    <string name="medical_searching_europepmc">Searching Europe PMC…</string>
 </resources>

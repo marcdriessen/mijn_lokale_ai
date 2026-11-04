@@ -84,7 +84,11 @@ Google Nieuws wordt gebruikt voor sites die zelf geen bruikbare feed hebben, met
 **Zoekfeeds:** een feed-URL met `{q}` wordt per trefwoord ingevuld, bijvoorbeeld Google Nieuws
 zoeken in NL, EN of BG. De app doet maximaal 12 zoekopdrachten per run.
 
-**Eigen bronnen:** de gebruiker kan elke RSS-URL toevoegen, testen en aan/uit zetten.
+**Eigen bronnen:** de gebruiker kan elke RSS-URL toevoegen, testen en aan/uit zetten. Wordt een
+gewoon website-adres ingevoerd, dan zoekt de app zelf de aangekondigde feed (`<link rel="alternate">`).
+
+**Toegevoegd na het integratieplan:** БТА (Bulgarije), Факти, Факти – България, IGJ (nieuws en
+toezichtdocumenten), NISPA en GGZ Standaarden via Google Nieuws; Hacker News en XDA (standaard uit).
 
 **Betaalmuur-filter (standaard aan):** artikelen van sites waar de meeste artikelen achter een
 betaalmuur zitten, worden overgeslagen. Voorbeelden: NRC, Volkskrant, FD, Trouw, Telegraaf, AD,
@@ -100,15 +104,19 @@ uitgever uit het `<source url=…>`-veld.
 3. **Selecteren.** Een kop of samenvatting telt als treffer als een trefwoord van het onderwerp erin
    voorkomt, in welke taal dan ook. Dubbele verhalen worden samengevoegd. De nieuwste berichten gaan
    voor, en de onderwerpen komen om de beurt aan bod tot het maximum is bereikt.
-4. **Afbeeldingen.** Heeft de feed geen afbeelding, dan haalt de app het `og:image` van de
-   artikelpagina op.
+4. **Volledige tekst en afbeelding.** Voor elk gekozen artikel gebruikt de app de volledige tekst
+   uit de feed (`content:encoded`) of leest de artikelpagina (hoofdtekst + `og:image`). Een
+   kwaliteitscontrole wijst cookiemeldingen, inlogmuren en navigatie af. Lukt het niet, dan krijgt
+   het artikel de status "alleen intro" en mag het model niets aanvullen. De volledige tekst wordt
+   alleen tijdelijk gebruikt, niet opgeslagen.
 5. **Vertalen.** Kop en intro worden offline vertaald met ML Kit naar de taal van de briefing. Het
    origineel blijft zichtbaar.
 6. **Schrijven.** Het lokale model schrijft per artikel een **titel**, een **samenvatting** en
    **"wat betekent dit voor jou"**. Daarbij gebruikt het de instructies van het profiel en alleen de
    tekst uit de feed: het mag niets verzinnen. Zonder geladen model blijft het bij koppen en intro's.
 7. **Opslaan en tonen.** De briefing verschijnt pas als hij helemaal klaar is. Hij gaat in de
-   geschiedenis (met weekoverzicht) en naar de widget op het startscherm.
+   geschiedenis (met weekoverzicht) en naar de widget op het startscherm. Onder de briefing staat
+   **Alle resultaten**: alle andere gevonden berichten (max. 60), zodat niets ongezien verdwijnt.
 
 ### 4.4 Webmodus (Brave Search)
 
@@ -149,6 +157,8 @@ Een vakvraag wordt beantwoord met **bronnen**, in deze volgorde:
 
 1. **PubMed** via de NCBI E-utilities: `esearch` (gesorteerd op relevantie) en daarna `efetch`
    (abstracts). Het model zet de vraag eerst om in een Engelse PubMed-zoekopdracht.
+   **Europe PMC** (REST-API, gratis) zoekt daarna met dezelfde termen; publicaties die al via PubMed
+   gevonden zijn (zelfde PMID of titel) worden niet dubbel geteld. Open access wordt vermeld.
 2. **Vertrouwde sites** via Brave, beperkt met `site:`. Standaard zijn dat: GGZ Standaarden,
    Akwa GGZ, Trimbos, NISPA, Farmacotherapeutisch Kompas, Richtlijnendatabase, NHG-Standaarden en
    Vilans. De gebruiker kan sites toevoegen of uitzetten.

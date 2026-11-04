@@ -53,17 +53,48 @@ class BriefingGenerator(
 
         val selected = TopicMatcher.selectArticles(items, topics, profile.maxArticles.coerceIn(1, 15))
         val now = System.currentTimeMillis()
+        // "All results": every other matching item, newest first, so nothing disappears unseen.
+        val chosenLinks = selected.map { it.first.link }.toSet()
+        val moreItems = topics.flatMap { TopicMatcher.selectForTopic(items, it, MAX_MORE_ITEMS) }
+            .filter { it.link !in chosenLinks }
+            .distinctBy { it.link.ifBlank { it.title } }
+            .sortedByDescending { it.publishedMillis ?: 0L }
+            .take(MAX_MORE_ITEMS)
+            .map { it.copy(content = "") }
         var articles = selected.map { (item, topic) -> BriefingArticle(item, topic.name) }
 
         if (articles.isNotEmpty()) {
             // Preview images for articles whose feed had none.
+            // Full article text (temporary, only for the model) and a picture when the feed had none.
+            // Text from the feed itself (content:encoded) is used first; otherwise the article page is read.
             onProgress(Progress(Stage.IMAGES))
-            val images = coroutineScope {
+            val pages = coroutineScope {
                 articles.map { article ->
-                    async { if (article.item.imageUrl.isNullOrBlank()) fetcher.fetchPreviewImage(article.item.link) else article.item.imageUrl }
+                    async {
+                        val feedText = article.item.content.takeIf { ArticleContent.isUsable(it) }
+                        if (feedText != null && !article.item.imageUrl.isNullOrBlank()) {
+                            NewsFetcher.ArticlePage(article.item.imageUrl, feedText)
+                        } else {
+                            val page = runCatching { fetcher.fetchArticle(article.item.link) }.getOrNull()
+                            NewsFetcher.ArticlePage(
+                                article.item.imageUrl?.takeIf { it.isNotBlank() } ?: page?.imageUrl,
+                                feedText ?: page?.text?.takeIf { ArticleContent.isUsable(it) }.orEmpty()
+                            )
+                        }
+                    }
                 }.awaitAll()
             }
-            articles = articles.mapIndexed { i, a -> a.copy(item = a.item.copy(imageUrl = images[i])) }
+            val fullTexts = pages.map { it.text }
+            articles = articles.mapIndexed { i, a ->
+                a.copy(
+                    item = a.item.copy(imageUrl = pages[i].imageUrl, content = ""),
+                    textStatus = when {
+                        fullTexts[i].isNotBlank() && a.item.content.isNotBlank() && ArticleContent.isUsable(a.item.content) -> ArticleContent.STATUS_FEED
+                        fullTexts[i].isNotBlank() -> ArticleContent.STATUS_FULL
+                        else -> ArticleContent.STATUS_SUMMARY_ONLY
+                    }
+                )
+            }
 
             // Offline translation of headline and teaser.
             if (translator != null) {
@@ -91,7 +122,7 @@ class BriefingGenerator(
                         title = a.title.ifBlank { a.item.title },
                         description = a.summary.ifBlank { a.item.description }
                     )
-                    val raw = model.run(systemPrompt, BriefingPrompts.articlePrompt(input, a.topicName, languageName))
+                    val raw = model.run(systemPrompt, BriefingPrompts.articlePrompt(input, a.topicName, languageName, fullTexts[i]))
                     if (raw.isNullOrBlank()) return@mapIndexed a
                     val parsed = BriefingPrompts.parseArticle(raw)
                     a.copy(
@@ -110,7 +141,8 @@ class BriefingGenerator(
             language = languageCode,
             profileId = profile.id,
             profileName = profile.name,
-            articles = articles
+            articles = articles,
+            moreItems = moreItems
         )
     }
 
@@ -137,6 +169,7 @@ class BriefingGenerator(
 
     companion object {
         const val CACHE_MAX_AGE_MS = 3L * 60L * 60L * 1000L
+        const val MAX_MORE_ITEMS = 60
 
         /** Language the briefing is written in: the profile's choice, Dutch for the care briefing, else the app language. */
         fun languageFor(profile: BriefingProfile, appLanguage: String): String =

@@ -36,10 +36,22 @@ object RssParser {
                 publishedMillis = dateText?.let { parseDate(cleanText(it)) },
                 description = description,
                 imageUrl = extractImage(body),
-                publisherDomain = SOURCE_URL_REGEX.find(body)?.groupValues?.get(1)?.let { Paywall.domainOf(it) }.orEmpty()
+                publisherDomain = SOURCE_URL_REGEX.find(body)?.groupValues?.get(1)?.let { Paywall.domainOf(it) }.orEmpty(),
+                content = firstTag(body, "content:encoded")?.let { encodedToText(it) }.orEmpty()
             )
         }.toList()
     }
+
+    /** content:encoded holds HTML (often in CDATA): keep the paragraphs as plain text. */
+    private fun encodedToText(raw: String): String {
+        val html = raw.trim().removePrefix("<![CDATA[").removeSuffix("]]>")
+        val paragraphs = Regex("<(p|h2|h3|li)\\b[^>]*>(.*?)</\\1>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+            .findAll(html).map { cleanText(it.groupValues[2]) }.filter { it.isNotBlank() }.toList()
+        val text = if (paragraphs.isNotEmpty()) paragraphs.joinToString("\n\n") else cleanText(html)
+        return text.take(MAX_CONTENT_CHARS)
+    }
+
+    private const val MAX_CONTENT_CHARS = 4_000
 
     private fun firstTag(body: String, tag: String): String? {
         val regex = Regex("<${Regex.escape(tag)}\\b[^>]*>(.*?)</${Regex.escape(tag)}>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))

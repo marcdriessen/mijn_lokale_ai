@@ -851,4 +851,12 @@
     <string name="personalize_subtitle">Kies onderwerpen om verhalen te zien die speciaal voor jou zijn samengesteld</string>
     <string name="personalize_save">Opslaan</string>
     <string name="personalize_saved">Onderwerpen opgeslagen. Tik op ‘Nu bijwerken’ om er nieuws voor op te halen.</string>
+    <string name="briefing_text_full">hele artikel</string>
+    <string name="briefing_text_intro">alleen intro</string>
+    <string name="briefing_all_results">Alle resultaten (%1$d)</string>
+    <string name="briefing_feed_searching">Nieuwsfeed van deze site zoeken…</string>
+    <string name="briefing_feed_not_found">Geen nieuwsfeed gevonden op dit adres. Probeer het adres van de RSS-pagina van de site.</string>
+    <string name="briefing_feed_added">Bron toegevoegd</string>
+    <string name="briefing_feed_found">Feed gevonden en toegevoegd: %1$s</string>
+    <string name="medical_searching_europepmc">Europe PMC doorzoeken…</string>
 </resources>

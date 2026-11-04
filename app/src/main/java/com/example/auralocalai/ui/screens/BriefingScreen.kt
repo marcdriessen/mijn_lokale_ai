@@ -160,6 +160,7 @@ fun BriefingScreen(
     var selectedTab by remember { mutableStateOf<String?>(null) }
     var detailArticle by remember { mutableStateOf<BriefingArticle?>(null) }
     var showPersonalize by remember { mutableStateOf(false) }
+    var showAllResults by remember { mutableStateOf(false) }
     val modelReady = llmState.modelState is ModelState.Loaded
     val profile = state.selectedProfile
 
@@ -444,6 +445,49 @@ fun BriefingScreen(
                             context.startActivity(Intent.createChooser(send, shareTitle))
                         }
                     )
+                }
+                // "All results": everything else that matched, so nothing disappears unseen.
+                val more = briefing?.moreItems.orEmpty()
+                if (more.isNotEmpty() && selectedTab == null) {
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showAllResults = !showAllResults }
+                                .padding(horizontal = 20.dp, vertical = 16.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.briefing_all_results, more.size),
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                stringResource(if (showAllResults) R.string.briefing_show_less else R.string.briefing_show_more),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    if (showAllResults) {
+                        itemsIndexed(more, key = { i, _ -> "more_${briefing?.id}_$i" }) { _, item ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { openUrl(context, item.link) }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    listOfNotNull(relativeTime(item.publishedMillis), item.sourceName).joinToString(" · "),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
                 }
                 if (state.sourceErrors.isNotEmpty()) {
                     item {
@@ -823,7 +867,16 @@ private fun DiscoverCard(
         }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = listOfNotNull(relativeTime(article.item.publishedMillis), article.item.sourceName).joinToString(" · "),
+                text = listOfNotNull(
+                    relativeTime(article.item.publishedMillis),
+                    article.item.sourceName,
+                    when (article.textStatus) {
+                        com.example.auralocalai.data.briefing.ArticleContent.STATUS_FULL,
+                        com.example.auralocalai.data.briefing.ArticleContent.STATUS_FEED -> stringResource(R.string.briefing_text_full)
+                        com.example.auralocalai.data.briefing.ArticleContent.STATUS_SUMMARY_ONLY -> stringResource(R.string.briefing_text_intro)
+                        else -> null
+                    }
+                ).joinToString(" · "),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

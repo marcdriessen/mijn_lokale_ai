@@ -59,11 +59,16 @@ object BriefingPrompts {
      * Prompt for one article. The answer must have three labelled lines so it can be parsed:
      * TITLE, SUMMARY and RELEVANCE.
      */
-    fun articlePrompt(item: NewsItem, topicName: String, languageName: String): String =
+    /** [fullText]: the whole article when it could be read; otherwise only the feed teaser is used. */
+    fun articlePrompt(item: NewsItem, topicName: String, languageName: String, fullText: String = ""): String =
         "Topic: $topicName\n" +
             "Headline: ${item.title}\n" +
             "Source: ${item.sourceName}\n" +
-            (if (item.description.isNotBlank()) "Article text: ${item.description.take(900)}\n" else "") +
+            (when {
+                fullText.isNotBlank() -> "Article text:\n${fullText.take(MAX_ARTICLE_CHARS)}\n"
+                item.description.isNotBlank() -> "Article text (only the introduction is available; do not add anything that is not in it): ${item.description.take(900)}\n"
+                else -> ""
+            }) +
             "\nThe article may be in another language. Translate and write everything in $languageName.\n" +
             "Reply with exactly these three lines and nothing else:\n" +
             "TITLE: <the headline translated into $languageName, max 12 words>\n" +
@@ -71,6 +76,9 @@ object BriefingPrompts {
             "RELEVANCE: <1 or 2 sentences on what this means for the reader, based on the reader's instructions; " +
             "say honestly if it has no direct meaning>\n" +
             "Remember: TITLE, SUMMARY and RELEVANCE must be written in $languageName."
+
+    /** Characters of article text given to the model (fits the context of small models). */
+    const val MAX_ARTICLE_CHARS = 2_800
 
     data class ArticleText(val title: String, val summary: String, val relevance: String)
 

@@ -60,6 +60,7 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
 
     private val repository = MedicalRepository(application.filesDir)
     private val pubMed = PubMedClient()
+    private val europePmc = com.example.auralocalai.data.medical.EuropePmcClient()
     private val _state = MutableStateFlow(MedicalUiState())
     val state: StateFlow<MedicalUiState> = _state.asStateFlow()
     private var runJob: Job? = null
@@ -189,15 +190,38 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                             ?.ifBlank { null } ?: clean
                     } else clean
                     answer = answer.copy(searchQuery = pubQuery)
+                    val seenPmids = mutableSetOf<String>()
+                    val seenTitles = mutableSetOf<String>()
                     try {
                         pubMed.search(pubQuery, maxResults = 4).forEach { article ->
                             val origin = listOf("PubMed", article.journal, article.year).filter { it.isNotBlank() }.joinToString(" · ")
                             sources += MedicalSource(SourceKind.PUBMED.name, article.title, article.url, article.abstract.ifBlank { article.title }, origin)
+                            seenPmids += article.pmid
+                            seenTitles += com.example.auralocalai.data.medical.EuropePmcParser.titleKey(article.title)
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         notes += str(R.string.medical_note_pubmed_error, e.message ?: "")
+                    }
+                    // Europe PMC: European and open-access literature. The same study found in PubMed
+                    // (same PMID or title) is not counted twice.
+                    _state.update { it.copy(progress = str(R.string.medical_searching_europepmc)) }
+                    try {
+                        europePmc.search(pubQuery, maxResults = 4)
+                            .filter { it.pmid !in seenPmids && com.example.auralocalai.data.medical.EuropePmcParser.titleKey(it.title) !in seenTitles }
+                            .take(3)
+                            .forEach { article ->
+                                val origin = listOfNotNull(
+                                    "Europe PMC", article.journal.ifBlank { null }, article.year.ifBlank { null },
+                                    if (article.isOpenAccess) "open access" else null
+                                ).joinToString(" · ")
+                                sources += MedicalSource(SourceKind.PUBMED.name, article.title, article.url, article.abstract.ifBlank { article.title }, origin)
+                            }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        notes += str(R.string.medical_note_pubmed_error, "Europe PMC: " + (e.message ?: ""))
                     }
                 }
 

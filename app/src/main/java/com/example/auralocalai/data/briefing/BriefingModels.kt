@@ -45,7 +45,9 @@ data class NewsItem(
     val description: String = "",
     val imageUrl: String? = null,
     /** Domain of the real publisher (Google News items link to news.google.com). */
-    val publisherDomain: String = ""
+    val publisherDomain: String = "",
+    /** Full text from the feed itself (content:encoded), when the feed provides it. */
+    val content: String = ""
 )
 
 @Serializable
@@ -65,7 +67,9 @@ data class BriefingArticle(
     val summary: String = "",
     val relevance: String = "",
     /** True when the model rewrote (and translated) the article. */
-    val processed: Boolean = false
+    val processed: Boolean = false,
+    /** What the summary is based on: "full" (whole article), "feed" (feed text) or "summary_only". */
+    val textStatus: String = ""
 )
 
 @Serializable
@@ -76,7 +80,9 @@ data class Briefing(
     val language: String = "en",
     val profileId: String = "",
     val profileName: String = "",
-    val articles: List<BriefingArticle> = emptyList()
+    val articles: List<BriefingArticle> = emptyList(),
+    /** All other matching items that were found but not chosen for the briefing ("All results"). */
+    val moreItems: List<NewsItem> = emptyList()
 )
 
 enum class BriefingFrequency { DAILY, WEEKDAYS, WEEKLY }
@@ -150,7 +156,24 @@ object DefaultBriefing {
         NewsSource("novinite", "Novinite (Bulgaria, English)", "https://www.novinite.com/services/news_rdf.php")
     )
 
-    const val SOURCES_VERSION = 2
+    /**
+     * Added in sources version 3 (advice of the integration plan): Bulgarian news (BTA, Fakti),
+     * the Dutch health inspectorate (IGJ) and Google News fallbacks for professional sites.
+     * Technology and forum feeds are added switched off.
+     */
+    val sourcesV3: List<NewsSource> = listOf(
+        NewsSource("bta_bg", "БТА – България", "https://www.bta.bg/bg/news/bulgaria/rss"),
+        NewsSource("fakti", "Факти", "https://fakti.bg/feed"),
+        NewsSource("fakti_bg", "Факти – България", "https://fakti.bg/feed/bulgaria"),
+        NewsSource("igj", "Inspectie Gezondheidszorg en Jeugd", "https://www.igj.nl/service/rss"),
+        NewsSource("igj_toezicht", "IGJ toezichtdocumenten", "https://toezichtdocumenten.igj.nl/api/rss"),
+        NewsSource("gn_nispa", "NISPA (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Anispa.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl"),
+        NewsSource("gn_ggzstandaarden", "GGZ Standaarden (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Aggzstandaarden.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl"),
+        NewsSource("hackernews", "Hacker News", "https://news.ycombinator.com/rss", enabled = false),
+        NewsSource("xda", "XDA Developers", "https://www.xda-developers.com/feed/", enabled = false)
+    )
+
+    const val SOURCES_VERSION = 3
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
@@ -234,7 +257,7 @@ object DefaultBriefing {
 
     val config: BriefingConfig = BriefingConfig(
         topics = topics,
-        sources = sources + freeSources + dutchSources,
+        sources = sources + freeSources + dutchSources + sourcesV3,
         profiles = listOf(careProfile, worldProfile),
         sourcesVersion = SOURCES_VERSION
     )
@@ -252,8 +275,9 @@ object DefaultBriefing {
         }
         if (result.sourcesVersion < SOURCES_VERSION) {
             val existingIds = result.sources.map { it.id }.toSet()
+            val added = (if (result.sourcesVersion < 2) freeSources else emptyList()) + sourcesV3
             result = result.copy(
-                sources = result.sources + freeSources.filterNot { it.id in existingIds },
+                sources = result.sources + added.filterNot { it.id in existingIds },
                 sourcesVersion = SOURCES_VERSION
             )
         }
