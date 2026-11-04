@@ -149,13 +149,14 @@ class BriefingGenerator(
 
             // Prepare the whole article in advance, translated into the briefing language, so it can be read
             // immediately when opened (also for the scheduled briefing made before the chosen time).
-            if (translator != null && prepareFullText) {
+            val fullTranslator = translator
+            if (fullTranslator != null && prepareFullText) {
                 articles = articles.mapIndexed { i, a ->
                     val paragraphs = fullTexts[i].split(Regex("\n\\s*\n")).map { it.trim() }.filter { it.isNotBlank() }.take(MAX_FULL_PARAGRAPHS)
                     if (paragraphs.isEmpty()) return@mapIndexed a
                     onProgress(Progress(Stage.FULLTEXT, i + 1, articles.size))
                     val translated = paragraphs.map { p ->
-                        FullParagraph(runCatching { translator.translate(p, languageCode) }.getOrNull() ?: p, p)
+                        FullParagraph(runCatching { fullTranslator.translate(p, languageCode) }.getOrNull() ?: p, p)
                     }
                     a.copy(fullText = translated)
                 }
