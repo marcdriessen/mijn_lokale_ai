@@ -283,4 +283,16 @@
     </plurals>
     <string name="select_language">Taal</string>
     <string name="language_system">Taal van het toestel</string>
+    <string name="unload_model">Model ontladen</string>
+    <string name="stage_unloading_previous">Vorig model ontladen…</string>
+    <string name="stage_freeing_memory">Geheugen vrijmaken…</string>
+    <string name="err_low_memory">Nu te weinig vrij geheugen: %1$s GB vrij, ongeveer %2$s GB nodig. Sluit andere apps, of tik op “Toch proberen” (Android kan de app sluiten als het geheugen opraakt).</string>
+    <string name="try_anyway">Toch proberen</string>
+    <string name="memory_title">Werkgeheugen (RAM)</string>
+    <string name="memory_free">%1$s GB vrij van %2$s GB</string>
+    <string name="memory_model_loaded">Geladen: %1$s</string>
+    <string name="auto_unload_title">Model automatisch ontladen</string>
+    <string name="auto_unload_desc">Maakt het geheugen van het model vrij na zoveel minuten zonder gebruik.</string>
+    <string name="auto_unload_off">Uit</string>
+    <string name="minutes_short">%1$d min</string>
 </resources>

@@ -187,4 +187,15 @@ class ModelSafetyValidatorTest {
         // 4. Multimodal headroom constant check:
         assertEquals(500L * 1024L * 1024L, ModelSafetyValidator.MULTIMODAL_VISION_OVERHEAD_BYTES)
     }
+
+    @Test
+    fun relaxedRequirementOnlyAppliesToHighRamDevices() {
+        val required = 4_000_000_000L
+        val sixGb = 6L * 1024L * 1024L * 1024L
+        val twelveGb = 12L * 1024L * 1024L * 1024L
+        // 6 GB device: full requirement stays in force
+        assertEquals(required, ModelSafetyValidator.relaxedRequirementBytes(required, sixGb))
+        // 12 GB device (e.g. Pixel 8 Pro): only 70% must be free right now
+        assertEquals((required * 0.7).toLong(), ModelSafetyValidator.relaxedRequirementBytes(required, twelveGb))
+    }
 }

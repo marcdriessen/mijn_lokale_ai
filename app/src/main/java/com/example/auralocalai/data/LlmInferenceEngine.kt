@@ -82,6 +82,7 @@ class LlmInferenceEngine(private val context: Context) {
         initialHistory: List<Message> = emptyList(),
         samplerConfig: SamplerConfig? = null,
         thinkingConfig: ThinkingConfig? = null,
+        forceLoad: Boolean = false,
         onStageUpdate: ((String) -> Unit)? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -234,7 +235,12 @@ class LlmInferenceEngine(private val context: Context) {
             // STEP 2: Attempt GPU initialization (Vulkan)
             // ============================================================
             if (!loaded) {
-                val isLowTierGpu = SocDetector.shouldDefaultToCpu(context)
+                val tensorPrefersCpu = preferredBackend == "AUTO" &&
+                    SocDetector.prefersCpuForModel(context, preset, modelFile.name)
+                if (tensorPrefersCpu) {
+                    android.util.Log.i("LlmInferenceEngine", "Google Tensor / Mali GPU: routing ${modelFile.name} to CPU in AUTO mode (Qwen/Q8 output degrades on the Mali Vulkan path).")
+                }
+                val isLowTierGpu = SocDetector.shouldDefaultToCpu(context) || tensorPrefersCpu
                 val attemptGpu = (preferredBackend == "GPU_ONLY" || (preferredBackend == "AUTO" && !isLowTierGpu)) &&
                     (restriction == LlmBackendRestriction.ANY || restriction == LlmBackendRestriction.GPU_ONLY)
                 if (preferredBackend == "AUTO" && isLowTierGpu) {
@@ -247,7 +253,8 @@ class LlmInferenceEngine(private val context: Context) {
                         preset = preset,
                         isGpu = true,
                         modelFile = modelFile,
-                        contextTurns = contextTurns
+                        contextTurns = contextTurns,
+                        force = forceLoad
                     )
                     if (gpuRamCheck.isFailure) {
                         val ramError = gpuRamCheck.exceptionOrNull() ?: Exception("Insufficient available RAM for GPU initialization")
@@ -308,7 +315,7 @@ class LlmInferenceEngine(private val context: Context) {
                 if (attemptCpu) {
                     onStageUpdate?.invoke("GPU unavailable \u2014 checking device RAM for CPU fallback\u2026")
                     // Check RAM size before committing to CPU execution to prevent native OOM crashes
-                    val ramCheck = verifyDeviceRamForCpu(preset, modelFile, contextTurns)
+                    val ramCheck = verifyDeviceRamForCpu(preset, modelFile, contextTurns, forceLoad)
                     if (ramCheck.isFailure) {
                         val ramError = ramCheck.exceptionOrNull() ?: Exception("RAM check failed for CPU execution")
                         return@withContext Result.failure(ramError)
@@ -354,8 +361,8 @@ class LlmInferenceEngine(private val context: Context) {
      * Checks if the device has at least 8 GB of total RAM.
      * Throws an explicit exception if RAM is insufficient, avoiding a silent native OS OOM kill.
      */
-    private fun verifyDeviceRamForCpu(preset: ModelPreset?, modelFile: File? = null, contextTurns: Int = 6): Result<Unit> {
-        return ModelSafetyValidator.verifyDeviceRamForInference(context, preset, isGpu = false, modelFile = modelFile, contextTurns = contextTurns)
+    private fun verifyDeviceRamForCpu(preset: ModelPreset?, modelFile: File? = null, contextTurns: Int = 6, force: Boolean = false): Result<Unit> {
+        return ModelSafetyValidator.verifyDeviceRamForInference(context, preset, isGpu = false, modelFile = modelFile, contextTurns = contextTurns, force = force)
     }
 
 
@@ -585,6 +592,15 @@ class LlmInferenceEngine(private val context: Context) {
             currentModelPath = null
             activeBackend = "None"
         }
+    }
+
+    /**
+     * Explicitly unloads the current model: closes conversation and engine (waiting for any running
+     * generation to release the lock), clears references and asks the runtime to collect wrappers.
+     */
+    suspend fun unloadModel() {
+        closeAsync()
+        System.gc()
     }
 
     /**

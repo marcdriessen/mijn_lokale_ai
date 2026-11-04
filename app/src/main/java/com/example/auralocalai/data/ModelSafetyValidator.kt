@@ -17,6 +17,16 @@ sealed interface IntegrityResult {
     data class StructuralFailure(val reason: String) : IntegrityResult
 }
 
+/**
+ * Thrown when there is not enough free RAM to load a model right now.
+ * Carries the measured and required amounts so the UI can explain it and offer "Try anyway".
+ */
+class LowMemoryException(
+    message: String,
+    val availBytes: Long,
+    val requiredBytes: Long
+) : IllegalStateException(message)
+
 object ModelSafetyValidator {
 
     private const val TAG = "ModelSafetyValidator"
@@ -246,12 +256,18 @@ object ModelSafetyValidator {
         preset: ModelPreset? = null,
         isGpu: Boolean = false,
         modelFile: File? = null,
-        contextTurns: Int = 6
+        contextTurns: Int = 6,
+        force: Boolean = false
     ): Result<Unit> {
         val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             ?: return Result.success(Unit)
         val memInfo = ActivityManager.MemoryInfo()
         actManager.getMemoryInfo(memInfo)
+
+        if (force) {
+            Log.w(TAG, "RAM check bypassed by user (\"Try anyway\"): availMem=${memInfo.availMem / (1024L * 1024L)} MB, lowMemory=${memInfo.lowMemory}")
+            return Result.success(Unit)
+        }
 
         // Phase 1: Hardware Tier Guard (totalMem)
         // Physical RAM Reality: On Android Unified Memory Architecture (UMA), GPU driver buffers (Vulkan/OpenCL)
@@ -280,35 +296,96 @@ object ModelSafetyValidator {
         }
 
         // Phase 2: Runtime Memory Pressure Guard (availMem & lowMemory) - evaluated for BOTH GPU and CPU
-        if (memInfo.lowMemory) {
-            val availGb = "%.2f".format(memInfo.availMem.toDouble() / (1024.0 * 1024.0 * 1024.0))
-            return Result.failure(
-                IllegalStateException(
-                    "Low memory condition: System is currently under critical memory pressure (lowMemory=true, ${availGb} GiB free). Please close background apps and try again."
-                )
-            )
-        }
-
         // On mobile UMA, GPU runtime buffer staging requires model size + KV cache + 780 MiB GPU overhead
-        val minRequiredAvailBytes = getMinRequiredAvailableRamBytes(
+        val fullRequiredAvailBytes = getMinRequiredAvailableRamBytes(
             preset = preset,
             isGpu = isGpu,
             modelFile = modelFile,
             contextTurns = contextTurns
         )
+        // High-RAM devices (8 GB+) keep a lot of droppable page cache and cached background apps that
+        // Android reclaims on demand but does not count in availMem. Be less conservative there.
+        val minRequiredAvailBytes = relaxedRequirementBytes(fullRequiredAvailBytes, memInfo.totalMem)
+
+        if (memInfo.lowMemory) {
+            val availGb = "%.2f".format(memInfo.availMem.toDouble() / (1024.0 * 1024.0 * 1024.0))
+            return Result.failure(
+                LowMemoryException(
+                    "Low memory condition: System is currently under critical memory pressure (lowMemory=true, ${availGb} GiB free). Please close background apps and try again.",
+                    availBytes = memInfo.availMem,
+                    requiredBytes = minRequiredAvailBytes
+                )
+            )
+        }
 
         if (memInfo.availMem < minRequiredAvailBytes) {
             val availGb = "%.2f".format(memInfo.availMem.toDouble() / (1024.0 * 1024.0 * 1024.0))
             val neededGb = "%.2f".format(minRequiredAvailBytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
             val backendLabel = if (isGpu) "GPU" else "CPU"
             return Result.failure(
-                IllegalStateException(
-                    "Low memory condition: Only ${availGb} GiB free RAM available right now. Initializing ${preset?.name ?: "model"} on $backendLabel requires at least ${neededGb} GiB free memory to avoid being killed by Android. Please close background apps and try again."
+                LowMemoryException(
+                    "Low memory condition: Only ${availGb} GiB free RAM available right now. Initializing ${preset?.name ?: "model"} on $backendLabel requires at least ${neededGb} GiB free memory to avoid being killed by Android. Please close background apps and try again.",
+                    availBytes = memInfo.availMem,
+                    requiredBytes = minRequiredAvailBytes
                 )
             )
         }
 
         return Result.success(Unit)
+    }
+
+    /** Devices with at least this much physical RAM get a relaxed free-RAM requirement. */
+    const val HIGH_RAM_DEVICE_BYTES: Long = 7L * 1024L * 1024L * 1024L
+
+    /** Fraction of the computed free-RAM requirement that must be free on high-RAM devices. */
+    const val HIGH_RAM_RELAX_FACTOR: Double = 0.7
+
+    /**
+     * Returns the free-RAM requirement to enforce. On devices with [HIGH_RAM_DEVICE_BYTES] or more,
+     * only [HIGH_RAM_RELAX_FACTOR] of the computed requirement must be free right now, because Android
+     * reclaims cached memory on demand. The critical-pressure check (lowMemory) still applies.
+     */
+    fun relaxedRequirementBytes(requiredBytes: Long, totalMemBytes: Long): Long {
+        return if (totalMemBytes >= HIGH_RAM_DEVICE_BYTES) {
+            (requiredBytes * HIGH_RAM_RELAX_FACTOR).toLong()
+        } else {
+            requiredBytes
+        }
+    }
+
+    /**
+     * Waits until free RAM stops rising after a model was closed, so the next RAM check sees the memory
+     * the kernel and GPU driver (DMA-BUF / ION) gave back. Returns the last measured free RAM in bytes.
+     */
+    suspend fun awaitMemorySettle(
+        context: Context,
+        maxWaitMs: Long = 3_000L,
+        pollMs: Long = 250L
+    ): Long {
+        val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 0L
+        val memInfo = ActivityManager.MemoryInfo()
+        System.gc()
+        Runtime.getRuntime().gc()
+        kotlinx.coroutines.delay(400L)
+        actManager.getMemoryInfo(memInfo)
+        var last = memInfo.availMem
+        var waited = 400L
+        var stableReads = 0
+        val stableDelta = 32L * 1024L * 1024L
+        while (waited < maxWaitMs) {
+            kotlinx.coroutines.delay(pollMs)
+            waited += pollMs
+            actManager.getMemoryInfo(memInfo)
+            val now = memInfo.availMem
+            if (now - last < stableDelta) {
+                stableReads++
+                if (stableReads >= 2) return now
+            } else {
+                stableReads = 0
+            }
+            last = now
+        }
+        return last
     }
 
     /**

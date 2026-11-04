@@ -284,4 +284,16 @@
     </plurals>
     <string name="select_language">Language</string>
     <string name="language_system">Use device language</string>
+    <string name="unload_model">Unload model</string>
+    <string name="stage_unloading_previous">Unloading previous model…</string>
+    <string name="stage_freeing_memory">Freeing memory…</string>
+    <string name="err_low_memory">Not enough free memory right now: %1$s GB free, about %2$s GB needed. Close other apps, or tap “Try anyway” (the app may be closed by Android if memory runs out).</string>
+    <string name="try_anyway">Try anyway</string>
+    <string name="memory_title">Device memory (RAM)</string>
+    <string name="memory_free">%1$s GB free of %2$s GB</string>
+    <string name="memory_model_loaded">Loaded: %1$s</string>
+    <string name="auto_unload_title">Unload model automatically</string>
+    <string name="auto_unload_desc">Frees the model’s memory after this many minutes without use.</string>
+    <string name="auto_unload_off">Off</string>
+    <string name="minutes_short">%1$d min</string>
 </resources>
