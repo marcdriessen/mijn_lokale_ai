@@ -18,6 +18,8 @@ class DocumentTextTest {
     @Test
     fun detectsFormats() {
         assertEquals(DocumentText.Kind.PDF, DocumentText.detect("%PDF-1.7".toByteArray(), "x"))
+        assertEquals(DocumentText.Kind.IMAGE, DocumentText.detect(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()), "scan"))
+        assertEquals(DocumentText.Kind.IMAGE, DocumentText.detect(byteArrayOf(0, 0, 0, 0x18) + "ftypheic".toByteArray() + ByteArray(8), null))
         assertEquals(DocumentText.Kind.RTF, DocumentText.detect("{\\rtf1 hoi}".toByteArray(), null))
         assertEquals(DocumentText.Kind.OLD_DOC, DocumentText.detect(byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11, 0xE0.toByte(), 0), "a.doc"))
         assertEquals(DocumentText.Kind.DOCX, DocumentText.detect(DocxIO.write("T", null, "x"), "a.docx"))

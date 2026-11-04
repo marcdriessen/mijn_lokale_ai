@@ -11,7 +11,7 @@ import com.example.auralocalai.data.ocr.OcrEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Reads PDF, Word (.docx), OpenDocument (.odt), RTF, HTML and plain text files from the phone. */
+/** Reads PDF, photos, Word (.docx), OpenDocument (.odt), RTF, HTML and plain text files from the phone. */
 object DocumentReader {
 
     /** MIME types offered in the file picker. */
@@ -21,7 +21,8 @@ object DocumentReader {
         "application/msword",
         "application/vnd.oasis.opendocument.text",
         "application/rtf",
-        "text/*"
+        "text/*",
+        "image/*"
     )
 
     sealed class Result {
@@ -39,6 +40,10 @@ object DocumentReader {
         val text = when (kind) {
             DocumentText.Kind.OLD_DOC -> return Result.OldWordFormat
             DocumentText.Kind.PDF -> ocrPdf(context, uri, maxPdfPages, onPdfPage)
+            DocumentText.Kind.IMAGE -> {
+                val bitmap = OcrEngine.loadBitmap(context, uri) ?: return Result.Empty
+                try { OcrEngine.recognize(context, bitmap) } finally { bitmap.recycle() }
+            }
             else -> withContext(Dispatchers.Default) { DocumentText.extract(bytes, kind) }
         }
         return if (text.isNullOrBlank()) Result.Empty else Result.Text(text.trim(), kind, name)

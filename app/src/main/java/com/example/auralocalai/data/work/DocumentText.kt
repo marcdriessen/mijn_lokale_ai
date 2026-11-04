@@ -12,7 +12,7 @@ import java.util.zip.ZipInputStream
  */
 object DocumentText {
 
-    enum class Kind { PDF, DOCX, ODT, OLD_DOC, RTF, HTML, TEXT }
+    enum class Kind { PDF, IMAGE, DOCX, ODT, OLD_DOC, RTF, HTML, TEXT }
 
     /** Recognises the format from the first bytes, falling back to the file name. */
     fun detect(bytes: ByteArray, fileName: String?): Kind {
@@ -20,23 +20,28 @@ object DocumentText {
         fun starts(vararg b: Int) = bytes.size >= b.size && b.indices.all { bytes[it] == b[it].toByte() }
         return when {
             starts(0x25, 0x50, 0x44, 0x46) -> Kind.PDF // %PDF
+            starts(0xFF, 0xD8, 0xFF) || starts(0x89, 0x50, 0x4E, 0x47) -> Kind.IMAGE // JPEG, PNG
+            bytes.size > 12 && starts(0x52, 0x49, 0x46, 0x46) && String(bytes, 8, 4, Charsets.ISO_8859_1) == "WEBP" -> Kind.IMAGE
+            bytes.size > 12 && String(bytes, 4, 4, Charsets.ISO_8859_1) == "ftyp" &&
+                String(bytes, 8, 4, Charsets.ISO_8859_1).lowercase().let { it.startsWith("hei") || it.startsWith("mif") || it.startsWith("avi") } -> Kind.IMAGE
             starts(0xD0, 0xCF, 0x11, 0xE0) -> Kind.OLD_DOC // old Word / OLE
             starts(0x50, 0x4B, 0x03, 0x04) -> if (name.endsWith(".odt") || zipHas(bytes, "content.xml") && !zipHas(bytes, "word/document.xml")) Kind.ODT else Kind.DOCX
             starts(0x7B, 0x5C, 0x72, 0x74, 0x66) -> Kind.RTF // {\rtf
             name.endsWith(".pdf") -> Kind.PDF
+            listOf(".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif").any { name.endsWith(it) } -> Kind.IMAGE
             name.endsWith(".html") || name.endsWith(".htm") || looksLikeHtml(bytes) -> Kind.HTML
             else -> Kind.TEXT
         }
     }
 
-    /** Text for every kind except PDF (returns null for PDF and old .doc). */
+    /** Text for every kind except PDF and images (returns null for those and old .doc). */
     fun extract(bytes: ByteArray, kind: Kind, maxChars: Int = 60_000): String? = when (kind) {
         Kind.DOCX -> DocxIO.readText(bytes.inputStream(), maxChars)
         Kind.ODT -> zipEntry(bytes, "content.xml")?.let { odtXmlToText(it) }?.take(maxChars)
         Kind.RTF -> rtfToText(decode(bytes)).take(maxChars)
         Kind.HTML -> htmlToText(decode(bytes)).take(maxChars)
         Kind.TEXT -> decode(bytes).replace("\r\n", "\n").replace('\r', '\n').trim().take(maxChars)
-        Kind.PDF, Kind.OLD_DOC -> null
+        Kind.PDF, Kind.IMAGE, Kind.OLD_DOC -> null
     }
 
     /** UTF-8 (with or without BOM) or UTF-16 with BOM; otherwise Windows-1252, common for older Dutch files. */

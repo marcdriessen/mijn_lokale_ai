@@ -98,23 +98,32 @@ object WorkPrompts {
     fun psychoEducationPrompt(topic: String): String =
         "Write a short hand-out (about 250–350 words) for a client about: $topic"
 
+    /** Step 1: only correct the language of the notes (small models do this much better as a separate step). */
+    fun spellingSystem(languageName: String): String =
+        "You are a careful editor of nursing reports in $languageName. Correct ALL spelling mistakes, typing errors, grammar and punctuation. " +
+            "Write complete, clear sentences in a professional, neutral tone. Keep every fact, number, time, dose and label such as [NAAM] exactly. " +
+            "Do not add, remove or interpret anything. Reply with the corrected text only."
+
+    fun spellingPrompt(notes: String): String = "Correct this report:\n\n$notes"
+
+    /** Step 2: put the corrected text into the chosen structure. */
     fun reportSystem(languageName: String): String =
-        "You are an experienced nurse who writes clear, professional reports in $languageName. " +
-            "Rewrite the notes into correct $languageName: fix all spelling, grammar and punctuation errors, write complete sentences, " +
-            "and use professional, neutral, objective wording (describe behaviour, do not judge). " +
-            "Use ONLY the facts in the notes; do not add facts, interpretations or diagnoses. Keep labels such as [NAAM] unchanged. " +
-            "If a part is missing, write \"—\". Do not use markdown symbols such as ** or #."
+        "You are an experienced nurse who structures reports in $languageName. Use ONLY the facts in the text; do not add facts, " +
+            "interpretations, diagnoses or advice. Keep labels such as [NAAM] unchanged. Write short, correct, professional sentences. " +
+            "If a part has no information, write \"—\". Do not use markdown symbols such as ** or #."
 
     fun reportPrompt(notes: String, format: String): String = when (format) {
-        "SOEP" -> "Structure these notes with the Dutch SOEP method. Use exactly these four headings, each on its own line, " +
-            "and write the content below each heading:\n" +
-            "S – Subjectief: what the client says or experiences (complaints, wishes, own words).\n" +
-            "O – Objectief: what was observed or measured (behaviour, appearance, measurements, scores).\n" +
-            "E – Evaluatie: the nurse's evaluation as written in the notes (progress towards goals, analysis).\n" +
-            "P – Plan: agreements, actions and follow-up.\n" +
-            "Keep the client's words where possible. Do not invent anything; write \"—\" when a part is missing.\n\n$notes"
-        "SOAP" -> "Structure these notes as SOAP with the headings S (subjective), O (objective), A (assessment as written by the nurse), P (plan):\n\n$notes"
-        else -> "Structure these notes as SBAR with the headings S (situation), B (background), A (assessment as written by the nurse), R (recommendation):\n\n$notes"
+        "SOEP" -> "Sort the facts of the text below into the Dutch SOEP method. Every fact goes under exactly one heading:\n" +
+            "S – Subjectief: only what the client SAYS or feels (complaints, pain, wishes, own words).\n" +
+            "O – Objectief: what the nurse OBSERVED, MEASURED or DID (behaviour, vital signs, medication given, events, actions such as calling 112).\n" +
+            "E – Evaluatie: the nurse's assessment of what happened and why (for example: cause found, effect of an action, current condition).\n" +
+            "P – Plan: agreements, follow-up and actions still to be done. If none are written, write \"—\".\n\n" +
+            "Example:\nText: Client says he slept badly and feels anxious. Pulse 96. Talked with him for 10 minutes, after that calmer. Doctor will see him tomorrow.\n" +
+            "S – Subjectief:\nClient says he slept badly and feels anxious.\nO – Objectief:\nPulse 96. Conversation of 10 minutes held.\n" +
+            "E – Evaluatie:\nAfter the conversation the client was calmer.\nP – Plan:\nThe doctor will see the client tomorrow.\n\n" +
+            "Write the headings exactly as: S – Subjectief:, O – Objectief:, E – Evaluatie:, P – Plan: (each on its own line).\n\nText:\n$notes"
+        "SOAP" -> "Structure this text as SOAP with the headings S (subjective), O (objective), A (assessment as written by the nurse), P (plan):\n\n$notes"
+        else -> "Structure this text as SBAR with the headings S (situation), B (background), A (assessment as written by the nurse), R (recommendation):\n\n$notes"
     }
 
     fun flashcardSystem(languageName: String): String =

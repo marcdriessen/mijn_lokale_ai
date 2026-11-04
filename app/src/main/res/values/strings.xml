@@ -668,4 +668,22 @@
     <string name="stage_switching_cpu">The graphics chip failed – restarting the model on the processor…</string>
     <string name="err_gpu_invoke">The model stopped on the graphics chip of this phone. The app now uses the processor for this model; please try again.</string>
     <string name="coach_correction_label">✏️ Better:</string>
+    <string name="dictation_stop">Stop</string>
+    <string name="dictation_listening_offline">Listening (offline, on this phone)… tap Stop when you are done</string>
+    <string name="dictation_listening_online">Listening (via Google speech service)… tap Stop when you are done</string>
+    <string name="dictation_offline_missing">Offline speech recognition for this language is not installed yet. Android is downloading it; until then Google’s online service is used.</string>
+    <string name="dictation_offline_missing_privacy">Privacy mode is on and offline speech recognition is not available for this language. Install it via Settings › System › Languages › Speech or turn privacy mode off.</string>
+    <string name="report_correcting">Correcting spelling and grammar…</string>
+    <string name="report_structuring">Structuring the report…</string>
+    <string name="style_title">Answer style</string>
+    <string name="style_precise">Precise</string>
+    <string name="style_balanced">Balanced</string>
+    <string name="style_creative">Creative</string>
+    <string name="style_precise_desc">Factual and consistent. Best for reports, medical questions and translations.</string>
+    <string name="style_balanced_desc">Natural answers with little risk of nonsense. Good for everyday chat.</string>
+    <string name="style_creative_desc">More variation and ideas. Good for brainstorming and texts; checks facts less.</string>
+    <string name="style_custom_desc">Custom settings. Choose a style above to go back to a tested combination.</string>
+    <string name="style_advanced">Advanced (only change this if you know what it does)</string>
+    <string name="top_p_desc" formatted="false">The model only picks from the most likely words that together make up this share. 0.9 = the top 90%. Lower is safer and more predictable; higher gives more variety.</string>
+    <string name="top_k_desc">The model chooses each next word from at most this many candidates. 20–40 is normal; lower is stricter, higher is freer.</string>
 </resources>

@@ -59,6 +59,7 @@ import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.TranslateViewModel
 import com.example.auralocalai.ui.components.AppHeader
 import com.example.auralocalai.ui.components.ScriptSelector
+import com.example.auralocalai.ui.components.rememberPhotoCapture
 
 @Composable
 fun TranslateScreen(
@@ -95,9 +96,7 @@ fun TranslateScreen(
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) translateViewModel.translateImage(context, uri = uri)
     }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) translateViewModel.translateImage(context, bitmap = bitmap)
-    }
+    val camera = rememberPhotoCapture { bitmap -> translateViewModel.translateImage(context, bitmap = bitmap) }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) translateViewModel.importDocument(context, uri)
     }
@@ -138,7 +137,7 @@ fun TranslateScreen(
 
             // Photo input
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                OutlinedButton(onClick = { camera.launch(null) }, shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { camera() }, shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(stringResource(R.string.translate_take_photo))

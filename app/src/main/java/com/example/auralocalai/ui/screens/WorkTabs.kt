@@ -63,6 +63,10 @@ import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.WorkViewModel
 import com.example.auralocalai.ui.components.ScriptSelector
+import com.example.auralocalai.ui.components.DictationButton
+import com.example.auralocalai.ui.components.DictationStatus
+import com.example.auralocalai.ui.components.rememberDictation
+import com.example.auralocalai.ui.components.rememberPhotoCapture
 
 @Composable
 private fun BusyBar(busy: String?) {
@@ -257,13 +261,16 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
     val state by workViewModel.state.collectAsState()
     val context = LocalContext.current
     WorkMessages(workViewModel)
-    val dictate = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!text.isNullOrBlank()) workViewModel.addReportText(text, llm)
+    // Dictated text is collected while listening and anonymized once when the user stops.
+    var dictatedBuffer by remember { mutableStateOf("") }
+    val dictation = rememberDictation { heard -> dictatedBuffer = (dictatedBuffer + " " + heard).trim() }
+    LaunchedEffect(dictation.isListening) {
+        if (!dictation.isListening && dictatedBuffer.isNotBlank()) {
+            workViewModel.addReportText(dictatedBuffer, llm)
+            dictatedBuffer = ""
+        }
     }
-    val scan = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) workViewModel.scanReport(context, bitmap, llm)
-    }
+    val scan = rememberPhotoCapture { bitmap -> workViewModel.scanReport(context, bitmap, llm) }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) workViewModel.importReportFile(context, uri, llm)
     }
@@ -276,26 +283,17 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
         }
         Spacer(modifier = Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
-                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, context.resources.configuration.locales[0].toLanguageTag())
-                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                }
-                try {
-                    dictate.launch(intent)
-                } catch (_: Exception) {
-                    Toast.makeText(context, context.getString(R.string.speech_not_available), Toast.LENGTH_SHORT).show()
-                }
-            }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
-                Icon(Icons.Default.Mic, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_dictate))
-            }
-            OutlinedButton(onClick = { scan.launch(null) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
+            DictationButton(dictation, modifier = Modifier.weight(1f))
+            OutlinedButton(onClick = { scan() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Default.CameraAlt, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_scan))
             }
             OutlinedButton(onClick = { importLauncher.launch(DocumentReader.PICKER_TYPES) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Default.Description, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_import))
             }
+        }
+        DictationStatus(dictation)
+        if (dictatedBuffer.isNotBlank()) {
+            Text(dictatedBuffer, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 6.dp))
         }
         ScriptSelector()
         Spacer(modifier = Modifier.height(4.dp))

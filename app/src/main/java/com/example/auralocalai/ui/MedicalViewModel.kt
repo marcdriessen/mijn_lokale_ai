@@ -212,7 +212,8 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                         val budget = (llm.activeContextTokens() * 5 / 2).coerceIn(2_000, 12_000)
                         llm.runOneShotPrompt(
                             MedicalPrompts.systemPrompt(languageName),
-                            MedicalPrompts.answerPrompt(clean, sources, languageName, budget)
+                            MedicalPrompts.answerPrompt(clean, sources, languageName, budget),
+                            temperature = 0.3
                         ) { partial ->
                             answer = answer.copy(answer = partial)
                             _state.update { it.copy(current = answer) }
@@ -252,6 +253,14 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                 val kind = com.example.auralocalai.data.work.DocumentText.detect(bytes, name)
                 val text = when (kind) {
                     com.example.auralocalai.data.work.DocumentText.Kind.PDF -> ocrPdf(context, uri)
+                    com.example.auralocalai.data.work.DocumentText.Kind.IMAGE -> {
+                        val bitmap = com.example.auralocalai.data.ocr.OcrEngine.loadBitmap(context, uri)
+                        if (bitmap == null) "" else try {
+                            com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
+                        } finally {
+                            bitmap.recycle()
+                        }
+                    }
                     else -> com.example.auralocalai.data.work.DocumentText.extract(bytes, kind, MAX_TEXT_CHARS).orEmpty()
                 }
                 // Personal data never enters the library.

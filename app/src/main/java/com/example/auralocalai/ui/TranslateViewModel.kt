@@ -151,7 +151,8 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
                     "You are a professional translator. Translate the user's text into $languageName. " +
                         "Keep the meaning, tone, line breaks, headings and lists exactly. Keep labels such as [NAAM] unchanged. " +
                         "Reply with the translation only, without notes or explanations.",
-                    part
+                    part,
+                    temperature = 0.2
                 )
                 if (answer == null) {
                     _state.update { it.copy(busy = null, output = out.toString().trim(), message = str(R.string.translate_ai_failed)) }

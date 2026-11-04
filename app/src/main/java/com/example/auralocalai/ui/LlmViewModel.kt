@@ -935,9 +935,21 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun chatSampler(temperature: Double? = null) = SamplerConfig(
+        topK = _uiState.value.topK,
+        topP = _uiState.value.topP.toDouble(),
+        temperature = temperature ?: _uiState.value.temperature.toDouble(),
+        seed = 0
+    )
+
+    /**
+     * Runs a single task with the loaded model (outside the chat). [temperature] lets precise tasks
+     * (reports, anonymizing, translation) use a low value regardless of the chat setting.
+     */
     suspend fun runOneShotPrompt(
         systemPrompt: String,
         prompt: String,
+        temperature: Double? = null,
         onPartial: (String) -> Unit = {}
     ): String? {
         if (!isModelReady || _uiState.value.isGenerating) return null
@@ -951,7 +963,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         var answer: String? = null
                         while (true) {
                             try {
-                                inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
+                                inferenceEngine.resetConversation(
+                                    systemPrompt = systemPrompt,
+                                    initialHistory = emptyList(),
+                                    samplerConfig = chatSampler(temperature)
+                                )
                                 val builder = StringBuilder()
                                 inferenceEngine.generateResponse(
                                     prompt = prompt,
@@ -989,7 +1005,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         // Restore the chat conversation (system prompt + history).
                         inferenceEngine.resetConversation(
                             systemPrompt = effectiveSystemPrompt(),
-                            initialHistory = buildEngineHistory()
+                            initialHistory = buildEngineHistory(),
+                            samplerConfig = chatSampler()
                         )
                     }
                 }
@@ -1029,7 +1046,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         val names = com.example.auralocalai.data.privacy.Anonymizer.parseNames(
             runOneShotPrompt(
                 com.example.auralocalai.data.privacy.Anonymizer.NAME_FINDER_SYSTEM,
-                com.example.auralocalai.data.privacy.Anonymizer.nameFinderPrompt(first.text)
+                com.example.auralocalai.data.privacy.Anonymizer.nameFinderPrompt(first.text),
+                temperature = 0.1
             )
         )
         if (names.isEmpty()) return first

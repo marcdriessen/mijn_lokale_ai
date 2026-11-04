@@ -1298,6 +1298,39 @@ fun SettingsScreen(
                         lineHeight = 15.sp
                     )
 
+                    // Simple choice: most people only need one of these three styles.
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(stringResource(R.string.style_title), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    val styles = listOf(
+                        AnswerStyle(R.string.style_precise, R.string.style_precise_desc, 0.2f, 0.8f, 20, 1.1f),
+                        AnswerStyle(R.string.style_balanced, R.string.style_balanced_desc, 0.6f, 0.9f, 40, 1.1f),
+                        AnswerStyle(R.string.style_creative, R.string.style_creative_desc, 0.9f, 0.95f, 64, 1.05f)
+                    )
+                    val currentStyle = styles.firstOrNull {
+                        kotlin.math.abs(it.temp - uiState.temperature) < 0.01f && kotlin.math.abs(it.topP - uiState.topP) < 0.01f &&
+                            it.topK == uiState.topK && kotlin.math.abs(it.rep - uiState.repetitionPenalty) < 0.01f
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        styles.forEach { s ->
+                            FilterChip(
+                                selected = currentStyle == s,
+                                onClick = { viewModel.updateSamplerSettings(temperature = s.temp, topP = s.topP, topK = s.topK, repetitionPenalty = s.rep) },
+                                label = { Text(stringResource(s.label), fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                    Text(
+                        text = stringResource(currentStyle?.desc ?: R.string.style_custom_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(stringResource(R.string.style_advanced), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Temperature Slider
@@ -1352,6 +1385,12 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.top_p_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 15.sp
+                    )
                     Slider(
                         value = uiState.topP,
                         onValueChange = { viewModel.updateSamplerSettings(topP = it) },
@@ -1380,6 +1419,12 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.top_k_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 15.sp
+                    )
                     Slider(
                         value = uiState.topK.toFloat(),
                         onValueChange = { viewModel.updateSamplerSettings(topK = it.toInt()) },
@@ -1533,3 +1578,6 @@ fun getDiagnosticInfo(context: Context): DiagnosticInfo {
 
     return DiagnosticInfo(hasVulkan, vulkanVer, totalRam, socInfo, abis)
 }
+
+/** Preset of sampler settings shown as a simple choice in Settings. */
+private data class AnswerStyle(val label: Int, val desc: Int, val temp: Float, val topP: Float, val topK: Int, val rep: Float)

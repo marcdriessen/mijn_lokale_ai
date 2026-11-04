@@ -667,4 +667,22 @@
     <string name="stage_switching_cpu">De grafische chip faalde – model wordt opnieuw gestart op de processor…</string>
     <string name="err_gpu_invoke">Het model liep vast op de grafische chip van deze telefoon. De app gebruikt voor dit model nu de processor; probeer het opnieuw.</string>
     <string name="coach_correction_label">✏️ Beter:</string>
+    <string name="dictation_stop">Stop</string>
+    <string name="dictation_listening_offline">Luisteren (offline, op deze telefoon)… tik op Stop als je klaar bent</string>
+    <string name="dictation_listening_online">Luisteren (via Google-spraakdienst)… tik op Stop als je klaar bent</string>
+    <string name="dictation_offline_missing">Offline spraakherkenning voor deze taal is nog niet geïnstalleerd. Android downloadt die nu; tot dan wordt de online dienst van Google gebruikt.</string>
+    <string name="dictation_offline_missing_privacy">Privacymodus staat aan en offline spraakherkenning is voor deze taal niet beschikbaar. Installeer die via Instellingen › Systeem › Talen › Spraak, of zet privacymodus uit.</string>
+    <string name="report_correcting">Spelling en grammatica verbeteren…</string>
+    <string name="report_structuring">Rapportage indelen…</string>
+    <string name="style_title">Antwoordstijl</string>
+    <string name="style_precise">Precies</string>
+    <string name="style_balanced">Gebalanceerd</string>
+    <string name="style_creative">Creatief</string>
+    <string name="style_precise_desc">Feitelijk en voorspelbaar. Het beste voor rapportages, vakvragen en vertalingen.</string>
+    <string name="style_balanced_desc">Natuurlijke antwoorden met weinig kans op onzin. Goed voor dagelijks chatten.</string>
+    <string name="style_creative_desc">Meer variatie en ideeën. Goed voor brainstormen en teksten; minder streng op feiten.</string>
+    <string name="style_custom_desc">Eigen instellingen. Kies hierboven een stijl om terug te gaan naar een geteste combinatie.</string>
+    <string name="style_advanced">Geavanceerd (alleen aanpassen als je weet wat het doet)</string>
+    <string name="top_p_desc" formatted="false">Het model kiest alleen uit de meest waarschijnlijke woorden die samen dit deel vormen. 0,9 = de bovenste 90%. Lager is veiliger en voorspelbaarder; hoger geeft meer variatie.</string>
+    <string name="top_k_desc">Het model kiest elk volgend woord uit maximaal dit aantal kandidaten. 20–40 is normaal; lager is strenger, hoger is vrijer.</string>
 </resources>

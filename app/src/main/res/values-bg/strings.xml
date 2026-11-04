@@ -667,4 +667,22 @@
     <string name="stage_switching_cpu">Графичният чип се провали – моделът се рестартира на процесора…</string>
     <string name="err_gpu_invoke">Моделът спря на графичния чип на този телефон. Приложението вече използва процесора за този модел; опитайте отново.</string>
     <string name="coach_correction_label">✏️ По-добре:</string>
+    <string name="dictation_stop">Стоп</string>
+    <string name="dictation_listening_offline">Слушане (офлайн, на този телефон)… натиснете Стоп, когато сте готови</string>
+    <string name="dictation_listening_online">Слушане (чрез гласовата услуга на Google)… натиснете Стоп, когато сте готови</string>
+    <string name="dictation_offline_missing">Офлайн разпознаването на реч за този език още не е инсталирано. Android го изтегля; дотогава се използва онлайн услугата на Google.</string>
+    <string name="dictation_offline_missing_privacy">Режимът за поверителност е включен и офлайн разпознаване на реч не е налично за този език. Инсталирайте го от Настройки › Система › Езици › Говор или изключете режима.</string>
+    <string name="report_correcting">Поправяне на правопис и граматика…</string>
+    <string name="report_structuring">Структуриране на доклада…</string>
+    <string name="style_title">Стил на отговорите</string>
+    <string name="style_precise">Точен</string>
+    <string name="style_balanced">Балансиран</string>
+    <string name="style_creative">Творчески</string>
+    <string name="style_precise_desc">Фактически и последователен. Най-добър за доклади, медицински въпроси и преводи.</string>
+    <string name="style_balanced_desc">Естествени отговори с малък риск от безсмислици. Добър за ежедневен чат.</string>
+    <string name="style_creative_desc">Повече разнообразие и идеи. Добър за мозъчна атака и текстове; по-малко строг към фактите.</string>
+    <string name="style_custom_desc">Собствени настройки. Изберете стил по-горе, за да се върнете към тествана комбинация.</string>
+    <string name="style_advanced">Разширени (променяйте само ако знаете какво правят)</string>
+    <string name="top_p_desc" formatted="false">Моделът избира само от най-вероятните думи, които заедно съставят този дял. 0,9 = горните 90%. По-ниско е по-сигурно; по-високо дава повече разнообразие.</string>
+    <string name="top_k_desc">Моделът избира всяка следваща дума от най-много толкова кандидати. 20–40 е нормално; по-ниско е по-строго, по-високо е по-свободно.</string>
 </resources>

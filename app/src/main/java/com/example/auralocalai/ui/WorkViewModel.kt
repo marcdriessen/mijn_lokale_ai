@@ -192,8 +192,17 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
             // Typed notes are checked too, so no personal data reaches the model output.
             val anon = llm.anonymize(typed)
             val notes = anon.text
-            _state.update { it.copy(reportNotes = notes, busy = str(R.string.translate_ai_busy)) }
-            val text = llm.runOneShotPrompt(WorkPrompts.reportSystem(language), WorkPrompts.reportPrompt(notes, _state.value.reportFormat))
+            _state.update { it.copy(reportNotes = notes, busy = str(R.string.report_correcting)) }
+            // Step 1: correct spelling and grammar; step 2: structure. Low temperature keeps the model factual.
+            val corrected = llm.runOneShotPrompt(WorkPrompts.spellingSystem(language), WorkPrompts.spellingPrompt(notes), temperature = 0.1)
+                ?.let { com.example.auralocalai.data.work.DocxIO.cleanMarkdown(it) }
+                ?.takeIf { it.length > notes.length / 2 } ?: notes
+            _state.update { it.copy(busy = str(R.string.report_structuring)) }
+            val text = llm.runOneShotPrompt(
+                WorkPrompts.reportSystem(language),
+                WorkPrompts.reportPrompt(corrected, _state.value.reportFormat),
+                temperature = 0.2
+            )?.let { com.example.auralocalai.data.work.DocxIO.cleanMarkdown(it) }
             _state.update { it.copy(busy = null, reportOutput = text ?: "", message = if (text == null) str(R.string.translate_ai_failed) else null) }
         }
     }
