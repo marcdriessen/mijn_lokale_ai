@@ -636,4 +636,8 @@
     <string name="coach_sc_doctor">At the doctor</string>
     <string name="coach_sc_family">Family visit</string>
     <string name="coach_sc_travel">Travelling</string>
+    <string name="chat_copy">Copy conversation</string>
+    <string name="chat_copied">Conversation copied to the clipboard</string>
+    <string name="weak_model_warning">This model is small and weak in Dutch and Bulgarian: expect strange words and mistakes. For good answers, load Gemma 4 E4B (or E2B).</string>
+    <string name="err_not_prefilled">The model was still preparing the conversation. Please send your message again.</string>
 </resources>

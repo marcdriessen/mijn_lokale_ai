@@ -608,6 +608,26 @@ fun ChatScreen(
                         if (uiState.messages.isNotEmpty()) {
                             IconButton(
                                 onClick = {
+                                    // Copy the whole conversation (the model itself cannot do this).
+                                    val text = uiState.messages.joinToString("\n\n") { msg ->
+                                        val role = if (msg.isUser) context.getString(R.string.share_role_user) else "AI"
+                                        "[$role]: ${LlmViewModel.stripThinkingBlocks(msg.content)}"
+                                    }
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("chat", text))
+                                    Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = stringResource(R.string.chat_copy),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = {
                                     val formattedChat = uiState.messages.joinToString("\n\n") { msg ->
                                         val role = if (msg.isUser) context.getString(R.string.share_role_user) else "AI"
                                         "[$role]: ${msg.content}"
@@ -680,6 +700,33 @@ fun ChatScreen(
             LaunchedEffect(lastContentLength) {
                 if (uiState.isGenerating && isAtBottom && uiState.messages.isNotEmpty()) {
                     listState.scrollToItem(uiState.messages.size - 1)
+                }
+            }
+
+            // Warn when the loaded model is known to be weak in Dutch/Bulgarian.
+            val weakModels = setOf("qwen3-0.6b", "qwen-1.5b", "qwen3-1.7b", "qwen2.5-coder-1.5b", "deepseek-1.5b")
+            val appLang = com.example.auralocalai.AppLocale.effectiveLanguage(context)
+            var weakDismissed by remember(uiState.activeModelId) { mutableStateOf(false) }
+            if (!weakDismissed && uiState.modelState is ModelState.Loaded && uiState.activeModelId?.let { it in weakModels } == true && appLang in setOf("nl", "bg")) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.weak_model_warning),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onNavigateToModelManager) { Text(stringResource(R.string.models), fontWeight = FontWeight.Bold) }
+                        IconButton(onClick = { weakDismissed = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.dismiss), modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
             }
 

@@ -635,4 +635,8 @@
     <string name="coach_sc_doctor">При лекаря</string>
     <string name="coach_sc_family">Гостуване при семейството</string>
     <string name="coach_sc_travel">На път</string>
+    <string name="chat_copy">Копирай разговора</string>
+    <string name="chat_copied">Разговорът е копиран</string>
+    <string name="weak_model_warning">Този модел е малък и слаб на нидерландски и български: очаквайте странни думи и грешки. За добри отговори заредете Gemma 4 E4B (или E2B).</string>
+    <string name="err_not_prefilled">Моделът все още подготвяше разговора. Изпратете съобщението отново.</string>
 </resources>

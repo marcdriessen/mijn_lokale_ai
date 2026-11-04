@@ -635,4 +635,8 @@
     <string name="coach_sc_doctor">Bij de dokter</string>
     <string name="coach_sc_family">Familiebezoek</string>
     <string name="coach_sc_travel">Op reis</string>
+    <string name="chat_copy">Gesprek kopiëren</string>
+    <string name="chat_copied">Gesprek gekopieerd naar het klembord</string>
+    <string name="weak_model_warning">Dit model is klein en zwak in Nederlands en Bulgaars: verwacht vreemde woorden en fouten. Laad voor goede antwoorden Gemma 4 E4B (of E2B).</string>
+    <string name="err_not_prefilled">Het model was het gesprek nog aan het voorbereiden. Stuur je bericht nog een keer.</string>
 </resources>

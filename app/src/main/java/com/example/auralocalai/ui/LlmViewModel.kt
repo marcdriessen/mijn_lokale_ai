@@ -1079,6 +1079,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         val lower = raw.lowercase()
         return when {
             // Conversation lifecycle
+            lower.contains("not prefilled") || lower.contains("prefill") ->
+                str(R.string.err_not_prefilled)
             lower.contains("conversation is not alive") || lower.contains("not alive") ->
                 str(R.string.err_conversation_reset)
 
@@ -1782,37 +1784,54 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     enableThinking = _uiState.value.enableThinking,
                     thinkingTokenBudget = _uiState.value.thinkingTokenBudget
                 )
-                inferenceEngine.generateResponse(
-                    prompt = currentTurn,
-                    image = imageBitmap,
-                    repetitionPenaltyConfig = repetitionConfig,
-                    turnThinkingConfig = turnThinkingConfig
-                )
-                    .onCompletion { cause ->
-                        if (cause is kotlinx.coroutines.CancellationException) {
-                            wasCancelled = true
-                        }
-                    }
-                    .collect { partialToken ->
-                        if (tFirst == null) {
-                            tFirst = System.nanoTime()
-                        }
-                        tokenCount++
-                        accumulatedBuilder.append(partialToken)
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastUpdateTime > 100) {
-                            val currentSnapshot = accumulatedBuilder.toString()
-                            _uiState.update { state ->
-                                val updatedMessages = ArrayList(state.messages)
-                                if (updatedMessages.isNotEmpty()) {
-                                    val oldMessage = updatedMessages.last()
-                                    updatedMessages[updatedMessages.lastIndex] = oldMessage.copy(content = currentSnapshot)
+                // "Session is not prefilled yet": the engine was still rebuilding the conversation.
+                // Wait a moment and try once more before showing an error.
+                var generationAttempt = 0
+                while (true) {
+                    try {
+                        inferenceEngine.generateResponse(
+                            prompt = currentTurn,
+                            image = imageBitmap,
+                            repetitionPenaltyConfig = repetitionConfig,
+                            turnThinkingConfig = turnThinkingConfig
+                        )
+                            .onCompletion { cause ->
+                                if (cause is kotlinx.coroutines.CancellationException) {
+                                    wasCancelled = true
                                 }
-                                state.copy(messages = updatedMessages)
                             }
-                            lastUpdateTime = currentTime
+                            .collect { partialToken ->
+                                if (tFirst == null) {
+                                    tFirst = System.nanoTime()
+                                }
+                                tokenCount++
+                                accumulatedBuilder.append(partialToken)
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastUpdateTime > 100) {
+                                    val currentSnapshot = accumulatedBuilder.toString()
+                                    _uiState.update { state ->
+                                        val updatedMessages = ArrayList(state.messages)
+                                        if (updatedMessages.isNotEmpty()) {
+                                            val oldMessage = updatedMessages.last()
+                                            updatedMessages[updatedMessages.lastIndex] = oldMessage.copy(content = currentSnapshot)
+                                        }
+                                        state.copy(messages = updatedMessages)
+                                    }
+                                    lastUpdateTime = currentTime
+                                }
+                            }
+                        break
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (generationAttempt == 0 && accumulatedBuilder.isEmpty() && e.message?.contains("prefill", ignoreCase = true) == true) {
+                            generationAttempt++
+                            kotlinx.coroutines.delay(800L)
+                            continue
                         }
+                        throw e
                     }
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 wasCancelled = true
                 throw e
