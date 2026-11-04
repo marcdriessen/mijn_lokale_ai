@@ -646,4 +646,15 @@
     <string name="report_save_docx">Opslaan als Word-document</string>
     <string name="report_saved_docx">Word-document opgeslagen</string>
     <string name="report_save_failed">Opslaan mislukt</string>
+    <string name="translate_document">Document vertalen (PDF, Word, tekst…)</string>
+    <string name="translate_document_hint">Documenten: PDF, Word (.docx), ODT, RTF, HTML en tekstbestanden. Tekstherkenning in foto’s en gescande PDF’s werkt alleen voor het Latijnse schrift (niet Cyrillisch).</string>
+    <string name="translate_progress">Vertalen… %1$d van %2$d</string>
+    <string name="translate_with_ai">Vertalen met AI-model (beter, trager)</string>
+    <string name="translate_ai_progress">AI vertaalt… deel %1$d van %2$d</string>
+    <string name="translate_ai_truncated">Het document was lang: alleen het eerste deel is door het AI-model vertaald.</string>
+    <string name="translate_truncated">Alleen de eerste %1$d regels zijn vertaald.</string>
+    <string name="translate_same_language">De tekst is al in deze taal. Kies een andere doeltaal.</string>
+    <string name="translate_save_docx">Opslaan als Word</string>
+    <string name="translate_file_base">Vertaling</string>
+    <string name="translate_doc_subtitle">Vertaling (%1$s) – offline gemaakt met Lokale AI. Controleer vóór gebruik.</string>
 </resources>

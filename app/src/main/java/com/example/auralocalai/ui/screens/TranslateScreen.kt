@@ -21,7 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Share
@@ -49,6 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.auralocalai.R
+import com.example.auralocalai.data.translate.TranslateLanguages
+import com.example.auralocalai.data.work.DocumentReader
+import com.example.auralocalai.data.work.DocxIO
 import com.example.auralocalai.ui.AiAction
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.TranslateViewModel
@@ -92,6 +97,12 @@ fun TranslateScreen(
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) translateViewModel.translateImage(context, bitmap = bitmap)
     }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) translateViewModel.importDocument(context, uri)
+    }
+    val saveDocx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(DocxIO.MIME)) { uri ->
+        if (uri != null) translateViewModel.saveAsDocx(context, uri)
+    }
 
     Scaffold(
         topBar = {
@@ -119,8 +130,8 @@ fun TranslateScreen(
                     .padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("nl" to "Nederlands", "en" to "English", "bg" to "Български", "de" to "Deutsch").forEach { (code, label) ->
-                    FilterChip(selected = state.targetLanguage == code, onClick = { translateViewModel.setTarget(code) }, label = { Text(label) })
+                TranslateLanguages.ALL.forEach { language ->
+                    FilterChip(selected = state.targetLanguage == language.code, onClick = { translateViewModel.setTarget(language.code) }, label = { Text(language.nativeName) })
                 }
             }
 
@@ -141,7 +152,17 @@ fun TranslateScreen(
                     Text(stringResource(R.string.translate_pick_photo))
                 }
             }
-            Text(stringResource(R.string.translate_photo_hint), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                onClick = { documentPicker.launch(DocumentReader.PICKER_TYPES) },
+                enabled = state.busy == null,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.translate_document))
+            }
+            Text(stringResource(R.string.translate_document_hint), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(12.dp))
 
             // Text input
@@ -170,6 +191,18 @@ fun TranslateScreen(
                 Icon(Icons.Default.Translate, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.translate_action), fontWeight = FontWeight.SemiBold)
+            }
+            OutlinedButton(
+                onClick = { translateViewModel.translateWithAi(llmViewModel) },
+                enabled = state.input.isNotBlank() && state.busy == null,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp)
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.translate_with_ai))
             }
 
             state.busy?.let {
@@ -205,6 +238,11 @@ fun TranslateScreen(
                                 }
                                 context.startActivity(Intent.createChooser(send, context.getString(R.string.briefing_share)))
                             }, label = { Text(stringResource(R.string.briefing_share)) }, leadingIcon = { Icon(Icons.Default.Share, null, Modifier.size(16.dp)) })
+                            AssistChip(
+                                onClick = { saveDocx.launch(translateViewModel.suggestedFileName()) },
+                                label = { Text(stringResource(R.string.translate_save_docx)) },
+                                leadingIcon = { Icon(Icons.Default.Description, null, Modifier.size(16.dp)) }
+                            )
                         }
                     }
                 }

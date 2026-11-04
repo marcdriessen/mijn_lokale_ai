@@ -267,9 +267,17 @@ Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in
 
 ### 2.5b Vertalen
 
-Offline vertalen met ML Kit naar Nederlands, Engels, Bulgaars of Duits: getypte tekst, een **foto** (camera of
-galerij, tekstherkenning voor Latijns schrift) of een **gedeelde pagina/tekst/foto**. Daarna eventueel met AI:
-samenvatten, eenvoudig (B1) of een e-mail maken.
+Offline vertalen met ML Kit naar Nederlands, Engels, Bulgaars, Pools, Duits, Frans, Spaans, Italiaans, Portugees,
+Roemeens, Turks, Arabisch, Oekraïens of Russisch: getypte tekst, een **foto** (camera of galerij, tekstherkenning voor
+Latijns schrift), een **gedeelde pagina/tekst/foto** of een **document** (PDF, Word .docx, ODT, RTF, HTML of
+tekstbestand). Bij documenten blijven kopjes, lijsten en witregels op hun plek (regel voor regel vertaald); de
+brontaal wordt één keer voor het hele document herkend.
+
+- **Vertalen met AI-model**: trager, maar vaak natuurlijker (bijv. Nederlands → Bulgaars). Lange documenten worden in
+  delen vertaald (tot ca. 24.000 tekens).
+- **Opslaan als Word**: de vertaling wordt als .docx opgeslagen (met titel en doeltaal).
+- Als **anonimiseren** aan staat, worden persoonsgegevens in documenten en foto's eerst vervangen.
+- Daarna eventueel met AI: samenvatten, eenvoudig (B1) of een e-mail maken.
 
 ### 2.5c Taalcoach
 

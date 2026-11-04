@@ -646,4 +646,15 @@
     <string name="report_save_docx">Запази като Word документ</string>
     <string name="report_saved_docx">Word документът е запазен</string>
     <string name="report_save_failed">Запазването е неуспешно</string>
+    <string name="translate_document">Превод на документ (PDF, Word, текст…)</string>
+    <string name="translate_document_hint">Документи: PDF, Word (.docx), ODT, RTF, HTML и текстови файлове. Разпознаването в снимки и сканирани PDF работи само за латиница (не за кирилица).</string>
+    <string name="translate_progress">Превеждане… %1$d от %2$d</string>
+    <string name="translate_with_ai">Превод с ИИ модел (по-добре, по-бавно)</string>
+    <string name="translate_ai_progress">ИИ превежда… част %1$d от %2$d</string>
+    <string name="translate_ai_truncated">Документът беше дълъг: само първата част е преведена от ИИ модела.</string>
+    <string name="translate_truncated">Преведени са само първите %1$d реда.</string>
+    <string name="translate_same_language">Текстът вече е на този език. Изберете друг целеви език.</string>
+    <string name="translate_save_docx">Запази като Word</string>
+    <string name="translate_file_base">Превод</string>
+    <string name="translate_doc_subtitle">Превод (%1$s) – направен офлайн с Локален ИИ. Проверете преди употреба.</string>
 </resources>

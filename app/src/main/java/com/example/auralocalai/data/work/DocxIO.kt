@@ -59,15 +59,15 @@ object DocxIO {
 
     /**
      * Builds a .docx. [title] becomes a large bold heading; in [body] lines that look like a
-     * section heading (for example "S – Subjectief:" or "**Plan**") are made bold.
+     * section heading (for example "S – Subjectief:" or "**Plan**") are made bold when [detectHeadings] is on.
      */
-    fun write(title: String, subtitle: String?, body: String): ByteArray {
+    fun write(title: String, subtitle: String?, body: String, detectHeadings: Boolean = true): ByteArray {
         val paragraphs = StringBuilder()
         paragraphs.append(paragraph(title, bold = true, sizeHalfPoints = 32))
         if (!subtitle.isNullOrBlank()) paragraphs.append(paragraph(subtitle, italic = true, sizeHalfPoints = 20))
         paragraphs.append(paragraph("", bold = false))
         cleanMarkdown(body).lines().forEach { line ->
-            val heading = isHeading(line)
+            val heading = detectHeadings && isHeading(line)
             paragraphs.append(paragraph(line, bold = heading, sizeHalfPoints = if (heading) 26 else null, spaceBefore = heading))
         }
         val document = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

@@ -31,12 +31,21 @@ class MlKitNewsTranslator : NewsTranslator {
     override suspend fun translate(text: String, targetLanguage: String): String? {
         val clean = text.trim()
         if (clean.isEmpty()) return null
-        val source = try {
-            identifier.identifyLanguage(clean.take(500)).awaitResult()
-        } catch (_: Exception) {
-            return null
-        }
-        if (source == "und" || source.equals(targetLanguage, ignoreCase = true)) return null
+        val source = identify(clean) ?: return null
+        return translateFrom(clean, source, targetLanguage)
+    }
+
+    /** Language code of the text (for example "nl"), or null when unknown. */
+    suspend fun identify(text: String): String? = try {
+        identifier.identifyLanguage(text.trim().take(1_000)).awaitResult().takeIf { it != "und" }
+    } catch (_: Exception) {
+        null
+    }
+
+    /** Translates from a known source language; null when source equals target or translation fails. */
+    suspend fun translateFrom(text: String, source: String, targetLanguage: String): String? {
+        val clean = text.trim()
+        if (clean.isEmpty() || source.equals(targetLanguage, ignoreCase = true)) return null
         val sourceLang = TranslateLanguage.fromLanguageTag(source) ?: return null
         val targetLang = TranslateLanguage.fromLanguageTag(targetLanguage) ?: return null
         val key = "$sourceLang>$targetLang"
