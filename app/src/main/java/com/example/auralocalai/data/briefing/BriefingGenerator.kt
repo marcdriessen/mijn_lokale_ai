@@ -114,10 +114,11 @@ class BriefingGenerator(
             }
 
             // Research news: find the underlying study via its DOI (Europe PMC, then Crossref).
-            if (studyLookup != null) {
+            val lookup = studyLookup
+            if (lookup != null) {
                 articles = articles.mapIndexed { i, a ->
                     val doi = NewsIntelligence.findDoi(fullTexts[i], a.item.link, a.item.description) ?: return@mapIndexed a
-                    val study = runCatching { studyLookup.invoke(doi) }.getOrNull()
+                    val study = runCatching { lookup(doi) }.getOrNull()
                     if (study != null) a.copy(study = study) else a
                 }
             }
