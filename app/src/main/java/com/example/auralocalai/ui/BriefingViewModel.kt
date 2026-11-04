@@ -205,6 +205,14 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     fun setSkipPaywalled(skip: Boolean) = updateConfig { it.copy(skipPaywalled = skip) }
 
+    /** Next category for a source (news → professional → science → tech → forum). */
+    fun cycleSourceCategory(id: String) = updateConfig { config ->
+        val all = com.example.auralocalai.data.briefing.SourceCategory.ALL
+        config.copy(sources = config.sources.map {
+            if (it.id == id) it.copy(category = all[(all.indexOf(it.category).coerceAtLeast(0) + 1) % all.size]) else it
+        })
+    }
+
     fun deleteSource(id: String) = updateConfig { config -> config.copy(sources = config.sources.filterNot { it.id == id }) }
 
     fun addSource(name: String, url: String) {
@@ -292,7 +300,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 val languageCode = BriefingGenerator.languageFor(profile, AppLocale.effectiveLanguage(getApplication()))
                 val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"
                 val webItems = if (profile.mode != SourceMode.RSS) searchWeb(profile, profile.topics.filter { it.enabled }, llm, languageCode) else emptyList()
-                val generator = BriefingGenerator(repository, fetcher, translator)
+                val generator = BriefingGenerator(repository, fetcher, translator) { doi -> com.example.auralocalai.data.medical.StudyLookup.lookup(doi) }
                 val model = if (llm.isModelReady) BriefingGenerator.ModelCall { system, prompt -> llm.runOneShotPrompt(system, prompt) } else null
                 val briefing = generator.build(
                     profile = profile,
@@ -325,6 +333,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     private fun progressText(p: BriefingGenerator.Progress): String = when (p.stage) {
         BriefingGenerator.Stage.FETCHING -> str(R.string.briefing_fetching)
+        BriefingGenerator.Stage.RANKING -> str(R.string.briefing_ranking)
         BriefingGenerator.Stage.IMAGES -> str(R.string.briefing_images)
         BriefingGenerator.Stage.TRANSLATING -> str(R.string.briefing_translating, p.done, p.total)
         BriefingGenerator.Stage.WRITING -> str(R.string.briefing_writing, p.done, p.total)

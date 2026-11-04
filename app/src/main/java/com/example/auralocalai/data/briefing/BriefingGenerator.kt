@@ -19,10 +19,12 @@ import kotlinx.coroutines.withContext
 class BriefingGenerator(
     private val repository: BriefingRepository,
     private val fetcher: NewsFetcher = NewsFetcher(),
-    private val translator: NewsTranslator? = null
+    private val translator: NewsTranslator? = null,
+    /** Looks up a study by DOI (Europe PMC / Crossref); null = no lookups. */
+    private val studyLookup: (suspend (String) -> LinkedStudy?)? = null
 ) {
 
-    enum class Stage { FETCHING, IMAGES, TRANSLATING, WRITING }
+    enum class Stage { FETCHING, RANKING, IMAGES, TRANSLATING, WRITING }
 
     data class Progress(val stage: Stage, val done: Int = 0, val total: Int = 0)
 
@@ -51,7 +53,20 @@ class BriefingGenerator(
         items += extraItems
         if (config.skipPaywalled) items.removeAll { Paywall.isPaywalled(it) }
 
-        val selected = TopicMatcher.selectArticles(items, topics, profile.maxArticles.coerceIn(1, 15))
+        // Tier 1: keywords (round-robin over topics). Tier 2: the local model ranks the candidates
+        // in one short call; without a model or time the keyword order is kept.
+        val max = profile.maxArticles.coerceIn(1, 15)
+        val candidates = TopicMatcher.selectArticles(items, topics, (max * 2).coerceAtMost(30))
+        val selected = if (model != null && candidates.size > max && System.currentTimeMillis() < modelDeadline) {
+            onProgress(Progress(Stage.RANKING))
+            val raw = runCatching {
+                model.run(
+                    NewsIntelligence.RELEVANCE_SYSTEM,
+                    NewsIntelligence.relevancePrompt(profile.instructions, topics.map { it.name }, candidates.map { it.first })
+                )
+            }.getOrNull()
+            NewsIntelligence.rankByScores(candidates, NewsIntelligence.parseScores(raw, candidates.size)).take(max)
+        } else candidates.take(max)
         val now = System.currentTimeMillis()
         // "All results": every other matching item, newest first, so nothing disappears unseen.
         val chosenLinks = selected.map { it.first.link }.toSet()
@@ -61,7 +76,9 @@ class BriefingGenerator(
             .sortedByDescending { it.publishedMillis ?: 0L }
             .take(MAX_MORE_ITEMS)
             .map { it.copy(content = "") }
-        var articles = selected.map { (item, topic) -> BriefingArticle(item, topic.name) }
+        var articles = selected.map { (item, topic) ->
+            BriefingArticle(item, topic.name, related = NewsIntelligence.relatedReports(item, items).map { it.copy(content = "") })
+        }
 
         if (articles.isNotEmpty()) {
             // Preview images for articles whose feed had none.
@@ -96,6 +113,15 @@ class BriefingGenerator(
                 )
             }
 
+            // Research news: find the underlying study via its DOI (Europe PMC, then Crossref).
+            if (studyLookup != null) {
+                articles = articles.mapIndexed { i, a ->
+                    val doi = NewsIntelligence.findDoi(fullTexts[i], a.item.link, a.item.description) ?: return@mapIndexed a
+                    val study = runCatching { studyLookup.invoke(doi) }.getOrNull()
+                    if (study != null) a.copy(study = study) else a
+                }
+            }
+
             // Offline translation of headline and teaser.
             if (translator != null) {
                 articles = articles.mapIndexed { i, a ->
@@ -122,7 +148,7 @@ class BriefingGenerator(
                         title = a.title.ifBlank { a.item.title },
                         description = a.summary.ifBlank { a.item.description }
                     )
-                    val raw = model.run(systemPrompt, BriefingPrompts.articlePrompt(input, a.topicName, languageName, fullTexts[i]))
+                    val raw = model.run(systemPrompt, BriefingPrompts.articlePrompt(input, a.topicName, languageName, fullTexts[i], a.study, a.item.sourceCategory))
                     if (raw.isNullOrBlank()) return@mapIndexed a
                     val parsed = BriefingPrompts.parseArticle(raw)
                     a.copy(

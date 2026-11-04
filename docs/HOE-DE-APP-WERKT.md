@@ -101,9 +101,20 @@ uitgever uit het `<source url=…>`-veld.
    resultaat wordt 3 uur bewaard; bij "vernieuwen" haalt de app alles opnieuw op. Bij bronmodus
    `WEB`/`BOTH` komen daar zoekresultaten bij (§4.4).
 2. **Filteren.** Betaalde sites worden verwijderd.
-3. **Selecteren.** Een kop of samenvatting telt als treffer als een trefwoord van het onderwerp erin
-   voorkomt, in welke taal dan ook. Dubbele verhalen worden samengevoegd. De nieuwste berichten gaan
-   voor, en de onderwerpen komen om de beurt aan bod tot het maximum is bereikt.
+3. **Selecteren in twee trappen.** Trap 1 (zonder model): een kop of samenvatting telt als treffer
+   als een trefwoord van het onderwerp erin voorkomt, in welke taal dan ook; dubbelen worden
+   samengevoegd, nieuwste eerst, onderwerpen om de beurt (tot 2× het maximum). Trap 2: het lokale
+   model geeft in één korte opdracht elke kandidaat een relevantiescore 0–10 voor dit profiel; de
+   beste worden gekozen. Zonder model of tijd blijft de volgorde van trap 1.
+   **Zelfde gebeurtenis:** berichten van andere bronnen met (bijna) dezelfde kop worden aan het
+   gekozen bericht gekoppeld ("+2 bronnen"). Herpublicaties van dezelfde bron tellen niet mee. Met
+   **Vergelijk bronnen** zet het model op een rij: feiten die meerdere bronnen melden, extra details
+   per bron, tegenstrijdigheden en beweringen van maar één bron.
+   **Onderzoek achter het nieuws:** staat er een DOI in het artikel, dan zoekt de app de studie op
+   (Europe PMC, anders Crossref) en noemt die in de samenvatting.
+   **Fora:** bronnen met categorie "Forum" worden als discussie/ervaring getoond en zo aan het model
+   gegeven, nooit als geverifieerde kennis. Elke bron heeft een categorie (Nieuws, Vakbron,
+   Wetenschap, Techniek, Forum).
 4. **Volledige tekst en afbeelding.** Voor elk gekozen artikel gebruikt de app de volledige tekst
    uit de feed (`content:encoded`) of leest de artikelpagina (hoofdtekst + `og:image`). Een
    kwaliteitscontrole wijst cookiemeldingen, inlogmuren en navigatie af. Lukt het niet, dan krijgt
@@ -148,6 +159,15 @@ In **privacymodus** gebeurt er niets via internet.
 - Kleine modellen (E2B) maken soms fouten in het Nederlands of Bulgaars.
 - Ground News heeft geen open koppeling. De knop kopieert de kop en opent de Ground News-app, waar
   de gebruiker de kop in de zoekbalk plakt om de berichtgeving te vergelijken.
+
+### 4.7 Richtlijnen bewaken
+
+Via Nieuws → menu → **Richtlijnen bewaken** volgt de app openbare pagina's (bijv. GGZ Standaarden,
+Akwa GGZ, NISPA, Trimbos, Richtlijnendatabase). Dagelijks (WorkManager, alleen met internet, niet in
+privacymodus) wordt de hoofdtekst gelezen, genormaliseerd (datums, tijden en korte menuregels
+tellen niet mee), gehasht (SHA-256) en per alinea vergeleken met de vorige versie. Alleen echte
+inhoudelijke wijzigingen geven een melding, met de toegevoegde en verwijderde alinea's. Een pagina
+kan met één tik naar de bibliotheek van de Vraagbaak.
 
 ## 5. Informatievergaring buiten het nieuws
 

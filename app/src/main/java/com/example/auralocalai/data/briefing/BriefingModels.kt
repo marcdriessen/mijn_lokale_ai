@@ -2,6 +2,16 @@ package com.example.auralocalai.data.briefing
 
 import kotlinx.serialization.Serializable
 
+/** Kind of source. Forum items are shown as discussions/experiences, never as verified knowledge. */
+object SourceCategory {
+    const val NEWS = "news"
+    const val PROFESSIONAL = "professional"
+    const val SCIENCE = "science"
+    const val TECH = "tech"
+    const val FORUM = "forum"
+    val ALL = listOf(NEWS, PROFESSIONAL, SCIENCE, TECH, FORUM)
+}
+
 /** A topic the user follows. [keywords] are matched against headlines (any language). */
 @Serializable
 data class BriefingTopic(
@@ -27,7 +37,8 @@ data class NewsSource(
     val id: String,
     val name: String,
     val url: String,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val category: String = SourceCategory.NEWS
 ) {
     val isSearchFeed: Boolean get() = url.contains(SEARCH_PLACEHOLDER)
 
@@ -47,7 +58,9 @@ data class NewsItem(
     /** Domain of the real publisher (Google News items link to news.google.com). */
     val publisherDomain: String = "",
     /** Full text from the feed itself (content:encoded), when the feed provides it. */
-    val content: String = ""
+    val content: String = "",
+    /** Category of the source: news, professional, science, tech or forum (forum = experiences, not verified). */
+    val sourceCategory: String = SourceCategory.NEWS
 )
 
 @Serializable
@@ -69,7 +82,11 @@ data class BriefingArticle(
     /** True when the model rewrote (and translated) the article. */
     val processed: Boolean = false,
     /** What the summary is based on: "full" (whole article), "feed" (feed text) or "summary_only". */
-    val textStatus: String = ""
+    val textStatus: String = "",
+    /** Reports about the same event from other sources (for comparison). */
+    val related: List<NewsItem> = emptyList(),
+    /** The study behind a research news item, found via its DOI. */
+    val study: LinkedStudy? = null
 )
 
 @Serializable
@@ -165,15 +182,20 @@ object DefaultBriefing {
         NewsSource("bta_bg", "БТА – България", "https://www.bta.bg/bg/news/bulgaria/rss"),
         NewsSource("fakti", "Факти", "https://fakti.bg/feed"),
         NewsSource("fakti_bg", "Факти – България", "https://fakti.bg/feed/bulgaria"),
-        NewsSource("igj", "Inspectie Gezondheidszorg en Jeugd", "https://www.igj.nl/service/rss"),
-        NewsSource("igj_toezicht", "IGJ toezichtdocumenten", "https://toezichtdocumenten.igj.nl/api/rss"),
-        NewsSource("gn_nispa", "NISPA (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Anispa.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl"),
-        NewsSource("gn_ggzstandaarden", "GGZ Standaarden (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Aggzstandaarden.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl"),
-        NewsSource("hackernews", "Hacker News", "https://news.ycombinator.com/rss", enabled = false),
-        NewsSource("xda", "XDA Developers", "https://www.xda-developers.com/feed/", enabled = false)
+        NewsSource("igj", "Inspectie Gezondheidszorg en Jeugd", "https://www.igj.nl/service/rss", category = SourceCategory.PROFESSIONAL),
+        NewsSource("igj_toezicht", "IGJ toezichtdocumenten", "https://toezichtdocumenten.igj.nl/api/rss", category = SourceCategory.PROFESSIONAL),
+        NewsSource("gn_nispa", "NISPA (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Anispa.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl", category = SourceCategory.PROFESSIONAL),
+        NewsSource("gn_ggzstandaarden", "GGZ Standaarden (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Aggzstandaarden.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl", category = SourceCategory.PROFESSIONAL),
+        NewsSource("hackernews", "Hacker News", "https://news.ycombinator.com/rss", enabled = false, category = SourceCategory.TECH),
+        NewsSource("xda", "XDA Developers", "https://www.xda-developers.com/feed/", enabled = false, category = SourceCategory.TECH)
     )
 
-    const val SOURCES_VERSION = 3
+    /** Added in sources version 4: forums (experiences, not verified knowledge), switched off. */
+    val sourcesV4: List<NewsSource> = listOf(
+        NewsSource("busfreaks", "Busfreaks (forum)", "https://www.busfreaks.de/forum/thread-list-rss-feed/", enabled = false, category = SourceCategory.FORUM)
+    )
+
+    const val SOURCES_VERSION = 4
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
@@ -257,7 +279,7 @@ object DefaultBriefing {
 
     val config: BriefingConfig = BriefingConfig(
         topics = topics,
-        sources = sources + freeSources + dutchSources + sourcesV3,
+        sources = sources + freeSources + dutchSources + sourcesV3 + sourcesV4,
         profiles = listOf(careProfile, worldProfile),
         sourcesVersion = SOURCES_VERSION
     )
@@ -275,7 +297,8 @@ object DefaultBriefing {
         }
         if (result.sourcesVersion < SOURCES_VERSION) {
             val existingIds = result.sources.map { it.id }.toSet()
-            val added = (if (result.sourcesVersion < 2) freeSources else emptyList()) + sourcesV3
+            val added = (if (result.sourcesVersion < 2) freeSources else emptyList()) +
+                (if (result.sourcesVersion < 3) sourcesV3 else emptyList()) + sourcesV4
             result = result.copy(
                 sources = result.sources + added.filterNot { it.id in existingIds },
                 sourcesVersion = SOURCES_VERSION

@@ -69,7 +69,7 @@ class BriefingWorker(
         try {
             // Background runs use the news feeds (web search needs the encrypted key and the UI).
             val modelLoaded = try { model.load() } catch (_: Exception) { false }
-            val briefing = BriefingGenerator(repository, NewsFetcher(), translator).build(
+            val briefing = BriefingGenerator(repository, NewsFetcher(), translator) { doi -> com.example.auralocalai.data.medical.StudyLookup.lookup(doi) }.build(
                 profile = profile,
                 config = config,
                 languageCode = languageCode,

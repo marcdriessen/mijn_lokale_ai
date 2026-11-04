@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Language
@@ -63,6 +64,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -161,6 +163,7 @@ fun BriefingScreen(
     var detailArticle by remember { mutableStateOf<BriefingArticle?>(null) }
     var showPersonalize by remember { mutableStateOf(false) }
     var showAllResults by remember { mutableStateOf(false) }
+    var showMonitor by remember { mutableStateOf(false) }
     val modelReady = llmState.modelState is ModelState.Loaded
     val profile = state.selectedProfile
 
@@ -283,6 +286,14 @@ fun BriefingScreen(
                             onClick = {
                                 showMenu = false
                                 showSources = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.monitor_title)) },
+                            leadingIcon = { Icon(Icons.Default.Policy, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                showMonitor = true
                             }
                         )
                     }
@@ -545,6 +556,14 @@ fun BriefingScreen(
                 detailArticle = null
                 onOpenChat()
             },
+            onCompare = {
+                val languageName = com.example.auralocalai.AppLocale.languageNameForModel(briefingLanguage) ?: "Dutch"
+                llmViewModel.startNewChatWith(
+                    com.example.auralocalai.data.briefing.NewsIntelligence.comparePrompt(languageName, listOf(article.item) + article.related)
+                )
+                detailArticle = null
+                onOpenChat()
+            },
             onDismiss = { detailArticle = null }
         )
     }
@@ -597,6 +616,10 @@ fun BriefingScreen(
                 }
             }
         )
+    }
+
+    if (showMonitor) {
+        MonitorDialog(onDismiss = { showMonitor = false })
     }
 
     if (showSources) {
@@ -870,6 +893,9 @@ private fun DiscoverCard(
                 text = listOfNotNull(
                     relativeTime(article.item.publishedMillis),
                     article.item.sourceName,
+                    if (article.item.sourceCategory == com.example.auralocalai.data.briefing.SourceCategory.FORUM) stringResource(R.string.briefing_forum_label) else null,
+                    if (article.related.isNotEmpty()) stringResource(R.string.briefing_more_sources, article.related.size) else null,
+                    if (article.study != null) stringResource(R.string.briefing_study_short) else null,
                     when (article.textStatus) {
                         com.example.auralocalai.data.briefing.ArticleContent.STATUS_FULL,
                         com.example.auralocalai.data.briefing.ArticleContent.STATUS_FEED -> stringResource(R.string.briefing_text_full)
@@ -1018,6 +1044,112 @@ private fun PersonalizeSheet(
     }
 }
 
+/** Guideline monitor: watched pages, last check, what changed, and "to library". */
+@Composable
+private fun MonitorDialog(onDismiss: () -> Unit, monitorViewModel: com.example.auralocalai.ui.MonitorViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
+    val state by monitorViewModel.state.collectAsState()
+    val context = LocalContext.current
+    var name by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+    var expandedId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            monitorViewModel.clearMessage()
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.monitor_title)) },
+        text = {
+            LazyColumn(modifier = Modifier.height(520.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    Text(stringResource(R.string.monitor_intro), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                items(state.pages, key = { it.id }) { page ->
+                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Switch(checked = page.enabled, onCheckedChange = { monitorViewModel.toggle(page.id) })
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(page.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    val status = when {
+                                        page.lastError.isNotBlank() -> stringResource(R.string.monitor_error)
+                                        page.lastChecked == 0L -> stringResource(R.string.monitor_never)
+                                        else -> stringResource(R.string.monitor_checked, relativeTime(page.lastChecked) ?: "")
+                                    }
+                                    Text(status, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    page.lastChange?.let { change ->
+                                        Text(
+                                            stringResource(R.string.monitor_changed_at, relativeTime(change.detectedAt) ?: ""),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.clickable { expandedId = if (expandedId == page.id) null else page.id }
+                                        )
+                                    }
+                                }
+                                IconButton(onClick = { monitorViewModel.delete(page.id) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            if (expandedId == page.id) {
+                                page.lastChange?.let { change ->
+                                    change.added.forEach { Text("+ $it", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp)) }
+                                    change.removed.forEach { Text("− $it", fontSize = 12.sp, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) }
+                                }
+                            }
+                            Row {
+                                TextButton(onClick = { openUrl(context, page.url) }) { Text(stringResource(R.string.monitor_open), fontSize = 12.sp) }
+                                TextButton(onClick = { monitorViewModel.addToLibrary(page) }, enabled = page.lastText.isNotBlank()) {
+                                    Text(stringResource(R.string.monitor_to_library), fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    Column {
+                        Text(stringResource(R.string.monitor_suggestions), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            com.example.auralocalai.data.monitor.PageMonitor.SUGGESTIONS
+                                .filter { (_, u) -> state.pages.none { it.url == u } }
+                                .forEach { (n, u) ->
+                                    AssistChip(onClick = { monitorViewModel.add(n, u) }, label = { Text("+ $n", fontSize = 12.sp) })
+                                }
+                        }
+                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.briefing_source_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text(stringResource(R.string.monitor_page_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        TextButton(onClick = {
+                            monitorViewModel.add(name, url)
+                            name = ""
+                            url = ""
+                        }) { Text(stringResource(R.string.monitor_add)) }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { monitorViewModel.checkNow() }, enabled = !state.checking) {
+                Text(stringResource(if (state.checking) R.string.monitor_checking else R.string.monitor_check_now))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) } }
+    )
+}
+
+@Composable
+private fun categoryLabel(category: String): String = stringResource(
+    when (category) {
+        com.example.auralocalai.data.briefing.SourceCategory.PROFESSIONAL -> R.string.category_professional
+        com.example.auralocalai.data.briefing.SourceCategory.SCIENCE -> R.string.category_science
+        com.example.auralocalai.data.briefing.SourceCategory.TECH -> R.string.category_tech
+        com.example.auralocalai.data.briefing.SourceCategory.FORUM -> R.string.category_forum
+        else -> R.string.category_news
+    }
+)
+
 private fun relativeTime(millis: Long?): String? =
     millis?.let { DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString() }
 
@@ -1027,6 +1159,7 @@ private fun ArticleDetailDialog(
     article: BriefingArticle,
     canAskMore: Boolean,
     onAskMore: () -> Unit,
+    onCompare: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1106,6 +1239,39 @@ private fun ArticleDetailDialog(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(article.relevance.trim(), style = MaterialTheme.typography.bodyMedium)
                             }
+                        }
+                    }
+                    // The study behind a research news item (found via its DOI).
+                    article.study?.let { study ->
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.fillMaxWidth().clickable { openUrl(context, study.url) }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(stringResource(R.string.briefing_study_label), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                Text(study.title, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    listOf(study.journal, study.year, study.type).filter { it.isNotBlank() }.joinToString(" · "),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+                    // Other reports about the same event.
+                    if (article.related.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(stringResource(R.string.briefing_related_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        article.related.forEach { r ->
+                            Column(modifier = Modifier.fillMaxWidth().clickable { openUrl(context, r.link) }.padding(vertical = 6.dp)) {
+                                Text(r.sourceName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                Text(r.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        OutlinedButton(onClick = onCompare, enabled = canAskMore, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.briefing_compare_sources))
                         }
                     }
                     Spacer(modifier = Modifier.height(24.dp))
@@ -1518,6 +1684,12 @@ private fun SourcesDialog(briefingViewModel: BriefingViewModel, onDismiss: () ->
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(source.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(
+                                    stringResource(R.string.briefing_category_label, categoryLabel(source.category)),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { briefingViewModel.cycleSourceCategory(source.id) }
+                                )
                                 Text(source.url, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             TextButton(onClick = { briefingViewModel.testSource(source.id) }) { Text(stringResource(R.string.briefing_test), fontSize = 12.sp) }

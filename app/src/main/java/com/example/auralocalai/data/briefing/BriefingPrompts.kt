@@ -60,7 +60,16 @@ object BriefingPrompts {
      * TITLE, SUMMARY and RELEVANCE.
      */
     /** [fullText]: the whole article when it could be read; otherwise only the feed teaser is used. */
-    fun articlePrompt(item: NewsItem, topicName: String, languageName: String, fullText: String = ""): String =
+    fun articlePrompt(
+        item: NewsItem,
+        topicName: String,
+        languageName: String,
+        fullText: String = "",
+        study: LinkedStudy? = null,
+        category: String = SourceCategory.NEWS
+    ): String =
+        (if (category == SourceCategory.FORUM) "NOTE: this is a forum discussion with personal experiences, not verified news. Say so in the summary.\n" else "") +
+        (if (study != null) "Underlying study: ${study.title} (${listOf(study.journal, study.year, study.type).filter { it.isNotBlank() }.joinToString(", ")}). Mention it.\n" else "") +
         "Topic: $topicName\n" +
             "Headline: ${item.title}\n" +
             "Source: ${item.sourceName}\n" +

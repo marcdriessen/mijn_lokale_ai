@@ -48,6 +48,7 @@ class NewsFetcher(
                     listOf(source.url)
                 }
                 val items = urls.flatMap { url -> RssParser.parse(download(url), source.name) }
+                    .map { if (source.category == SourceCategory.NEWS) it else it.copy(sourceCategory = source.category) }
                 SourceFetchResult(source, items)
             } catch (e: Exception) {
                 SourceFetchResult(source, emptyList(), e.message ?: e.javaClass.simpleName)
@@ -87,7 +88,7 @@ class NewsFetcher(
      * Downloads an article page once and returns both its preview image and its main text.
      * Google News redirect links cannot be read this way (null).
      */
-    suspend fun fetchArticle(articleUrl: String): ArticlePage? = withContext(Dispatchers.IO) {
+    suspend fun fetchArticle(articleUrl: String, maxChars: Int = 6_000): ArticlePage? = withContext(Dispatchers.IO) {
         if (articleUrl.isBlank() || articleUrl.contains("news.google.com")) return@withContext null
         try {
             val request = Request.Builder()
@@ -103,7 +104,7 @@ class NewsFetcher(
                 val image = OG_IMAGE_REGEXES.firstNotNullOfOrNull { regex -> regex.find(html)?.groupValues?.get(1) }
                     ?.let { RssParser.decodeEntities(it) }
                     ?.takeIf { it.startsWith("http") }
-                val text = com.example.auralocalai.data.translate.PageTextExtractor.extract(html, maxChars = 6_000).text
+                val text = com.example.auralocalai.data.translate.PageTextExtractor.extract(html, maxChars = maxChars).text
                 ArticlePage(image, text)
             }
         } catch (_: Exception) {
