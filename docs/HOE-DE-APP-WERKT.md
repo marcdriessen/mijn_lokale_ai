@@ -174,6 +174,15 @@ In **privacymodus** gebeurt er niets via internet.
 - **Vergelijk bronnen** geeft per bewering een status: ondersteund, deels ondersteund,
   tegenstrijdig, één bron, onvoldoende informatie, weerlegd.
 
+- **Bronnen versie 6** (live gecontroleerd op 4 nov 2026): directe feeds voor GGZ Nieuws, Skipr,
+  Zorgvisie, Trimbos, NOVA, Медиапул, 24 часа, Дарик en БНТ; nieuw: Nursing, ZorgWelzijn,
+  Clinica.bg en Zdrave.net (Bulgaars gezondheidsnieuws), Сега, Тоест, Vesti.bg, Actualno. Elke bron
+  heeft een Nederlandse omschrijving en taal; **Voorbeeld** toont de nieuwste koppen, offline vertaald.
+- **Eigen browser (WebView)**: artikelen lezen in de app, één keer inloggen op sites met een eigen
+  abonnement (de app bewaart de sessie, niet het wachtwoord). Die sessie wordt ook gebruikt als de app
+  artikelen leest; betaalde sites waar je bent ingelogd worden dan niet meer overgeslagen. In de
+  browser: samenvatten met het lokale model en bewaren in de bibliotheek.
+
 ### 4.7 Richtlijnen bewaken
 
 Via Nieuws → menu → **Richtlijnen bewaken** volgt de app openbare pagina's (bijv. GGZ Standaarden,

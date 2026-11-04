@@ -908,4 +908,24 @@
     <string name="briefing_saving_article">Запазване на статията…</string>
     <string name="briefing_saved_full">Цялата статия е запазена</string>
     <string name="briefing_saved_summary">Статията не можа да се прочете; резюмето е запазено</string>
+    <string name="briefing_preview">Преглед</string>
+    <string name="briefing_preview_hide">Скрий</string>
+    <string name="briefing_preview_empty">Няма заглавия. %1$s</string>
+    <string name="lang_label_nl">нидерландски</string>
+    <string name="lang_label_en">английски</string>
+    <string name="lang_label_bg">български</string>
+    <string name="lang_label_de">немски</string>
+    <string name="browser_back">Назад</string>
+    <string name="browser_reload">Презареди</string>
+    <string name="browser_summarize">Обобщи с локалния модел</string>
+    <string name="browser_save">Запази в библиотеката</string>
+    <string name="browser_summary_title">Резюме</string>
+    <string name="browser_no_text">Няма четим текст на тази страница.</string>
+    <string name="browser_read_in_app">Четене в приложението (вход при нужда)</string>
+    <string name="logins_title">Вход в новинарски сайтове</string>
+    <string name="logins_intro">Влезте веднъж в браузъра на приложението със собствен абонамент. Приложението пази сесията (не паролата) и може да чете тези статии.</string>
+    <string name="logins_has_session">Влезли (сесията е запазена)</string>
+    <string name="logins_no_session">Не сте влезли</string>
+    <string name="logins_open">Отвори</string>
+    <string name="logins_logout_all">Изход навсякъде</string>
 </resources>

@@ -38,7 +38,11 @@ data class NewsSource(
     val name: String,
     val url: String,
     val enabled: Boolean = true,
-    val category: String = SourceCategory.NEWS
+    val category: String = SourceCategory.NEWS,
+    /** Short description in Dutch (what the source is), shown when choosing sources. */
+    val description: String = "",
+    /** Language of the source ("nl", "en", "bg"), "" = unknown. */
+    val language: String = ""
 ) {
     val isSearchFeed: Boolean get() = url.contains(SEARCH_PLACEHOLDER)
 
@@ -240,7 +244,100 @@ object DefaultBriefing {
         NewsSource("xda_news", "XDA News", "https://www.xda-developers.com/feed/news/", enabled = false, category = SourceCategory.TECH)
     )
 
-    const val SOURCES_VERSION = 5
+    /**
+     * Sources version 6 (checked live on 4 Nov 2026): direct feeds instead of Google News where the
+     * site has one, extra Dutch care and Bulgarian health/news sources, and a description per source.
+     */
+    val updatesV6: Map<String, Pair<String, String>> = mapOf(
+        "ggznieuws" to ("GGZ Nieuws" to "https://www.ggznieuws.nl/feed/"),
+        "skipr" to ("Skipr" to "https://www.skipr.nl/feed/"),
+        "zorgvisie" to ("Zorgvisie" to "https://www.zorgvisie.nl/feed/"),
+        "trimbos_news" to ("Trimbos-instituut" to "https://www.trimbos.nl/feed/"),
+        "gn_nova" to ("NOVA" to "https://nova.bg/rss/latest"),
+        "gn_mediapool" to ("Медиапул" to "https://www.mediapool.bg/feed/"),
+        "gn_24chasa" to ("24 часа" to "https://www.24chasa.bg/rss"),
+        "gn_darik" to ("Дарик" to "https://dariknews.bg/rss.php"),
+        "gn_bnt" to ("БНТ" to "https://bntnews.bg/bg/rss/news"),
+        "igj" to ("Inspectie Gezondheidszorg en Jeugd (via Google Nieuws)" to "https://news.google.com/rss/search?q=site%3Aigj.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl")
+    )
+
+    val sourcesV6: List<NewsSource> = listOf(
+        NewsSource("nursing_nl", "Nursing", "https://www.nursing.nl/feed/", category = SourceCategory.PROFESSIONAL),
+        NewsSource("zorgwelzijn", "ZorgWelzijn", "https://www.zorgwelzijn.nl/feed/", category = SourceCategory.PROFESSIONAL),
+        NewsSource("clinica_bg", "Clinica.bg", "https://clinica.bg/rss/news.xml", category = SourceCategory.PROFESSIONAL),
+        NewsSource("zdrave_net", "Zdrave.net", "https://www.zdrave.net/news.xml", category = SourceCategory.PROFESSIONAL),
+        NewsSource("sega", "Сега", "https://www.segabg.com/rss"),
+        NewsSource("toest", "Тоест", "https://www.toest.bg/rss/"),
+        NewsSource("vesti", "Vesti.bg", "https://www.vesti.bg/rss", enabled = false),
+        NewsSource("actualno", "Actualno", "https://www.actualno.com/rss/novini-new", enabled = false)
+    )
+
+    /** Dutch description and language per built-in source (shown in the Sources screen). */
+    val DESCRIPTIONS: Map<String, Pair<String, String>> = mapOf(
+        "dw" to ("Deutsche Welle, Duitse publieke omroep, wereldnieuws" to "en"),
+        "aljazeera" to ("Al Jazeera, internationaal nieuws vanuit het Midden-Oosten" to "en"),
+        "reuters" to ("Reuters, internationaal persbureau (via Google Nieuws)" to "en"),
+        "apnews" to ("Associated Press, Amerikaans persbureau (via Google Nieuws)" to "en"),
+        "bbc_world" to ("BBC, Britse publieke omroep, wereldnieuws" to "en"),
+        "guardian_world" to ("The Guardian, Britse krant, wereldnieuws" to "en"),
+        "france24" to ("France 24, Franse publieke zender, wereldnieuws" to "en"),
+        "nos" to ("NOS, Nederlandse publieke omroep, algemeen nieuws" to "nl"),
+        "nos_binnenland" to ("NOS, binnenlands nieuws" to "nl"),
+        "nu_algemeen" to ("NU.nl, algemeen Nederlands nieuws" to "nl"),
+        "nu_gezondheid" to ("NU.nl, gezondheidsnieuws" to "nl"),
+        "ggznieuws" to ("GGZ Nieuws, vakblad voor de ggz" to "nl"),
+        "skipr" to ("Skipr, nieuws over zorgbeleid en -bestuur (deels betaald)" to "nl"),
+        "zorgvisie" to ("Zorgvisie, nieuws over zorgmanagement (deels betaald)" to "nl"),
+        "trimbos_news" to ("Trimbos-instituut, kenniscentrum voor ggz, alcohol en drugs" to "nl"),
+        "nursing_nl" to ("Nursing, vakblad voor verpleegkundigen" to "nl"),
+        "zorgwelzijn" to ("ZorgWelzijn, vakblad voor zorg en welzijn" to "nl"),
+        "igj" to ("Inspectie Gezondheidszorg en Jeugd, nieuws van de toezichthouder" to "nl"),
+        "igj_toezicht" to ("IGJ, nieuwe toezichtdocumenten en rapporten" to "nl"),
+        "gn_nispa" to ("NISPA, Nederlands Instituut voor Seksualiteit, Psychiatrie en Verslaving" to "nl"),
+        "gn_ggzstandaarden" to ("GGZ Standaarden, zorgstandaarden voor de ggz" to "nl"),
+        "gn_venvn" to ("V&VN, beroepsvereniging van verpleegkundigen" to "nl"),
+        "gn_nl_top" to ("Google Nieuws, belangrijkste Nederlandse nieuws" to "nl"),
+        "dnevnik" to ("Dnevnik (Дневник), Bulgaarse krant, nieuws en economie" to "bg"),
+        "novinite" to ("Novinite, Engelstalig nieuws over Bulgarije" to "en"),
+        "bta_bg" to ("BTA, Bulgaars staatspersbureau, binnenlands nieuws" to "bg"),
+        "bta_free" to ("BTA, Bulgaars staatspersbureau, vrij nieuws" to "bg"),
+        "fakti" to ("Fakti (Факти), Bulgaarse nieuwssite" to "bg"),
+        "fakti_bg" to ("Fakti, nieuws uit Bulgarije" to "bg"),
+        "gn_bnr" to ("BNR, Bulgaarse publieke radio (via Google Nieuws)" to "bg"),
+        "gn_bnt" to ("BNT, Bulgaarse publieke televisie" to "bg"),
+        "gn_nova" to ("NOVA, Bulgaarse tv-zender, nieuws" to "bg"),
+        "gn_mediapool" to ("Mediapool (Медиапул), onafhankelijke Bulgaarse nieuwssite" to "bg"),
+        "gn_24chasa" to ("24 Chasa (24 часа), Bulgaarse dagkrant" to "bg"),
+        "gn_darik" to ("Darik (Дарик), Bulgaarse radio, nieuws" to "bg"),
+        "clinica_bg" to ("Clinica.bg, Bulgaars gezondheidsnieuws en zorgbeleid" to "bg"),
+        "zdrave_net" to ("Zdrave.net, Bulgaars gezondheidsnieuws" to "bg"),
+        "sega" to ("Sega (Сега), Bulgaarse krant, nieuws en politiek" to "bg"),
+        "toest" to ("Toest (Тоест), Bulgaars onderzoeksjournalistiek en cultuur" to "bg"),
+        "vesti" to ("Vesti.bg, Bulgaarse nieuwssite" to "bg"),
+        "actualno" to ("Actualno, Bulgaarse nieuwssite" to "bg"),
+        "hackernews" to ("Hacker News, technologie en programmeren" to "en"),
+        "xda" to ("XDA Developers, Android en telefoons" to "en"),
+        "xda_news" to ("XDA Developers, nieuws" to "en"),
+        "busfreaks" to ("Busfreaks, Duits forum over bussen (ervaringen)" to "de"),
+        "gnews_search_en" to ("Google News, Engelstalig zoeken op je trefwoorden" to "en"),
+        "gnews_search_bg" to ("Google Новини, Bulgaars zoeken op je trefwoorden" to "bg"),
+        "gnews_bg_top" to ("Google Новини, belangrijkste Bulgaarse nieuws" to "bg"),
+        "gnews_search_nl" to ("Google Nieuws, Nederlands zoeken op je trefwoorden" to "nl")
+    )
+
+    private val PROFESSIONAL_IDS = setOf("ggznieuws", "skipr", "zorgvisie", "trimbos_news")
+
+    /** Adds the Dutch description and language to built-in sources that do not have them yet. */
+    fun describe(source: NewsSource): NewsSource {
+        val (desc, lang) = DESCRIPTIONS[source.id] ?: return source
+        return source.copy(
+            description = source.description.ifBlank { desc },
+            language = source.language.ifBlank { lang },
+            category = if (source.id in PROFESSIONAL_IDS && source.category == SourceCategory.NEWS) SourceCategory.PROFESSIONAL else source.category
+        )
+    }
+
+    const val SOURCES_VERSION = 6
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
@@ -325,7 +422,9 @@ object DefaultBriefing {
 
     val config: BriefingConfig = BriefingConfig(
         topics = topics,
-        sources = sources + freeSources + dutchSources + sourcesV3 + sourcesV4 + sourcesV5,
+        sources = (sources + freeSources + dutchSources + sourcesV3 + sourcesV4 + sourcesV5 + sourcesV6)
+            .map { s -> updatesV6[s.id]?.let { (n, u) -> s.copy(name = n, url = u) } ?: s }
+            .map { describe(it) },
         profiles = listOf(careProfile, worldProfile),
         sourcesVersion = SOURCES_VERSION
     )
@@ -345,9 +444,13 @@ object DefaultBriefing {
             val existingIds = result.sources.map { it.id }.toSet()
             val added = (if (result.sourcesVersion < 2) freeSources else emptyList()) +
                 (if (result.sourcesVersion < 3) sourcesV3 else emptyList()) +
-                (if (result.sourcesVersion < 4) sourcesV4 else emptyList()) + sourcesV5
+                (if (result.sourcesVersion < 4) sourcesV4 else emptyList()) +
+                (if (result.sourcesVersion < 5) sourcesV5 else emptyList()) + sourcesV6
+            val updated = if (result.sourcesVersion < 6) {
+                result.sources.map { s -> updatesV6[s.id]?.let { (n, u) -> s.copy(name = n, url = u) } ?: s }
+            } else result.sources
             result = result.copy(
-                sources = result.sources + added.filterNot { it.id in existingIds },
+                sources = (updated + added.filterNot { it.id in existingIds }).map { describe(it) },
                 sourcesVersion = SOURCES_VERSION
             )
         }

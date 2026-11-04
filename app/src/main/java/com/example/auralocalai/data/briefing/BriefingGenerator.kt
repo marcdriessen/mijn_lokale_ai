@@ -51,7 +51,12 @@ class BriefingGenerator(
         val items = mutableListOf<NewsItem>()
         if (profile.mode != SourceMode.WEB) items += loadRssItems(config, topics, forceRefresh, onSourceErrors)
         items += extraItems
-        if (config.skipPaywalled) items.removeAll { Paywall.isPaywalled(it) }
+        // Paid sites are skipped, unless the user logged in to that site in the app's browser.
+        if (config.skipPaywalled) {
+            val loginCache = HashMap<String, Boolean>()
+            fun loggedIn(domain: String) = domain.isNotBlank() && loginCache.getOrPut(domain) { WebLogins.hasLogin(domain) }
+            items.removeAll { Paywall.isPaywalled(it) && !loggedIn(Paywall.domainOf(it.link)) && !loggedIn(it.publisherDomain) }
+        }
 
         // Tier 1: keywords (round-robin over topics). Tier 2: the local model ranks the candidates
         // in one short call; without a model or time the keyword order is kept.

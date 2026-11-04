@@ -91,11 +91,13 @@ class NewsFetcher(
     suspend fun fetchArticle(articleUrl: String, maxChars: Int = 6_000): ArticlePage? = withContext(Dispatchers.IO) {
         if (articleUrl.isBlank() || articleUrl.contains("news.google.com")) return@withContext null
         try {
-            val request = Request.Builder()
+            val builder = Request.Builder()
                 .url(articleUrl)
                 .header("User-Agent", USER_AGENT)
                 .header("Accept", "text/html")
-                .build()
+            // Logged in to this site in the app's browser: send the session along (subscribed articles).
+            WebLogins.cookieFor(articleUrl)?.let { builder.header("Cookie", it) }
+            val request = builder.build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 val source = response.body?.source() ?: return@withContext null

@@ -908,4 +908,24 @@
     <string name="briefing_saving_article">Artikel bewaren…</string>
     <string name="briefing_saved_full">Hele artikel bewaard in de bibliotheek</string>
     <string name="briefing_saved_summary">Het artikel kon niet worden gelezen; de samenvatting is bewaard in de bibliotheek</string>
+    <string name="briefing_preview">Voorbeeld</string>
+    <string name="briefing_preview_hide">Verbergen</string>
+    <string name="briefing_preview_empty">Geen koppen gevonden. %1$s</string>
+    <string name="lang_label_nl">Nederlands</string>
+    <string name="lang_label_en">Engels</string>
+    <string name="lang_label_bg">Bulgaars</string>
+    <string name="lang_label_de">Duits</string>
+    <string name="browser_back">Terug</string>
+    <string name="browser_reload">Opnieuw laden</string>
+    <string name="browser_summarize">Samenvatten met het lokale model</string>
+    <string name="browser_save">Bewaren in bibliotheek</string>
+    <string name="browser_summary_title">Samenvatting</string>
+    <string name="browser_no_text">Geen leesbare tekst gevonden op deze pagina.</string>
+    <string name="browser_read_in_app">Lezen in de app (eventueel inloggen)</string>
+    <string name="logins_title">Inloggen op nieuwssites</string>
+    <string name="logins_intro">Log één keer in via de eigen browser van de app met je eigen abonnement. De app bewaart de sessie (niet je wachtwoord) en kan die artikelen daarna lezen en samenvatten; betaalde sites waar je bent ingelogd worden niet meer overgeslagen.</string>
+    <string name="logins_has_session">Ingelogd (sessie bewaard)</string>
+    <string name="logins_no_session">Niet ingelogd</string>
+    <string name="logins_open">Openen</string>
+    <string name="logins_logout_all">Overal uitloggen</string>
 </resources>

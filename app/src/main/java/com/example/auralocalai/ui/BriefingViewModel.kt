@@ -49,6 +49,9 @@ data class BriefingUiState(
     val sourceErrors: Map<String, String> = emptyMap(),
     val sourceTestResults: Map<String, String> = emptyMap(),
     val sourceStatus: Map<String, com.example.auralocalai.data.briefing.SourceStatus> = emptyMap(),
+    /** Latest headlines per source, translated into the app language (translation to original). */
+    val sourcePreviews: Map<String, List<Pair<String, String>>> = emptyMap(),
+    val previewingSourceId: String? = null,
     val translatingTopicId: String? = null,
     val weeklyDigest: String? = null,
     val digestBusy: Boolean = false
@@ -268,6 +271,56 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 repo.saveLibrary(repo.loadLibrary().filterNot { it.name == name } + doc)
             }
             _state.update { it.copy(message = str(if (text != null) R.string.briefing_saved_full else R.string.briefing_saved_summary)) }
+        }
+    }
+
+    /** Saves a page read in the app's browser (e.g. after logging in) in the library of the Q&A. */
+    fun saveTextToLibrary(title: String, text: String, url: String) {
+        if (text.isBlank()) {
+            _state.update { it.copy(message = str(R.string.browser_no_text)) }
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val repo = com.example.auralocalai.data.medical.MedicalRepository(getApplication<android.app.Application>().filesDir)
+            val name = title.ifBlank { url }.take(120)
+            val doc = com.example.auralocalai.data.medical.LibraryDocument(
+                "doc_" + System.currentTimeMillis(), name, System.currentTimeMillis(),
+                com.example.auralocalai.data.medical.PassageIndex.chunk(text + "\n\n" + url)
+            )
+            repo.saveLibrary(repo.loadLibrary().filterNot { it.name == name } + doc)
+            _state.update { it.copy(message = str(R.string.briefing_saved_full)) }
+        }
+    }
+
+    /** Shows the newest headlines of a source, translated offline, so it is easy to decide whether to use it. */
+    fun previewSource(id: String) {
+        val source = _state.value.config.sources.firstOrNull { it.id == id } ?: return
+        if (_state.value.sourcePreviews.containsKey(id)) {
+            _state.update { it.copy(sourcePreviews = it.sourcePreviews - id) }
+            return
+        }
+        _state.update { it.copy(previewingSourceId = id) }
+        viewModelScope.launch {
+            val keywords = _state.value.selectedProfile?.topics?.filter { it.enabled }?.flatMap { it.allKeywords }?.take(2).orEmpty()
+            val result = fetcher.fetchSource(source, keywords.ifEmpty { listOf("news") })
+            withContext(Dispatchers.IO) { repository.saveSourceResults(listOf(result)) }
+            val target = AppLocale.effectiveLanguage(getApplication())
+            val translator = MlKitNewsTranslator()
+            val lines = try {
+                result.items.sortedByDescending { it.publishedMillis ?: 0L }.take(5).map { item ->
+                    val translated = runCatching { translator.translate(item.title, target) }.getOrNull()
+                    (translated ?: item.title) to item.title
+                }
+            } finally {
+                translator.close()
+            }
+            _state.update {
+                it.copy(
+                    previewingSourceId = null,
+                    sourcePreviews = it.sourcePreviews + (id to lines.ifEmpty { listOf(str(R.string.briefing_preview_empty, result.error ?: "") to "") })
+                )
+            }
+            refreshSourceStatus()
         }
     }
 

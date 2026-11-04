@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.Eco
@@ -164,6 +165,8 @@ fun BriefingScreen(
     var showPersonalize by remember { mutableStateOf(false) }
     var showAllResults by remember { mutableStateOf(false) }
     var showMonitor by remember { mutableStateOf(false) }
+    var browserUrl by remember { mutableStateOf<String?>(null) }
+    var showLogins by remember { mutableStateOf(false) }
     val modelReady = llmState.modelState is ModelState.Loaded
     val profile = state.selectedProfile
 
@@ -286,6 +289,14 @@ fun BriefingScreen(
                             onClick = {
                                 showMenu = false
                                 showSources = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.logins_title)) },
+                            leadingIcon = { Icon(Icons.Default.Login, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                showLogins = true
                             }
                         )
                         DropdownMenuItem(
@@ -557,6 +568,7 @@ fun BriefingScreen(
                 onOpenChat()
             },
             onSaveToLibrary = { briefingViewModel.saveArticleToLibrary(article) },
+            onReadInApp = { detailArticle = null; browserUrl = article.item.link },
             onCompare = {
                 val languageName = com.example.auralocalai.AppLocale.languageNameForModel(briefingLanguage) ?: "Dutch"
                 llmViewModel.startNewChatWith(
@@ -617,6 +629,27 @@ fun BriefingScreen(
                 }
             }
         )
+    }
+
+    browserUrl?.let { url ->
+        val languageName = com.example.auralocalai.AppLocale.languageNameForModel(briefingLanguage) ?: "Dutch"
+        com.example.auralocalai.ui.components.InAppBrowser(
+            url = url,
+            onDismiss = { browserUrl = null },
+            onSummarize = { title, text ->
+                if (!llmViewModel.isModelReady) context.getString(R.string.translate_need_model)
+                else llmViewModel.runOneShotPrompt(
+                    "You summarise web pages for one reader. Write in $languageName. Use only the text given; do not add facts.",
+                    "Title: $title\n\nText:\n${text.take(6_000)}\n\nGive a short summary (max 6 bullet points) with the key facts.",
+                    temperature = 0.2
+                )
+            },
+            onSave = { title, text, pageUrl -> briefingViewModel.saveTextToLibrary(title, text, pageUrl) }
+        )
+    }
+
+    if (showLogins) {
+        LoginSitesDialog(onOpen = { showLogins = false; browserUrl = it }, onDismiss = { showLogins = false })
     }
 
     if (showMonitor) {
@@ -1045,6 +1078,48 @@ private fun PersonalizeSheet(
     }
 }
 
+/** Log in to (paid) news sites in the app's own browser; the session is then used to read articles. */
+@Composable
+private fun LoginSitesDialog(onOpen: (String) -> Unit, onDismiss: () -> Unit) {
+    var custom by remember { mutableStateOf("") }
+    var refresh by remember { mutableStateOf(0) }
+    val sites = remember { listOf("nrc.nl", "volkskrant.nl", "fd.nl", "trouw.nl", "telegraaf.nl", "ad.nl", "skipr.nl", "zorgvisie.nl", "ground.news", "nytimes.com", "ft.com", "capital.bg") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.logins_title)) },
+        text = {
+            LazyColumn(modifier = Modifier.height(480.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                item { Text(stringResource(R.string.logins_intro), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                items(sites, key = { it }) { domain ->
+                    val loggedIn = remember(refresh) { com.example.auralocalai.data.briefing.WebLogins.hasLogin(domain) }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(domain, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(
+                                stringResource(if (loggedIn) R.string.logins_has_session else R.string.logins_no_session),
+                                fontSize = 11.sp,
+                                color = if (loggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = { onOpen("https://www.$domain/".replace("www.ground.news", "ground.news")) }) { Text(stringResource(R.string.logins_open)) }
+                    }
+                }
+                item {
+                    OutlinedTextField(value = custom, onValueChange = { custom = it }, label = { Text(stringResource(R.string.monitor_page_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Row {
+                        TextButton(onClick = { if (custom.startsWith("http")) onOpen(custom.trim()) }) { Text(stringResource(R.string.logins_open)) }
+                        TextButton(onClick = {
+                            com.example.auralocalai.data.briefing.WebLogins.clearAll()
+                            refresh++
+                        }) { Text(stringResource(R.string.logins_logout_all)) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) } }
+    )
+}
+
 /** Guideline monitor: watched pages, last check, what changed, and "to library". */
 @Composable
 private fun MonitorDialog(onDismiss: () -> Unit, monitorViewModel: com.example.auralocalai.ui.MonitorViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
@@ -1141,6 +1216,15 @@ private fun MonitorDialog(onDismiss: () -> Unit, monitorViewModel: com.example.a
 }
 
 @Composable
+private fun languageLabel(code: String): String? = when (code) {
+    "nl" -> stringResource(R.string.lang_label_nl)
+    "en" -> stringResource(R.string.lang_label_en)
+    "bg" -> stringResource(R.string.lang_label_bg)
+    "de" -> stringResource(R.string.lang_label_de)
+    else -> null
+}
+
+@Composable
 private fun categoryLabel(category: String): String = stringResource(
     when (category) {
         com.example.auralocalai.data.briefing.SourceCategory.PROFESSIONAL -> R.string.category_professional
@@ -1162,6 +1246,7 @@ private fun ArticleDetailDialog(
     onAskMore: () -> Unit,
     onCompare: () -> Unit,
     onSaveToLibrary: () -> Unit,
+    onReadInApp: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1300,6 +1385,10 @@ private fun ArticleDetailDialog(
                         ) {
                             Text(stringResource(R.string.briefing_ground_news))
                         }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(onClick = onReadInApp, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.browser_read_in_app))
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(onClick = onSaveToLibrary, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1706,6 +1795,13 @@ private fun SourcesDialog(briefingViewModel: BriefingViewModel, onDismiss: () ->
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable { briefingViewModel.cycleSourceCategory(source.id) }
                                 )
+                                if (source.description.isNotBlank()) {
+                                    Text(
+                                        source.description + (languageLabel(source.language)?.let { " · $it" } ?: ""),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                                 Text(source.url, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 state.sourceStatus[source.id]?.let { st ->
                                     val ok = st.error.isBlank()
@@ -1721,9 +1817,24 @@ private fun SourcesDialog(briefingViewModel: BriefingViewModel, onDismiss: () ->
                                     )
                                 }
                             }
-                            TextButton(onClick = { briefingViewModel.testSource(source.id) }) { Text(stringResource(R.string.briefing_test), fontSize = 12.sp) }
+                            TextButton(onClick = { briefingViewModel.previewSource(source.id) }, enabled = state.previewingSourceId != source.id) {
+                                Text(stringResource(if (state.sourcePreviews.containsKey(source.id)) R.string.briefing_preview_hide else R.string.briefing_preview), fontSize = 12.sp)
+                            }
                             IconButton(onClick = { briefingViewModel.deleteSource(source.id) }) {
                                 Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        if (state.previewingSourceId == source.id) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(start = 56.dp, top = 4.dp))
+                        }
+                        state.sourcePreviews[source.id]?.let { lines ->
+                            Column(modifier = Modifier.padding(start = 56.dp, top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                lines.forEach { (translated, original) ->
+                                    Text("• $translated", fontSize = 12.sp)
+                                    if (original.isNotBlank() && original != translated) {
+                                        Text(original, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 10.dp))
+                                    }
+                                }
                             }
                         }
                         state.sourceTestResults[source.id]?.let {

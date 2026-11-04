@@ -909,4 +909,24 @@
     <string name="briefing_saving_article">Saving article…</string>
     <string name="briefing_saved_full">Full article saved in the library</string>
     <string name="briefing_saved_summary">The article could not be read; the summary was saved in the library</string>
+    <string name="briefing_preview">Preview</string>
+    <string name="briefing_preview_hide">Hide</string>
+    <string name="briefing_preview_empty">No headlines found. %1$s</string>
+    <string name="lang_label_nl">Dutch</string>
+    <string name="lang_label_en">English</string>
+    <string name="lang_label_bg">Bulgarian</string>
+    <string name="lang_label_de">German</string>
+    <string name="browser_back">Back</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_summarize">Summarise with the local model</string>
+    <string name="browser_save">Save in library</string>
+    <string name="browser_summary_title">Summary</string>
+    <string name="browser_no_text">No readable text found on this page.</string>
+    <string name="browser_read_in_app">Read in the app (log in if needed)</string>
+    <string name="logins_title">Log in to news sites</string>
+    <string name="logins_intro">Log in once in the app’s own browser with your own subscription. The app keeps the session (not your password) and can then read and summarise those articles; paid sites you are logged in to are no longer skipped.</string>
+    <string name="logins_has_session">Logged in (session kept)</string>
+    <string name="logins_no_session">Not logged in</string>
+    <string name="logins_open">Open</string>
+    <string name="logins_logout_all">Log out everywhere</string>
 </resources>
