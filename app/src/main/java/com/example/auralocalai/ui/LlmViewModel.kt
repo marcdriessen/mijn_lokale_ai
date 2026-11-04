@@ -142,6 +142,12 @@ data class UiState(
     val loadingStage: String? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val preferredBackend: String = "AUTO",
+    /** Chat answers via English: question translated to English, answer translated back (ML Kit, offline). */
+    val pivotEnglish: Boolean = false,
+    /** Model names for the AI search services (provider id → model). */
+    val aiSearchModels: Map<String, String> = emptyMap(),
+    /** Short status shown while the answer is translated back. */
+    val pivotStatus: String? = null,
     val socInfo: SocInfo? = null,
     val importProgress: Float? = null,
     val modelLoadBenchmarks: Map<String, ModelLoadBenchmark> = emptyMap(),
@@ -169,7 +175,11 @@ data class UiState(
     /** Set when loading failed for lack of free RAM: (fileName, modelId) so the UI can offer "Try anyway". */
     val forceLoadCandidate: Pair<String, String>? = null,
     /** Minutes of inactivity after which the model is unloaded automatically (0 = off). */
-    val autoUnloadMinutes: Int = 0
+    val autoUnloadMinutes: Int = 0,
+    /** Switch automatically to the best downloaded model for each task (translation, medical, ...). */
+    val autoModelRouting: Boolean = true,
+    /** Per task key: ModelRouting.AUTO, ModelRouting.CURRENT or a model id. */
+    val modelForTask: Map<String, String> = emptyMap()
 )
 
 class LlmViewModel(application: Application) : AndroidViewModel(application) {
@@ -357,7 +367,16 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 enableThinking = initialEnableThinking,
                 thinkingTokenBudget = initialThinkingBudget,
                 appLanguage = com.example.auralocalai.AppLocale.getLanguage(application),
-                autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0)
+                pivotEnglish = prefs.getBoolean("chat_pivot_english", false),
+                aiSearchModels = listOf("gemini", "openai").associateWith { id ->
+                    prefs.getString("ai_search_model_$id", "").orEmpty().also { com.example.auralocalai.data.providers.AiSearchSettings.set(id, it) }
+                },
+                autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0),
+                autoModelRouting = prefs.getBoolean(PREF_AUTO_MODEL_ROUTING, true),
+                modelForTask = com.example.auralocalai.data.ModelRouting.Task.entries.associate { task ->
+                    task.key to (prefs.getString(com.example.auralocalai.data.ModelRouting.prefKey(task), com.example.auralocalai.data.ModelRouting.AUTO)
+                        ?: com.example.auralocalai.data.ModelRouting.AUTO)
+                }
             ) 
         }
 
@@ -417,7 +436,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             val token = tokenStorage.getToken()
             val degraded = !tokenStorage.isHardwareEncrypted
             val benchmarks = loadBenchmarksFromPrefs()
-            val searchKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+            val searchKey = currentSearchKey()
             _uiState.update {
                 it.copy(
                     sessions = allSessions,
@@ -799,10 +818,25 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(webSearchMode = mode) }
     }
 
+    /** Each search service keeps its own encrypted key (Brave keeps the original slot). */
+    private fun searchKeyName(providerId: String = _uiState.value.webSearchProviderId): String =
+        if (providerId == "brave") SecretStorage.KEY_SEARCH_API_KEY else SecretStorage.KEY_SEARCH_API_KEY + "_" + providerId
+
+    private fun currentSearchKey(providerId: String = _uiState.value.webSearchProviderId): String =
+        tokenStorage.getSecret(searchKeyName(providerId))
+
+    /** Model name for the AI search services (Gemini / OpenAI), changeable in Settings. */
+    fun setAiSearchModel(providerId: String, model: String) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+            .putString("ai_search_model_$providerId", model.trim()).apply()
+        com.example.auralocalai.data.providers.AiSearchSettings.set(providerId, model.trim())
+        _uiState.update { it.copy(aiSearchModels = it.aiSearchModels + (providerId to model.trim())) }
+    }
+
     fun setWebSearchProvider(providerId: String) {
         val prefs = getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         prefs.edit().putString("web_search_provider", providerId).apply()
-        _uiState.update { it.copy(webSearchProviderId = providerId) }
+        _uiState.update { it.copy(webSearchProviderId = providerId, searchApiKeyConfigured = currentSearchKey(providerId).isNotBlank()) }
     }
 
     fun setWebSearchMaxResults(maxResults: Int) {
@@ -813,7 +847,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveSearchApiKey(key: String): Boolean {
-        val success = tokenStorage.saveSecret(SecretStorage.KEY_SEARCH_API_KEY, key.trim())
+        val success = tokenStorage.saveSecret(searchKeyName(), key.trim())
         if (success) {
             _uiState.update { it.copy(searchApiKeyConfigured = key.isNotBlank()) }
         }
@@ -821,7 +855,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearSearchApiKey(): Boolean {
-        val success = tokenStorage.clearSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        val success = tokenStorage.clearSecret(searchKeyName())
         if (success) {
             _uiState.update { it.copy(searchApiKeyConfigured = false) }
         }
@@ -840,7 +874,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun testSearch(query: String = "local AI news"): SearchOutcome {
         val providerId = _uiState.value.webSearchProviderId
-        val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        val apiKey = currentSearchKey(providerId)
         val locale = java.util.Locale.getDefault()
         return webSearchClient.search(
             providerId = providerId,
@@ -876,11 +910,97 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
      * The chat conversation is restored afterwards. Returns null when no model is loaded,
      * the chat is generating, or generation failed.
      */
+    private val pivotTranslator by lazy { com.example.auralocalai.data.translate.MlKitNewsTranslator() }
+
+    /** Turns "answer via English" on or off (remembered). */
+    fun setPivotEnglish(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+            .putBoolean("chat_pivot_english", enabled).apply()
+        _uiState.update { it.copy(pivotEnglish = enabled) }
+    }
+
+    /** True when "via English" applies: switched on and the app is not in English. */
+    private fun pivotActive(): Boolean =
+        _uiState.value.pivotEnglish && com.example.auralocalai.AppLocale.effectiveLanguage(getApplication()) != "en"
+
+    /** File name of the loaded model (for reloading on the CPU after a GPU failure). */
+    private var loadedModelFile: String? = null
+
+    private fun gpuFailurePrefs() =
+        getApplication<Application>().getSharedPreferences("gpu_invoke_failures", Context.MODE_PRIVATE)
+
+    /** "Failed to invoke the compiled model" (status 13): the GPU path of this model breaks on this phone. */
+    private fun isGpuInvokeFailure(message: String?): Boolean {
+        val m = message ?: return false
+        return m.contains("Failed to invoke", ignoreCase = true) ||
+            (m.contains("Status Code: 13", ignoreCase = true) && m.contains("executor", ignoreCase = true))
+    }
+
+    /**
+     * Reloads the current model on the CPU after a GPU failure and remembers this for the model,
+     * so next time it starts on the CPU directly. Returns true when the model runs again.
+     */
+    private suspend fun fallbackToCpu(): Boolean {
+        val file = loadedModelFile ?: return false
+        val modelId = _uiState.value.activeModelId ?: return false
+        if (inferenceEngine.activeBackend == "CPU") return false
+        gpuFailurePrefs().edit().putBoolean(file, true).apply()
+        Log.w("LlmViewModel", "GPU invoke failed for $file; reloading on CPU")
+        val matchingPreset = ModelPreset.presets.firstOrNull { it.id == modelId }
+        _uiState.update { it.copy(loadingStage = str(R.string.stage_switching_cpu)) }
+        return withContext(Dispatchers.IO) {
+            inferenceEngine.unloadModel()
+            ModelSafetyValidator.awaitMemorySettle(getApplication<Application>())
+            val result = inferenceEngine.loadModel(
+                modelPath = File(storageDir, file).absolutePath,
+                preferredBackend = "CPU_ONLY",
+                contextTurns = _uiState.value.contextWindowSize,
+                systemPrompt = effectiveSystemPrompt(),
+                initialHistory = buildEngineHistory(),
+                samplerConfig = SamplerConfig(
+                    topK = _uiState.value.topK,
+                    topP = _uiState.value.topP.toDouble(),
+                    temperature = _uiState.value.temperature.toDouble(),
+                    seed = 0
+                ),
+                thinkingConfig = ThinkingConfig(
+                    enableThinking = matchingPreset?.defaultThinkingEnabled ?: _uiState.value.enableThinking,
+                    thinkingTokenBudget = _uiState.value.thinkingTokenBudget
+                ),
+                forceLoad = true,
+                onStageUpdate = {}
+            )
+            _uiState.update {
+                it.copy(
+                    loadingStage = null,
+                    activeBackend = inferenceEngine.activeBackend,
+                    modelState = if (result.isSuccess) it.modelState else ModelState.Error(friendlyErrorMessage(result.exceptionOrNull()?.message)),
+                    activeModelId = if (result.isSuccess) it.activeModelId else null
+                )
+            }
+            result.isSuccess
+        }
+    }
+
+    private fun chatSampler(temperature: Double? = null) = SamplerConfig(
+        topK = _uiState.value.topK,
+        topP = _uiState.value.topP.toDouble(),
+        temperature = temperature ?: _uiState.value.temperature.toDouble(),
+        seed = 0
+    )
+
+    /**
+     * Runs a single task with the loaded model (outside the chat). [temperature] lets precise tasks
+     * (reports, anonymizing, translation) use a low value regardless of the chat setting.
+     */
     suspend fun runOneShotPrompt(
         systemPrompt: String,
         prompt: String,
+        temperature: Double? = null,
+        task: com.example.auralocalai.data.ModelRouting.Task? = null,
         onPartial: (String) -> Unit = {}
     ): String? {
+        if (task != null) ensureModelFor(task)
         if (!isModelReady || _uiState.value.isGenerating) return null
         return oneShotMutex.withLock {
             _backgroundTaskRunning.value = true
@@ -888,17 +1008,43 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) {
                     try {
-                        inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
-                        val builder = StringBuilder()
-                        inferenceEngine.generateResponse(
-                            prompt = prompt,
-                            repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
-                            turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
-                        ).collect { token ->
-                            builder.append(token)
-                            onPartial(stripThinkingBlocks(builder.toString()))
+                        var attempt = 0
+                        var answer: String? = null
+                        while (true) {
+                            try {
+                                inferenceEngine.resetConversation(
+                                    systemPrompt = systemPrompt,
+                                    initialHistory = emptyList(),
+                                    samplerConfig = chatSampler(temperature)
+                                )
+                                val builder = StringBuilder()
+                                inferenceEngine.generateResponse(
+                                    prompt = prompt,
+                                    repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
+                                    turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
+                                ).collect { token ->
+                                    builder.append(token)
+                                    onPartial(stripThinkingBlocks(builder.toString()))
+                                }
+                                answer = stripThinkingBlocks(builder.toString()).ifBlank { null }
+                                break
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.w("LlmViewModel", "One-shot prompt failed: ${e.message}")
+                                if (attempt == 0 && e.message?.contains("prefill", ignoreCase = true) == true) {
+                                    attempt++
+                                    kotlinx.coroutines.delay(800L)
+                                    continue
+                                }
+                                if (attempt == 0 && isGpuInvokeFailure(e.message) && fallbackToCpu()) {
+                                    attempt++
+                                    continue
+                                }
+                                break
+                            }
                         }
-                        stripThinkingBlocks(builder.toString()).ifBlank { null }
+                        answer
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -908,7 +1054,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         // Restore the chat conversation (system prompt + history).
                         inferenceEngine.resetConversation(
                             systemPrompt = effectiveSystemPrompt(),
-                            initialHistory = buildEngineHistory()
+                            initialHistory = buildEngineHistory(),
+                            samplerConfig = chatSampler()
                         )
                     }
                 }
@@ -921,21 +1068,41 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     /** True when Brave is the chosen search provider and its API key is saved. */
     val isBraveConfigured: Boolean
-        get() = _uiState.value.webSearchProviderId == "brave" && _uiState.value.searchApiKeyConfigured
+        get() = _uiState.value.webSearchProviderId in WEB_SEARCH_PROVIDERS && _uiState.value.searchApiKeyConfigured
 
     /** Runs a Brave search with the saved key (used by the clinical Q&A). Null when Brave is not set up. */
     suspend fun searchWithBrave(query: String, maxResults: Int, language: String): SearchOutcome? {
         if (!isBraveConfigured) return null
-        val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        val providerId = _uiState.value.webSearchProviderId
+        val apiKey = currentSearchKey(providerId)
         if (apiKey.isBlank()) return null
         return webSearchClient.search(
-            providerId = "brave",
+            providerId = providerId,
             query = query,
             apiKey = apiKey,
             maxResults = maxResults,
             country = "nl",
             language = language
         )
+    }
+
+    /**
+     * Removes personal data: fixed rules first, then (when a model is loaded) the local model lists
+     * remaining names, which are masked with the same rules. The model never rewrites the text.
+     */
+    suspend fun anonymize(text: String): com.example.auralocalai.data.privacy.Anonymizer.Result {
+        val first = com.example.auralocalai.data.privacy.Anonymizer.anonymize(text)
+        if (!isModelReady || first.text.isBlank()) return first
+        val names = com.example.auralocalai.data.privacy.Anonymizer.parseNames(
+            runOneShotPrompt(
+                com.example.auralocalai.data.privacy.Anonymizer.NAME_FINDER_SYSTEM,
+                com.example.auralocalai.data.privacy.Anonymizer.nameFinderPrompt(first.text),
+                temperature = 0.1
+            )
+        )
+        if (names.isEmpty()) return first
+        val second = com.example.auralocalai.data.privacy.Anonymizer.anonymize(first.text, names)
+        return com.example.auralocalai.data.privacy.Anonymizer.Result(second.text, first.replacements + second.replacements)
     }
 
     /** Starts a new chat and sends [message] in it (used by "Ask more" on a briefing card). */
@@ -981,6 +1148,68 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissForceLoad() {
         _uiState.update { it.copy(forceLoadCandidate = null) }
+    }
+
+    fun setAutoModelRouting(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .edit().putBoolean(PREF_AUTO_MODEL_ROUTING, enabled).apply()
+        routingFailures.clear()
+        _uiState.update { it.copy(autoModelRouting = enabled) }
+    }
+
+    /** [choice] is ModelRouting.AUTO, ModelRouting.CURRENT or a model id. */
+    fun setModelForTask(task: com.example.auralocalai.data.ModelRouting.Task, choice: String) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .edit().putString(com.example.auralocalai.data.ModelRouting.prefKey(task), choice).apply()
+        routingFailures.clear()
+        _uiState.update { it.copy(modelForTask = it.modelForTask + (task.key to choice)) }
+    }
+
+    /** Models that failed to load during automatic switching (not tried again this session). */
+    private val routingFailures = mutableSetOf<String>()
+
+    /** The model id the task should use, or null to keep the loaded model. */
+    fun targetModelFor(task: com.example.auralocalai.data.ModelRouting.Task): String? {
+        val state = _uiState.value
+        val ids = com.example.auralocalai.data.ModelRouting.downloadedIds(state.localModels) - routingFailures
+        return com.example.auralocalai.data.ModelRouting.choose(task, ids, state.modelForTask[task.key], state.autoModelRouting)
+    }
+
+    /** True when the task can run: a model is loaded, or automatic switching will load one. */
+    fun canServe(task: com.example.auralocalai.data.ModelRouting.Task): Boolean =
+        isModelReady || targetModelFor(task) != null
+
+    /**
+     * Loads the best model for [task] when automatic switching is on and another model is loaded
+     * (or none). Does nothing while the model is busy. When the new model does not fit, the
+     * previous one is loaded again. Returns true when a model is ready afterwards.
+     */
+    suspend fun ensureModelFor(task: com.example.auralocalai.data.ModelRouting.Task): Boolean {
+        loadModelJob?.takeIf { it.isActive }?.join()
+        val targetId = targetModelFor(task) ?: return isModelReady
+        if (targetId == _uiState.value.activeModelId && isModelReady) return true
+        if (_uiState.value.isGenerating || oneShotMutex.isLocked) return isModelReady
+        val preset = ModelPreset.presetsById[targetId] ?: return isModelReady
+        val previousFile = if (isModelReady) loadedModelFile else null
+        val previousId = _uiState.value.activeModelId
+        showToast(str(R.string.routing_switching, preset.name))
+        loadModel(preset.fileName, preset.id)
+        loadModelJob?.join()
+        if (!isModelReady) {
+            routingFailures += targetId
+            if (previousFile != null && previousId != null) {
+                showToast(str(R.string.routing_failed, preset.name))
+                loadModel(previousFile, previousId)
+                loadModelJob?.join()
+            }
+        }
+        return isModelReady
+    }
+
+    private fun showToast(text: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            android.widget.Toast.makeText(getApplication(), text, android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     fun setAutoUnloadMinutes(minutes: Int) {
@@ -1042,6 +1271,9 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun stripThinkingBlocks(rawContent: String): String = Companion.stripThinkingBlocks(rawContent)
 
     companion object {
+        const val PREF_AUTO_MODEL_ROUTING = "auto_model_routing"
+        /** Search services with a key that can do real web searches (also used by the Q&A and the news). */
+        val WEB_SEARCH_PROVIDERS = setOf("brave", "serper", "gemini", "openai")
         fun stripThinkingBlocks(rawContent: String): String {
             return rawContent
                 .replace(Regex("""<think>[\s\S]*?(</think>|\Z)""", RegexOption.IGNORE_CASE), "")
@@ -1061,8 +1293,13 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         val lower = raw.lowercase()
         return when {
             // Conversation lifecycle
+            lower.contains("not prefilled") || lower.contains("prefill") ->
+                str(R.string.err_not_prefilled)
             lower.contains("conversation is not alive") || lower.contains("not alive") ->
                 str(R.string.err_conversation_reset)
+
+            lower.contains("failed to invoke") ->
+                str(R.string.err_gpu_invoke)
 
             lower.contains("cancellationexception") || lower.contains("job was cancelled") ->
                 str(R.string.err_generation_stopped)
@@ -1193,9 +1430,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 thinkingTokenBudget = _uiState.value.thinkingTokenBudget
             )
 
+            val knownGpuFailure = gpuFailurePrefs().getBoolean(fileName, false)
+            val backend = if (knownGpuFailure && _uiState.value.preferredBackend == "AUTO") "CPU_ONLY" else _uiState.value.preferredBackend
             val result = inferenceEngine.loadModel(
                 modelPath = File(storageDir, fileName).absolutePath,
-                preferredBackend = _uiState.value.preferredBackend,
+                preferredBackend = backend,
                 contextTurns = _uiState.value.contextWindowSize,
                 systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory(),
@@ -1208,7 +1447,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             )
             val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
             if (result.isSuccess) {
+                loadedModelFile = fileName
                 recordModelLoadBenchmark(modelId, elapsedMs)
+                // Remembered so the morning briefing can load the same model in the background.
+                getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+                    .putString(com.example.auralocalai.data.briefing.BackgroundModel.PREF_LAST_MODEL_FILE, fileName)
+                    .apply()
                 val supportsThinking = inferenceEngine.detectedSupportsThinking
                 _uiState.update { 
                     it.copy(
@@ -1302,30 +1546,28 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             try {
-                val image = InputImage.fromFilePath(context, uri)
-                val task = recognizer.process(image)
-                val visionText = task.awaitTask()
-                
-                _uiState.update { 
+                val bitmap = com.example.auralocalai.data.ocr.OcrEngine.loadBitmap(context, uri)
+                    ?: throw IllegalStateException(str(R.string.could_not_open_file))
+                val text = try {
+                    com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
+                } finally {
+                    bitmap.recycle()
+                }
+                _uiState.update {
                     it.copy(
-                        extractedOcrText = visionText.text,
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
                         isAttachmentProcessing = false
                     )
                 }
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _uiState.update { it.copy(attachmentError = str(R.string.ocr_cyrillic_missing), isAttachmentProcessing = false) }
             } catch (e: Exception) {
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         attachmentError = str(R.string.ocr_failed, e.localizedMessage ?: ""),
                         isAttachmentProcessing = false
                     )
-                }
-            } finally {
-                try {
-                    recognizer.close()
-                } catch (ce: Exception) {
-                    Log.w("LlmViewModel", "Error closing image recognizer: ${ce.message}")
                 }
             }
         }
@@ -1394,91 +1636,27 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (ext.equals("pdf", ignoreCase = true)) {
-                    val pfd = context.contentResolver.openFileDescriptor(uri, "r")
-                    if (pfd == null) {
-                        _uiState.update { 
-                            it.copy(
-                                attachmentError = str(R.string.could_not_open_file),
-                                isAttachmentProcessing = false
-                            )
-                        }
+                // PDF (first pages, text recognition), Word, ODT, RTF, HTML or text; Cyrillic included.
+                val maxTextChars = 24_000
+                val text = when (val result = com.example.auralocalai.data.work.DocumentReader.read(context, uri, maxPdfPages = 3)) {
+                    is com.example.auralocalai.data.work.DocumentReader.Result.Text ->
+                        if (result.text.length > maxTextChars) {
+                            result.text.take(maxTextChars) + "\n\n[Attachment truncated to first $maxTextChars characters for context & memory safety]"
+                        } else result.text
+                    com.example.auralocalai.data.work.DocumentReader.Result.OldWordFormat -> {
+                        _uiState.update { it.copy(attachmentError = str(R.string.report_doc_unsupported), isAttachmentProcessing = false) }
                         return@launch
                     }
-                    val pdfRenderer = PdfRenderer(pfd)
-                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                    try {
-                        val pageCount = pdfRenderer.pageCount
-                        val combinedText = StringBuilder()
-                        val maxPages = minOf(pageCount, 3)
-
-                        for (i in 0 until maxPages) {
-                            val page = pdfRenderer.openPage(i)
-                            try {
-                                val width = page.width / 2
-                                val height = page.height / 2
-                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                                try {
-                                    val canvas = Canvas(bitmap)
-                                    canvas.drawColor(Color.WHITE)
-                                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-
-                                    val image = InputImage.fromBitmap(bitmap, 0)
-                                    val visionText = recognizer.process(image).awaitTask()
-                                    combinedText.append(visionText.text).append("\n")
-                                } finally {
-                                    bitmap.recycle()
-                                }
-                            } finally {
-                                page.close()
-                            }
-                        }
-
-                        _uiState.update { 
-                            it.copy(
-                                extractedOcrText = combinedText.toString(),
-                                isAttachmentProcessing = false
-                            )
-                        }
-                    } finally {
-                        try {
-                            recognizer.close()
-                        } catch (ce: Exception) {
-                            Log.w("LlmViewModel", "Error closing PDF recognizer: ${ce.message}")
-                        }
-                        try {
-                            pdfRenderer.close()
-                        } catch (pe: Exception) {
-                            Log.w("LlmViewModel", "Error closing PdfRenderer: ${pe.message}")
-                        }
-                        try {
-                            pfd.close()
-                        } catch (fe: Exception) {
-                            Log.w("LlmViewModel", "Error closing pfd: ${fe.message}")
-                        }
-                    }
-                } else {
-                    val maxTextChars = 24_000
-                    val text = context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val reader = stream.bufferedReader()
-                        val buffer = CharArray(maxTextChars)
-                        val numRead = reader.read(buffer, 0, maxTextChars)
-                        if (numRead > 0) {
-                            val fileContent = String(buffer, 0, numRead)
-                            if (reader.read() != -1) {
-                                "$fileContent\n\n[Attachment truncated to first $maxTextChars characters for context & memory safety]"
-                            } else {
-                                fileContent
-                            }
-                        } else ""
-                    }
-                    _uiState.update { 
-                        it.copy(
-                            extractedOcrText = text,
-                            isAttachmentProcessing = false
-                        )
-                    }
+                    com.example.auralocalai.data.work.DocumentReader.Result.Empty -> ""
                 }
+                _uiState.update {
+                    it.copy(
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
+                        isAttachmentProcessing = false
+                    )
+                }
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _uiState.update { it.copy(attachmentError = str(R.string.ocr_cyrillic_missing), isAttachmentProcessing = false) }
             } catch (e: Exception) {
                 val errorMsg = when {
                     e.message?.contains("dynamite", ignoreCase = true) == true ||
@@ -1531,6 +1709,21 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendMessage(content: String) {
+        val chat = com.example.auralocalai.data.ModelRouting.Task.CHAT
+        val target = targetModelFor(chat)
+        if (target == null || (target == _uiState.value.activeModelId && isModelReady) ||
+            _backgroundTaskRunning.value || _uiState.value.isGenerating
+        ) {
+            sendMessageNow(content)
+            return
+        }
+        viewModelScope.launch {
+            ensureModelFor(chat)
+            sendMessageNow(content)
+        }
+    }
+
+    private fun sendMessageNow(content: String) {
         // The model is busy with a background task (daily briefing / keyword translation).
         if (_backgroundTaskRunning.value) return
         val imageUri = _uiState.value.selectedImageUri
@@ -1610,7 +1803,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 (contextCapacity * 3 / 4).coerceAtLeast(600)
             )
 
-            val effectiveMode = _uiState.value.chatSearchOverride ?: _uiState.value.webSearchMode
+            val effectiveMode = if (com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())) WebSearchMode.OFF
+                else _uiState.value.chatSearchOverride ?: _uiState.value.webSearchMode
             if (_uiState.value.chatSearchOverride != null) {
                 _uiState.update { it.copy(chatSearchOverride = null) }
             }
@@ -1637,13 +1831,13 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             if (!queryToSearch.isNullOrBlank()) {
                 _uiState.update { it.copy(isSearching = true, activeSearchQuery = queryToSearch, webSearchError = null) }
                 try {
-                    val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+                    val apiKey = currentSearchKey(providerId)
                     val locale = java.util.Locale.getDefault()
                     val country = locale.country.lowercase().ifBlank { "us" }
                     val language = locale.language.lowercase().ifBlank { "en" }
 
-                    if (providerId == "brave") {
-                        // Count chat searches towards the shared monthly Brave counter (see the clinical Q&A).
+                    if (providerId != "free") {
+                        // Count chat searches towards the shared monthly search counter (see the clinical Q&A).
                         withContext(Dispatchers.IO) {
                             com.example.auralocalai.data.medical.MedicalRepository(getApplication<Application>().filesDir).recordBraveUse()
                         }
@@ -1714,7 +1908,19 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             if (currentPrefix.isNotBlank()) {
                 turnParts += currentPrefix.trimEnd()
             }
-            turnParts += messageText
+            val appLang = com.example.auralocalai.AppLocale.effectiveLanguage(getApplication())
+            val usePivot = pivotActive()
+            if (usePivot) {
+                _uiState.update { it.copy(pivotStatus = str(R.string.pivot_translating_question)) }
+                val english = withContext(Dispatchers.IO) {
+                    runCatching { pivotTranslator.translateFrom(messageText, appLang, "en") }.getOrNull()
+                }
+                turnParts += (english ?: messageText)
+                turnParts += com.example.auralocalai.data.translate.PivotTranslation.ANSWER_IN_ENGLISH
+                _uiState.update { it.copy(pivotStatus = str(R.string.pivot_thinking_english)) }
+            } else {
+                turnParts += messageText
+            }
             val currentTurn = turnParts.joinToString("\n\n")
 
             // Extract downsampled bitmap natively if a vision-capable model is loaded (from image or video keyframe)
@@ -1759,37 +1965,71 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     enableThinking = _uiState.value.enableThinking,
                     thinkingTokenBudget = _uiState.value.thinkingTokenBudget
                 )
-                inferenceEngine.generateResponse(
-                    prompt = currentTurn,
-                    image = imageBitmap,
-                    repetitionPenaltyConfig = repetitionConfig,
-                    turnThinkingConfig = turnThinkingConfig
-                )
-                    .onCompletion { cause ->
-                        if (cause is kotlinx.coroutines.CancellationException) {
-                            wasCancelled = true
-                        }
-                    }
-                    .collect { partialToken ->
-                        if (tFirst == null) {
-                            tFirst = System.nanoTime()
-                        }
-                        tokenCount++
-                        accumulatedBuilder.append(partialToken)
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastUpdateTime > 100) {
-                            val currentSnapshot = accumulatedBuilder.toString()
-                            _uiState.update { state ->
-                                val updatedMessages = ArrayList(state.messages)
-                                if (updatedMessages.isNotEmpty()) {
-                                    val oldMessage = updatedMessages.last()
-                                    updatedMessages[updatedMessages.lastIndex] = oldMessage.copy(content = currentSnapshot)
+                // "Session is not prefilled yet": the engine was still rebuilding the conversation.
+                // Wait a moment and try once more before showing an error.
+                var generationAttempt = 0
+                while (true) {
+                    try {
+                        inferenceEngine.generateResponse(
+                            prompt = currentTurn,
+                            image = imageBitmap,
+                            repetitionPenaltyConfig = repetitionConfig,
+                            turnThinkingConfig = turnThinkingConfig
+                        )
+                            .onCompletion { cause ->
+                                if (cause is kotlinx.coroutines.CancellationException) {
+                                    wasCancelled = true
                                 }
-                                state.copy(messages = updatedMessages)
                             }
-                            lastUpdateTime = currentTime
+                            .collect { partialToken ->
+                                if (tFirst == null) {
+                                    tFirst = System.nanoTime()
+                                }
+                                tokenCount++
+                                accumulatedBuilder.append(partialToken)
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastUpdateTime > 100) {
+                                    val currentSnapshot = accumulatedBuilder.toString()
+                                    _uiState.update { state ->
+                                        val updatedMessages = ArrayList(state.messages)
+                                        if (updatedMessages.isNotEmpty()) {
+                                            val oldMessage = updatedMessages.last()
+                                            updatedMessages[updatedMessages.lastIndex] = oldMessage.copy(content = currentSnapshot)
+                                        }
+                                        state.copy(messages = updatedMessages)
+                                    }
+                                    lastUpdateTime = currentTime
+                                }
+                            }
+                        break
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (generationAttempt == 0 && accumulatedBuilder.isEmpty() && e.message?.contains("prefill", ignoreCase = true) == true) {
+                            generationAttempt++
+                            kotlinx.coroutines.delay(800L)
+                            continue
+                        }
+                        // GPU path broke ("Failed to invoke the compiled model"): reload on the CPU and try again.
+                        if (generationAttempt < 2 && accumulatedBuilder.isEmpty() && isGpuInvokeFailure(e.message) && fallbackToCpu()) {
+                            generationAttempt = 2
+                            continue
+                        }
+                        throw e
+                    }
+                }
+                // "Via English": translate the finished English answer back (structure and code kept).
+                if (usePivot && accumulatedBuilder.isNotEmpty()) {
+                    _uiState.update { it.copy(pivotStatus = str(R.string.pivot_translating_answer)) }
+                    val englishAnswer = stripThinkingBlocks(accumulatedBuilder.toString())
+                    val translated = withContext(Dispatchers.IO) {
+                        com.example.auralocalai.data.translate.PivotTranslation.translateMarkdown(englishAnswer) { line ->
+                            runCatching { pivotTranslator.translateFrom(line, "en", appLang) }.getOrNull()
                         }
                     }
+                    accumulatedBuilder.clear()
+                    accumulatedBuilder.append(translated)
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 wasCancelled = true
                 throw e
@@ -1832,7 +2072,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                             searchQuery = searchOutcome?.query
                         )
                     }
-                    state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null)
+                    state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null, pivotStatus = null)
                 }
                 saveMessages(_uiState.value.messages)
                 scheduleIdleUnload()
@@ -2060,6 +2300,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        runCatching { pivotTranslator.close() }
         val context = getApplication<Application>().applicationContext
         context.stopService(Intent(context, ModelDownloadService::class.java))
         inferenceJob?.cancel()

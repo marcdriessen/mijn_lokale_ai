@@ -14,6 +14,7 @@ class BriefingRepository(baseDir: File) {
     private val configFile = File(dir, "config.json")
     private val historyFile = File(dir, "history.json")
     private val cacheFile = File(dir, "fetch_cache.json")
+    private val statusFile = File(dir, "source_status.json")
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -34,6 +35,23 @@ class BriefingRepository(baseDir: File) {
     @Synchronized
     fun saveConfig(config: BriefingConfig) {
         writeAtomically(configFile, json.encodeToString(BriefingConfig.serializer(), config))
+    }
+
+    @Synchronized
+    fun loadSourceStatus(): Map<String, SourceStatus> =
+        runCatching {
+            json.decodeFromString(kotlinx.serialization.builtins.MapSerializer(kotlinx.serialization.serializer<String>(), SourceStatus.serializer()), statusFile.readText())
+        }.getOrDefault(emptyMap())
+
+    /** Stores the outcome of a fetch per source (used in the Sources screen). */
+    @Synchronized
+    fun saveSourceResults(results: List<SourceFetchResult>, now: Long = System.currentTimeMillis()) {
+        val current = loadSourceStatus().toMutableMap()
+        results.forEach { r -> current[r.source.id] = SourceStatus.update(current[r.source.id], now, r.items.size, r.error) }
+        writeAtomically(
+            statusFile,
+            json.encodeToString(kotlinx.serialization.builtins.MapSerializer(kotlinx.serialization.serializer<String>(), SourceStatus.serializer()), current)
+        )
     }
 
     @Synchronized

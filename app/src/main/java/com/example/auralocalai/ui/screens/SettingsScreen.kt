@@ -73,33 +73,11 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = stringResource(R.string.settings_title),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.go_back),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-                )
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    thickness = 1.dp
-                )
-            }
+            com.example.auralocalai.ui.components.AppHeader(
+                title = stringResource(R.string.settings_title),
+                subtitle = stringResource(R.string.app_name),
+                onBack = onBack
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
@@ -112,6 +90,107 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Privacy & security
+            var lockEnabled by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isLockEnabled(context)) }
+            var privacyMode by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isPrivacyMode(context)) }
+            var anonymize by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isAnonymizeEnabled(context)) }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.security_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.security_lock), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.security_lock_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = lockEnabled, onCheckedChange = {
+                            lockEnabled = it
+                            com.example.auralocalai.AppSecurity.setLockEnabled(context, it)
+                        })
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.security_privacy), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.security_privacy_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = privacyMode, onCheckedChange = {
+                            privacyMode = it
+                            com.example.auralocalai.AppSecurity.setPrivacyMode(context, it)
+                        })
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.security_anonymize), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.security_anonymize_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = anonymize, onCheckedChange = {
+                            anonymize = it
+                            com.example.auralocalai.AppSecurity.setAnonymizeEnabled(context, it)
+                        })
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(stringResource(R.string.ocr_script_settings), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.ocr_script_settings_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    com.example.auralocalai.ui.components.ScriptSelector()
+                }
+            }
+
+            // Back-up & restore (no models)
+            val backupScope = rememberCoroutineScope()
+            val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/zip")
+            ) { uri ->
+                if (uri != null) backupScope.launch {
+                    val message = try {
+                        val n = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.example.auralocalai.data.backup.BackupManager.export(context, uri) }
+                        context.getString(R.string.backup_done, n)
+                    } catch (e: Exception) {
+                        context.getString(R.string.backup_failed, e.message ?: "")
+                    }
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) backupScope.launch {
+                    val message = try {
+                        val n = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.example.auralocalai.data.backup.BackupManager.restore(context, uri) }
+                        context.getString(R.string.restore_done, n)
+                    } catch (e: Exception) {
+                        context.getString(R.string.backup_failed, e.message ?: "")
+                    }
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.backup_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { exportLauncher.launch("local-llm-ai-backup.zip") }, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.backup_export))
+                        }
+                        OutlinedButton(onClick = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.backup_restore))
+                        }
+                    }
+                }
+            }
+
             // Title Card with Info
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -495,7 +574,9 @@ fun SettingsScreen(
                     val providers = listOf(
                         Triple("free", stringResource(R.string.provider_free), stringResource(R.string.provider_free_desc)),
                         Triple("brave", stringResource(R.string.provider_brave), stringResource(R.string.provider_brave_desc)),
-                        Triple("serper", stringResource(R.string.provider_serper), stringResource(R.string.provider_serper_desc))
+                        Triple("serper", stringResource(R.string.provider_serper), stringResource(R.string.provider_serper_desc)),
+                        Triple("gemini", stringResource(R.string.provider_gemini), stringResource(R.string.provider_gemini_desc)),
+                        Triple("openai", stringResource(R.string.provider_openai), stringResource(R.string.provider_openai_desc))
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -540,11 +621,49 @@ fun SettingsScreen(
                         }
                     }
 
+                    // AI search: where to get a key, and which model to use.
+                    if (uiState.webSearchProviderId == "gemini" || uiState.webSearchProviderId == "openai") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            stringResource(if (uiState.webSearchProviderId == "gemini") R.string.provider_gemini_help else R.string.provider_openai_help),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        var modelInput by remember(uiState.webSearchProviderId) {
+                            mutableStateOf(uiState.aiSearchModels[uiState.webSearchProviderId].orEmpty())
+                        }
+                        OutlinedTextField(
+                            value = modelInput,
+                            onValueChange = {
+                                modelInput = it
+                                viewModel.setAiSearchModel(uiState.webSearchProviderId, it)
+                            },
+                            label = { Text(stringResource(R.string.provider_ai_model)) },
+                            placeholder = {
+                                Text(
+                                    if (uiState.webSearchProviderId == "gemini") com.example.auralocalai.data.providers.GeminiSearchProvider.DEFAULT_MODEL
+                                    else com.example.auralocalai.data.providers.OpenAiSearchProvider.DEFAULT_MODEL
+                                )
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                        )
+                    }
+
                     // 3. API Key Input (if Brave or Serper selected)
                     if (uiState.webSearchProviderId != "free") {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = stringResource(R.string.provider_api_key, if (uiState.webSearchProviderId == "brave") "Brave Search" else "Serper"),
+                            text = stringResource(
+                                R.string.provider_api_key,
+                                when (uiState.webSearchProviderId) {
+                                    "brave" -> "Brave Search"
+                                    "gemini" -> "Gemini (Google AI Studio)"
+                                    "openai" -> "OpenAI"
+                                    else -> "Serper"
+                                }
+                            ),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1143,6 +1262,12 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Automatic model choice per task
+                    ModelRoutingSection(uiState, viewModel)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     // 2. Custom System Prompt
                     Text(
                         text = stringResource(R.string.system_instructions),
@@ -1219,6 +1344,39 @@ fun SettingsScreen(
                         lineHeight = 15.sp
                     )
 
+                    // Simple choice: most people only need one of these three styles.
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(stringResource(R.string.style_title), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    val styles = listOf(
+                        AnswerStyle(R.string.style_precise, R.string.style_precise_desc, 0.2f, 0.8f, 20, 1.1f),
+                        AnswerStyle(R.string.style_balanced, R.string.style_balanced_desc, 0.6f, 0.9f, 40, 1.1f),
+                        AnswerStyle(R.string.style_creative, R.string.style_creative_desc, 0.9f, 0.95f, 64, 1.05f)
+                    )
+                    val currentStyle = styles.firstOrNull {
+                        kotlin.math.abs(it.temp - uiState.temperature) < 0.01f && kotlin.math.abs(it.topP - uiState.topP) < 0.01f &&
+                            it.topK == uiState.topK && kotlin.math.abs(it.rep - uiState.repetitionPenalty) < 0.01f
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        styles.forEach { s ->
+                            FilterChip(
+                                selected = currentStyle == s,
+                                onClick = { viewModel.updateSamplerSettings(temperature = s.temp, topP = s.topP, topK = s.topK, repetitionPenalty = s.rep) },
+                                label = { Text(stringResource(s.label), fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                    Text(
+                        text = stringResource(currentStyle?.desc ?: R.string.style_custom_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(stringResource(R.string.style_advanced), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Temperature Slider
@@ -1273,6 +1431,12 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.top_p_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 15.sp
+                    )
                     Slider(
                         value = uiState.topP,
                         onValueChange = { viewModel.updateSamplerSettings(topP = it) },
@@ -1301,6 +1465,12 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.top_k_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 15.sp
+                    )
                     Slider(
                         value = uiState.topK.toFloat(),
                         onValueChange = { viewModel.updateSamplerSettings(topK = it.toInt()) },
@@ -1454,3 +1624,6 @@ fun getDiagnosticInfo(context: Context): DiagnosticInfo {
 
     return DiagnosticInfo(hasVulkan, vulkanVer, totalRam, socInfo, abis)
 }
+
+/** Preset of sampler settings shown as a simple choice in Settings. */
+private data class AnswerStyle(val label: Int, val desc: Int, val temp: Float, val topP: Float, val topK: Int, val rep: Float)

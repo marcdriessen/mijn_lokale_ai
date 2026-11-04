@@ -34,6 +34,24 @@ Het uiterlijk is rustig en redactioneel: warm gebroken wit (of donker), donkergr
 serif-koppen zoals in een krant. Modelbeschrijvingen staan in de gekozen taal. In de chat staan antwoorden als
 gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
+**Dashboard en mini-apps**: de app opent op een **dashboard** met een begroeting, een kaart van het **actieve
+model** (gedeeld door alle mini-apps; tik om te kiezen/laden, knop om te ontladen) en tegels voor de mini-apps:
+**Chat, Nieuws, Werk, Vertalen, Taalcoach, Modellen en Instellingen**. Elke mini-app heeft zijn eigen kop (kleine
+bovenregel, grote titel, terugpijl naar het dashboard, ronde knoppen) en eigen tabbladen. Teksten, links en foto's
+die je vanuit een andere app **deelt naar Local LLM/AI** openen in Vertalen.
+
+### 2.0 Privacy & beveiliging (Instellingen)
+
+- **App-slot**: vingerafdruk of schermvergrendeling bij het openen.
+- **Privacymodus**: zet alle internetfuncties uit (webzoeken, nieuws, PubMed, Brave).
+- **Automatisch anonimiseren** (standaard aan): namen (na aanhef/rol of met voorletters), BSN (met elfproef),
+  datums, telefoonnummers, e-mail, postcodes, adressen, IBAN en cliënt-/dossiernummers worden vervangen door labels
+  zoals [NAAM] en [BSN]. Als er een model geladen is, zoekt dat model nog naar overgebleven namen, die daarna ook
+  worden vervangen (het model herschrijft de tekst niet). Rapportages en de bibliotheek worden altijd
+  geanonimiseerd; voor chatbijlagen en vertalen geldt deze schakelaar. Controleer altijd zelf: geen automatisch
+  systeem is 100% waterdicht.
+- **Back-up**: gesprekken, briefings, bibliotheek en leerkaarten in één zip-bestand (zonder modellen), en terugzetten.
+
 ### 2.1 Chatscherm (startscherm)
 
 **Bovenbalk**
@@ -166,10 +184,30 @@ gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
 ### 2.4 Nieuwsbriefings
 
-Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade. De opmaak is redactioneel, zoals een
-krant: datum en editie (ochtend/middag/avond), de naam van de briefing als grote serif-kop, een korte intro en
-onderwerp-labels, en daaronder **"Voor jou geselecteerd"** met artikelkaarten.
+Tabblad **Nieuws**. Opgezet als een moderne nieuwsapp (geïnspireerd op NU.nl, DW en Ground News):
 
+- **Kop**: datum + "Nieuws", met ronde knoppen voor **briefing bewerken**, **nieuwe briefing** (+) en een **menu**
+  (nieuws opnieuw ophalen, voorlezen, delen, eerdere briefings, bronnen).
+- **Briefings als pillen** (gekozen = donker gevuld; klokje = automatisch gepland).
+- **Jouw selectie** met rechts **Onderwerpen bewerken**, de status ("bijgewerkt … geleden · volgende uitvoering …") en
+  de knop **Genereer briefing / Nu bijwerken**.
+- **IN FOCUS**-regel om op onderwerp te filteren (Alles, Ggz, Verslavingszorg, …).
+- **Hoofdbericht** als grote foto met de kop erover, daarna **kaarten** (onderwerp en bron, vette kop met vierkante foto,
+  bron · tijd en een menu met "lees artikel" en "delen"), en de rest als **Net binnen**-tijdlijn ("26 min. geleden in
+  Ggz", kop en foto).
+- Tik op een bericht voor de **detailpagina** met grote foto, vertaalde kop (plus originele kop), samenvatting,
+  **"Betekenis voor jouw werk"**, **Lees het artikel bij …**, **Vraag verder** en **Ground News**.
+- **Vertalen** gebeurt in twee stappen: eerst vertaalt **Google ML Kit** (offline op de telefoon; taalpakketten van
+  ~30 MB worden één keer gedownload) de kop en de korte tekst van elk Engels of Bulgaars bericht naar de taal van de
+  briefing. Daarna schrijft het geladen model (als dat er is) de samenvatting en de betekenis, op basis van de vertaalde
+  tekst. Zonder model krijg je dus toch Nederlandse koppen en tekst.
+- **Op de achtergrond klaar**: bij een geplande briefing (bijv. 08:00) begint de app **30 minuten eerder**, haalt het
+  nieuws op, vertaalt het, laadt zelf het **laatst gebruikte model** om samen te vatten (als het geheugen dat toelaat)
+  en stuurt een melding zodra de briefing **helemaal klaar** is. In de app zie je een nieuwe briefing ook pas als hij
+  af is; tot die tijd blijft de vorige staan.
+- **Taal van de briefing** per briefing in te stellen (Nederlands, English, Български of de taal van de app; standaard
+  Nederlands voor de ggz-briefing). Het model vertaalt Engelse berichten naar die taal. Berichten die (nog) niet door
+  het model zijn verwerkt, krijgen het label "origineel".
 - **Meerdere briefings (profielen)** bovenaan als knoppen, plus **Nieuwe briefing**. Standaard:
   "Dagelijks nieuws over ggz en verslavingszorg" en "Wereldnieuws".
 - **Artikelkaart**: afbeelding (uit de feed of de artikelpagina) met onderwerp-label, bron en datum, een titel en
@@ -189,13 +227,28 @@ onderwerp-labels, en daaronder **"Voor jou geselecteerd"** met artikelkaarten.
 - **Op de achtergrond** haalt een geplande briefing alleen het nieuws op (via nieuwsfeeds) en stuurt een melding; het
   model schrijft de artikelen als je de briefing opent.
 
-### 2.5 Vraagbaak GGZ & verslaving
+### 2.4b Nieuws: extra's
+
+- **Weekoverzicht** (menu): het model maakt een overzicht van de briefings van de afgelopen 7 dagen.
+- **Widget** op je startscherm met de koppen van de laatste briefing.
+
+### 2.5 Werk (GGZ & verslaving)
+
+De mini-app **Werk** heeft tabbladen: **Vraagbaak** (hieronder), **Psycho-educatie** (hand-outs voor cliënten op
+B1/A2-niveau in NL/BG/EN), **Meetinstrumenten** (offline optellen voor CIWA-Ar, COWS en AUDIT, met de gebruikelijke
+indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen of een document inlezen: PDF (tekstherkenning op de telefoon,
+max. 20 pagina's), Word (.docx), OpenDocument (.odt), RTF, HTML of tekstbestand (.txt, .md, .csv) →
+automatisch geanonimiseerd → SOEP, SBAR of SOAP → desgewenst opslaan als Word-document; oude .doc-bestanden eerst
+in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
+Leitner-schema).
+
+### 2.5a Vraagbaak GGZ & verslaving
 
 Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in de psychiatrie, verslavingszorg en somatiek.
 
 - **Waarschuwing** bovenaan: geen patiëntgegevens invoeren; antwoorden ondersteunen het professionele oordeel.
 - Je stelt een vraag en kiest waar gezocht wordt (knoppen):
-  - **Mijn bibliotheek**: eigen PDF's, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
+  - **Mijn bibliotheek**: eigen PDF-, Word- (.docx), ODT-, RTF-, HTML-, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
     (max. 40 pagina's) en in tekstdelen opgeknipt; zoeken gebeurt offline op de telefoon;
   - **Vertrouwde sites** via Brave (één zoekopdracht per vraag, beperkt tot de ingestelde sites): GGZ Standaarden,
     Akwa GGZ, Trimbos, NISPA, Farmacotherapeutisch Kompas, Richtlijnendatabase, NHG en Vilans. Sites zijn aan/uit te
@@ -211,6 +264,44 @@ Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in
 - **Eerdere vragen** (klok-icoon): de laatste 30 worden bewaard.
 - Inhoud van de DSM-5-TR en Vilans-protocollen is niet vrij beschikbaar; die kun je alleen gebruiken door je eigen
   (toegestane) documenten aan je bibliotheek toe te voegen.
+
+### 2.5b Vertalen
+
+Offline vertalen met ML Kit naar Nederlands, Engels, Bulgaars, Pools, Duits, Frans, Spaans, Italiaans, Portugees,
+Roemeens, Turks, Arabisch, Oekraïens of Russisch: getypte tekst, een **foto** (camera of galerij, tekstherkenning voor
+Latijns schrift), een **gedeelde pagina/tekst/foto** of een **document** (PDF, Word .docx, ODT, RTF, HTML of
+tekstbestand). Bij documenten blijven kopjes, lijsten en witregels op hun plek (regel voor regel vertaald); de
+brontaal wordt één keer voor het hele document herkend.
+
+- **Vertalen met AI-model**: trager, maar vaak natuurlijker (bijv. Nederlands → Bulgaars). Lange documenten worden in
+  delen vertaald (tot ca. 24.000 tekens).
+- **Opslaan als Word**: de vertaling wordt als .docx opgeslagen (met titel en doeltaal).
+- Als **anonimiseren** aan staat, worden persoonsgegevens in documenten en foto's eerst vervangen.
+
+### 2.5b-2 Bulgaars / Cyrillisch
+
+- **Tekstherkenning in foto's en gescande PDF's**: kies bij "Tekst in foto's" **Latijns** (Google ML Kit) of
+  **Cyrillisch (Bulgaars)** (Tesseract, met Bulgaarse + Engelse taaldata). Cyrillisch downloadt één keer ca. 13 MB
+  en werkt daarna offline. De keuze geldt overal (chat, Vertalen, Werk, bibliotheek) en staat ook in Instellingen.
+  Standaard Cyrillisch als de app in het Bulgaars staat.
+- **Bestanden**: Word, ODT, RTF, HTML en tekstbestanden in het Cyrillisch worden goed gelezen, ook oude bestanden in
+  Windows-1251-codering. Word-bestanden met Cyrillische tekst worden correct opgeslagen.
+- **Anonimiseren in het Bulgaars**: ЕГН (met controlecijfer), ЛНЧ/лична карта/паспорт-nummers, +359-telefoonnummers,
+  datums met Bulgaarse maandnamen, adressen (ул., бул., ж.к., бл., вх., ет., ап.) en namen na г-н, г-жа, д-р,
+  пациент(ът), клиент(ът) of met initialen (И. Петров).
+- Daarna eventueel met AI: samenvatten, eenvoudig (B1) of een e-mail maken.
+
+### 2.5c Taalcoach
+
+Oefengesprekken in Bulgaars, Engels, Duits of Nederlands op niveau A1–B2, met situaties (kennismaken, winkel, dokter,
+familie, reizen). De coach geeft een **correctie** met korte uitleg en een **antwoord** met een vraag; antwoorden
+kunnen worden voorgelezen.
+
+### 2.5d Chat: extra's
+
+- **Snelkoppelingen** boven de invoer: samenvatten, naar Nederlands, eenvoudig (B1), e-mail, naar Bulgaars.
+- **Spraakmodus** (spreker-icoon): antwoorden worden automatisch voorgelezen.
+- **Modeladvies** in Modellen: welk model het best past bij jouw telefoon en taak.
 
 ### 2.6 Op de achtergrond
 

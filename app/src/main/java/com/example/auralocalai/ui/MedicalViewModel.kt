@@ -60,6 +60,7 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
 
     private val repository = MedicalRepository(application.filesDir)
     private val pubMed = PubMedClient()
+    private val europePmc = com.example.auralocalai.data.medical.EuropePmcClient()
     private val _state = MutableStateFlow(MedicalUiState())
     val state: StateFlow<MedicalUiState> = _state.asStateFlow()
     private var runJob: Job? = null
@@ -134,8 +135,10 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
         val clean = question.trim()
         if (clean.isEmpty() || _state.value.isRunning) return
         runJob = viewModelScope.launch {
-            val config = _state.value.config
+            val privacy = com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())
+            val config = _state.value.config.let { if (privacy) it.copy(useSites = false, usePubMed = false) else it }
             val notes = mutableListOf<String>()
+            if (privacy) notes += str(R.string.privacy_only_library)
             val sources = mutableListOf<MedicalSource>()
             val languageCode = AppLocale.effectiveLanguage(getApplication())
             val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"
@@ -149,6 +152,30 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     val hits = withContext(Dispatchers.Default) { PassageIndex.search(_state.value.library, clean, limit = 3) }
                     hits.forEach { hit ->
                         sources += MedicalSource(SourceKind.LIBRARY.name, hit.documentName, "", hit.passage, str(R.string.medical_origin_library))
+                    }
+                }
+
+                // 1b. Shared knowledge layer: the news briefings stored on the phone (offline, no extra download).
+                if (config.useLibrary) {
+                    val newsDocs = withContext(Dispatchers.IO) {
+                        com.example.auralocalai.data.briefing.BriefingRepository(getApplication<android.app.Application>().filesDir)
+                            .loadHistory().flatMap { it.articles }
+                            .distinctBy { it.item.link }
+                            .map { a ->
+                                LibraryDocument(
+                                    a.item.link,
+                                    "${a.title.ifBlank { a.item.title }} (${a.item.sourceName})",
+                                    a.item.publishedMillis ?: 0L,
+                                    listOf(listOf(a.title.ifBlank { a.item.title }, a.summary, a.relevance).filter { it.isNotBlank() }.joinToString(". "))
+                                )
+                            }
+                    }
+                    if (newsDocs.isNotEmpty()) {
+                        val hits = withContext(Dispatchers.Default) { PassageIndex.search(newsDocs, clean, limit = 2) }
+                        hits.forEach { hit ->
+                            val doc = newsDocs.firstOrNull { it.name == hit.documentName }
+                            sources += MedicalSource(SourceKind.NEWS.name, hit.documentName, doc?.id.orEmpty(), hit.passage, str(R.string.medical_origin_news))
+                        }
                     }
                 }
 
@@ -181,21 +208,45 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                 // 3. PubMed (free); the model turns the question into English search terms
                 if (config.usePubMed) {
                     _state.update { it.copy(progress = str(R.string.medical_searching_pubmed)) }
-                    val pubQuery = if (llm.isModelReady) {
-                        llm.runOneShotPrompt(MedicalPrompts.PUBMED_QUERY_SYSTEM_PROMPT, MedicalPrompts.pubMedQueryPrompt(clean))
+                    val pubQuery = if (llm.canServe(com.example.auralocalai.data.ModelRouting.Task.MEDICAL)) {
+                        llm.runOneShotPrompt(MedicalPrompts.PUBMED_QUERY_SYSTEM_PROMPT, MedicalPrompts.pubMedQueryPrompt(clean), task = com.example.auralocalai.data.ModelRouting.Task.MEDICAL)
                             ?.let { MedicalPrompts.cleanQuery(it) }
                             ?.ifBlank { null } ?: clean
                     } else clean
                     answer = answer.copy(searchQuery = pubQuery)
+                    val seenPmids = mutableSetOf<String>()
+                    val seenTitles = mutableSetOf<String>()
                     try {
                         pubMed.search(pubQuery, maxResults = 4).forEach { article ->
                             val origin = listOf("PubMed", article.journal, article.year).filter { it.isNotBlank() }.joinToString(" · ")
                             sources += MedicalSource(SourceKind.PUBMED.name, article.title, article.url, article.abstract.ifBlank { article.title }, origin)
+                            seenPmids += article.pmid
+                            seenTitles += com.example.auralocalai.data.medical.EuropePmcParser.titleKey(article.title)
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         notes += str(R.string.medical_note_pubmed_error, e.message ?: "")
+                    }
+                    // Europe PMC: European and open-access literature. The same study found in PubMed
+                    // (same PMID or title) is not counted twice.
+                    _state.update { it.copy(progress = str(R.string.medical_searching_europepmc)) }
+                    try {
+                        europePmc.search(pubQuery, maxResults = 4)
+                            .filter { it.pmid !in seenPmids && com.example.auralocalai.data.medical.EuropePmcParser.titleKey(it.title) !in seenTitles }
+                            .take(3)
+                            .forEach { article ->
+                                val origin = listOfNotNull(
+                                    "Europe PMC", article.publicationTypes.firstOrNull { it.isNotBlank() && !it.equals("research-article", true) && !it.equals("Journal Article", true) },
+                                    article.journal.ifBlank { null }, article.year.ifBlank { null },
+                                    if (article.isOpenAccess) "open access" else null
+                                ).joinToString(" · ")
+                                sources += MedicalSource(SourceKind.PUBMED.name, article.title, article.url, article.abstract.ifBlank { article.title }, origin)
+                            }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        notes += str(R.string.medical_note_pubmed_error, "Europe PMC: " + (e.message ?: ""))
                     }
                 }
 
@@ -204,13 +255,14 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
 
                 val text = when {
                     sources.isEmpty() -> str(R.string.medical_no_sources)
-                    !llm.isModelReady -> str(R.string.medical_no_model_sources_only)
+                    !llm.canServe(com.example.auralocalai.data.ModelRouting.Task.MEDICAL) -> str(R.string.medical_no_model_sources_only)
                     else -> {
                         _state.update { it.copy(progress = str(R.string.medical_answering)) }
                         val budget = (llm.activeContextTokens() * 5 / 2).coerceIn(2_000, 12_000)
                         llm.runOneShotPrompt(
                             MedicalPrompts.systemPrompt(languageName),
-                            MedicalPrompts.answerPrompt(clean, sources, languageName, budget)
+                            MedicalPrompts.answerPrompt(clean, sources, languageName, budget),
+                            temperature = 0.3, task = com.example.auralocalai.data.ModelRouting.Task.MEDICAL
                         ) { partial ->
                             answer = answer.copy(answer = partial)
                             _state.update { it.copy(current = answer) }
@@ -246,8 +298,22 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
             val name = displayName(context, uri)
             _state.update { it.copy(importing = name) }
             try {
-                val text = if (name.endsWith(".pdf", ignoreCase = true)) ocrPdf(context, uri) else readText(context, uri)
-                val passages = PassageIndex.chunk(text)
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                val kind = com.example.auralocalai.data.work.DocumentText.detect(bytes, name)
+                val text = when (kind) {
+                    com.example.auralocalai.data.work.DocumentText.Kind.PDF -> ocrPdf(context, uri)
+                    com.example.auralocalai.data.work.DocumentText.Kind.IMAGE -> {
+                        val bitmap = com.example.auralocalai.data.ocr.OcrEngine.loadBitmap(context, uri)
+                        if (bitmap == null) "" else try {
+                            com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
+                        } finally {
+                            bitmap.recycle()
+                        }
+                    }
+                    else -> com.example.auralocalai.data.work.DocumentText.extract(bytes, kind, MAX_TEXT_CHARS).orEmpty()
+                }
+                // Personal data never enters the library.
+                val passages = PassageIndex.chunk(com.example.auralocalai.data.privacy.Anonymizer.anonymize(text).text)
                 if (passages.isEmpty()) {
                     _state.update { it.copy(message = str(R.string.medical_import_empty, name)) }
                 } else {
@@ -257,7 +323,12 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     _state.update { it.copy(library = updated, message = str(R.string.medical_import_done, name, passages.size)) }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(message = str(R.string.medical_import_failed, e.message ?: "")) }
+                _state.update {
+                    it.copy(
+                        message = if (e is com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) str(R.string.ocr_cyrillic_missing)
+                        else str(R.string.medical_import_failed, e.message ?: "")
+                    )
+                }
             } finally {
                 _state.update { it.copy(importing = null) }
             }
@@ -274,18 +345,9 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
         return uri.lastPathSegment ?: "document"
     }
 
-    private fun readText(context: Context, uri: Uri): String =
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            val reader = stream.bufferedReader()
-            val buffer = CharArray(MAX_TEXT_CHARS)
-            val read = reader.read(buffer, 0, MAX_TEXT_CHARS)
-            if (read > 0) String(buffer, 0, read) else ""
-        } ?: ""
-
     private suspend fun ocrPdf(context: Context, uri: Uri): String {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return ""
         val renderer = PdfRenderer(descriptor)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         val builder = StringBuilder()
         try {
             val pages = minOf(renderer.pageCount, MAX_PDF_PAGES)
@@ -297,11 +359,7 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     try {
                         Canvas(bitmap).drawColor(Color.WHITE)
                         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        val result = suspendCancellableCoroutine { cont ->
-                            recognizer.process(InputImage.fromBitmap(bitmap, 0))
-                                .addOnSuccessListener { cont.resume(it.text) }
-                                .addOnFailureListener { cont.resumeWithException(it) }
-                        }
+                        val result = com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
                         builder.append(result).append("\n\n")
                     } finally {
                         bitmap.recycle()
@@ -311,7 +369,6 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         } finally {
-            try { recognizer.close() } catch (_: Exception) {}
             try { renderer.close() } catch (_: Exception) {}
             try { descriptor.close() } catch (_: Exception) {}
         }

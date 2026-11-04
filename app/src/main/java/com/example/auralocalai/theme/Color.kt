@@ -23,7 +23,7 @@ val DarkErrorContainer = Color(0xFF4A1C1C)
 val DarkSuccess = Color(0xFF3DDC97)
 
 // Light
-val LightBackground = Color(0xFFF4F2EC)
+val LightBackground = Color(0xFFFAFAF7)
 val LightSurface = Color(0xFFFFFFFF)
 val LightSurfaceVariant = Color(0xFFE7EBE4)
 val LightSurfaceHigh = Color(0xFFDDE3DA)

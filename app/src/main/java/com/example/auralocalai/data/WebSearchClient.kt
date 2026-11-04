@@ -31,7 +31,14 @@ class WebSearchClient(
     private val serperProvider = SerperSearchProvider(okHttpClient)
     private val freeProvider = FreeSearchProvider(okHttpClient)
 
-    private val providers = listOf(braveProvider, serperProvider, freeProvider)
+    private val geminiProvider = com.example.auralocalai.data.providers.GeminiSearchProvider {
+        com.example.auralocalai.data.providers.AiSearchSettings.model("gemini")
+    }
+    private val openAiProvider = com.example.auralocalai.data.providers.OpenAiSearchProvider {
+        com.example.auralocalai.data.providers.AiSearchSettings.model("openai")
+    }
+
+    private val providers = listOf(braveProvider, serperProvider, freeProvider, geminiProvider, openAiProvider)
 
     fun getAllProviders(): List<SearchProvider> = providers
 
