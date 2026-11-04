@@ -103,6 +103,13 @@ object WorkPrompts {
             "If a part is missing, write \"—\". Keep it short and factual."
 
     fun reportPrompt(notes: String, format: String): String = when (format) {
+        "SOEP" -> "Structure these notes with the Dutch SOEP method. Use exactly these four headings, each on its own line, " +
+            "and write the content below each heading:\n" +
+            "S – Subjectief: what the client says or experiences (complaints, wishes, own words).\n" +
+            "O – Objectief: what was observed or measured (behaviour, appearance, measurements, scores).\n" +
+            "E – Evaluatie: the nurse's evaluation as written in the notes (progress towards goals, analysis).\n" +
+            "P – Plan: agreements, actions and follow-up.\n" +
+            "Keep the client's words where possible. Do not invent anything; write \"—\" when a part is missing.\n\n$notes"
         "SOAP" -> "Structure these notes as SOAP with the headings S (subjective), O (objective), A (assessment as written by the nurse), P (plan):\n\n$notes"
         else -> "Structure these notes as SBAR with the headings S (situation), B (background), A (assessment as written by the nurse), R (recommendation):\n\n$notes"
     }

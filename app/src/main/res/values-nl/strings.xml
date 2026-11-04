@@ -585,7 +585,7 @@
     <string name="report_privacy">Gedicteerde, gescande en ingelezen teksten worden automatisch geanonimiseerd: namen, BSN, datums, adressen, telefoonnummers en cliëntnummers worden vervangen door labels zoals [NAAM]. Alles blijft op deze telefoon. Controleer altijd vóór gebruik.</string>
     <string name="report_dictate">Dicteren</string>
     <string name="report_scan">Scannen</string>
-    <string name="report_import">Tekstbestand</string>
+    <string name="report_import">Bestand / Word</string>
     <string name="report_hint">Aantekeningen voor de overdracht (geen namen of andere persoonsgegevens)</string>
     <string name="report_generate">Structureer als %1$s</string>
     <string name="anon_busy">Persoonsgegevens verwijderen…</string>
@@ -639,4 +639,11 @@
     <string name="chat_copied">Gesprek gekopieerd naar het klembord</string>
     <string name="weak_model_warning">Dit model is klein en zwak in Nederlands en Bulgaars: verwacht vreemde woorden en fouten. Laad voor goede antwoorden Gemma 4 E4B (of E2B).</string>
     <string name="err_not_prefilled">Het model was het gesprek nog aan het voorbereiden. Stuur je bericht nog een keer.</string>
+    <string name="report_reading_file">Bestand inlezen…</string>
+    <string name="report_doc_unsupported">Oude .doc-bestanden kunnen niet worden gelezen. Sla het in Word op als .docx en probeer opnieuw.</string>
+    <string name="report_doc_title">Rapportage (%1$s)</string>
+    <string name="report_doc_subtitle">Geanonimiseerd – gemaakt op %1$s met Lokale AI. Controleer vóór gebruik.</string>
+    <string name="report_save_docx">Opslaan als Word-document</string>
+    <string name="report_saved_docx">Word-document opgeslagen</string>
+    <string name="report_save_failed">Opslaan mislukt</string>
 </resources>

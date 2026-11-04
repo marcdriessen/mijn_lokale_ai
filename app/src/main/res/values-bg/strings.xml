@@ -585,7 +585,7 @@
     <string name="report_privacy">Диктуваните, сканираните и импортираните текстове се анонимизират автоматично: имена, номера, дати, адреси и телефони се заменят с етикети като [NAAM]. Всичко остава на телефона. Винаги проверявайте преди употреба.</string>
     <string name="report_dictate">Диктувай</string>
     <string name="report_scan">Сканирай</string>
-    <string name="report_import">Текстов файл</string>
+    <string name="report_import">Файл / Word</string>
     <string name="report_hint">Бележки за предаването (без имена или други лични данни)</string>
     <string name="report_generate">Структурирай като %1$s</string>
     <string name="anon_busy">Премахване на лични данни…</string>
@@ -639,4 +639,11 @@
     <string name="chat_copied">Разговорът е копиран</string>
     <string name="weak_model_warning">Този модел е малък и слаб на нидерландски и български: очаквайте странни думи и грешки. За добри отговори заредете Gemma 4 E4B (или E2B).</string>
     <string name="err_not_prefilled">Моделът все още подготвяше разговора. Изпратете съобщението отново.</string>
+    <string name="report_reading_file">Четене на файла…</string>
+    <string name="report_doc_unsupported">Старите .doc файлове не могат да бъдат прочетени. Запазете го като .docx в Word и опитайте отново.</string>
+    <string name="report_doc_title">Доклад (%1$s)</string>
+    <string name="report_doc_subtitle">Анонимизирано – създадено на %1$s с Локален ИИ. Проверете преди употреба.</string>
+    <string name="report_save_docx">Запази като Word документ</string>
+    <string name="report_saved_docx">Word документът е запазен</string>
+    <string name="report_save_failed">Запазването е неуспешно</string>
 </resources>

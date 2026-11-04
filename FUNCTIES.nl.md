@@ -236,8 +236,9 @@ Tabblad **Nieuws**. Opgezet als een moderne nieuwsapp (geïnspireerd op NU.nl, D
 
 De mini-app **Werk** heeft tabbladen: **Vraagbaak** (hieronder), **Psycho-educatie** (hand-outs voor cliënten op
 B1/A2-niveau in NL/BG/EN), **Meetinstrumenten** (offline optellen voor CIWA-Ar, COWS en AUDIT, met de gebruikelijke
-indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen of tekstbestand → automatisch
-geanonimiseerd → SBAR of SOAP) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
+indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen, tekstbestand of Word-document (.docx) →
+automatisch geanonimiseerd → SOEP, SBAR of SOAP → desgewenst opslaan als Word-document; oude .doc-bestanden eerst
+in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
 Leitner-schema).
 
 ### 2.5a Vraagbaak GGZ & verslaving

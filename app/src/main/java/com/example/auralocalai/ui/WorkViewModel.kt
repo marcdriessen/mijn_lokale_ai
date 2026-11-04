@@ -10,6 +10,7 @@ import com.example.auralocalai.data.medical.MedicalRepository
 import com.example.auralocalai.data.work.Flashcard
 import com.example.auralocalai.data.work.FlashcardDeck
 import com.example.auralocalai.data.work.Flashcards
+import com.example.auralocalai.data.work.DocxIO
 import com.example.auralocalai.data.work.WorkPrompts
 import com.example.auralocalai.data.translate.awaitResult
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,8 @@ data class WorkUiState(
     val psychoLevel: String = "B1",
     val psychoOutput: String = "",
     val reportNotes: String = "",
-    val reportFormat: String = "SBAR",
+    val reportFormat: String = "SOEP",
+    val reportSourceName: String? = null,
     val reportOutput: String = "",
     val decks: List<FlashcardDeck> = emptyList(),
     val library: List<LibraryDocument> = emptyList(),
@@ -121,13 +123,72 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Imports a text file into the notes (anonymized). */
+    /** Imports a text or Word (.docx) file into the notes (anonymized). Word files switch the format to SOEP. */
     fun importReportFile(context: android.content.Context, uri: android.net.Uri, llm: LlmViewModel) {
         viewModelScope.launch {
-            val text = withContext(Dispatchers.IO) {
-                runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText().take(30_000) } }.getOrNull()
+            _state.update { it.copy(busy = str(R.string.report_reading_file)) }
+            val name = withContext(Dispatchers.IO) { displayName(context, uri) }
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@runCatching null
+                    when {
+                        DocxIO.looksLikeDocx(bytes) -> DocxIO.readText(bytes.inputStream()) to true
+                        bytes.size >= 8 && bytes[0] == 0xD0.toByte() && bytes[1] == 0xCF.toByte() -> "" to true // old .doc
+                        else -> bytes.toString(Charsets.UTF_8).take(30_000) to false
+                    }
+                }.getOrNull()
             }
-            if (text.isNullOrBlank()) _state.update { it.copy(message = str(R.string.translate_nothing)) } else addReportText(text, llm)
+            _state.update { it.copy(busy = null) }
+            val text = result?.first
+            when {
+                result == null -> _state.update { it.copy(message = str(R.string.translate_nothing)) }
+                result.second && text.isNullOrBlank() -> _state.update { it.copy(message = str(R.string.report_doc_unsupported)) }
+                text.isNullOrBlank() -> _state.update { it.copy(message = str(R.string.translate_nothing)) }
+                else -> {
+                    if (result.second) {
+                        _state.update { it.copy(reportFormat = "SOEP", reportSourceName = name?.substringBeforeLast('.')) }
+                    }
+                    addReportText(text, llm)
+                }
+            }
+        }
+    }
+
+    private fun displayName(context: android.content.Context, uri: android.net.Uri): String? = runCatching {
+        context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+    }.getOrNull()
+
+    /** Suggested file name for saving the structured report as Word. */
+    fun suggestedReportFileName(): String {
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date())
+        // The original file name may contain a client name, so it is anonymized too.
+        val base = _state.value.reportSourceName
+            ?.let { com.example.auralocalai.data.privacy.Anonymizer.anonymize(it).text }
+            ?.replace(Regex("[\\[\\]\\\\/:*?\"<>|]"), "")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        return listOfNotNull(base, "${_state.value.reportFormat}_$date").joinToString("_").replace(' ', '_') + ".docx"
+    }
+
+    /** Writes the structured report as a Word document to the place the user chose. */
+    fun saveReportAsDocx(context: android.content.Context, uri: android.net.Uri) {
+        val output = _state.value.reportOutput
+        if (output.isBlank()) return
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.LONG, AppLocale.localized(context).resources.configuration.locales[0]).format(java.util.Date())
+                    val bytes = DocxIO.write(
+                        title = str(R.string.report_doc_title, _state.value.reportFormat),
+                        subtitle = str(R.string.report_doc_subtitle, date),
+                        body = output
+                    )
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } != null
+                }.getOrDefault(false)
+            }
+            _state.update { it.copy(message = str(if (ok) R.string.report_saved_docx else R.string.report_save_failed)) }
         }
     }
 

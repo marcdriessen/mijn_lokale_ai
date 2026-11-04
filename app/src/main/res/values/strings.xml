@@ -586,7 +586,7 @@
     <string name="report_privacy">Dictated, scanned and imported texts are anonymized automatically: names, BSN, dates, addresses, phone numbers and client numbers are replaced by labels such as [NAAM]. Everything stays on this phone. Always check before use.</string>
     <string name="report_dictate">Dictate</string>
     <string name="report_scan">Scan</string>
-    <string name="report_import">Text file</string>
+    <string name="report_import">File / Word</string>
     <string name="report_hint">Notes for the handover (no names or other personal data)</string>
     <string name="report_generate">Structure as %1$s</string>
     <string name="anon_busy">Removing personal data…</string>
@@ -640,4 +640,11 @@
     <string name="chat_copied">Conversation copied to the clipboard</string>
     <string name="weak_model_warning">This model is small and weak in Dutch and Bulgarian: expect strange words and mistakes. For good answers, load Gemma 4 E4B (or E2B).</string>
     <string name="err_not_prefilled">The model was still preparing the conversation. Please send your message again.</string>
+    <string name="report_reading_file">Reading file…</string>
+    <string name="report_doc_unsupported">Old .doc files cannot be read. Save it as .docx in Word and try again.</string>
+    <string name="report_doc_title">Report (%1$s)</string>
+    <string name="report_doc_subtitle">Anonymized – made on %1$s with Local AI. Check before use.</string>
+    <string name="report_save_docx">Save as Word document</string>
+    <string name="report_saved_docx">Word document saved</string>
+    <string name="report_save_failed">Saving failed</string>
 </resources>

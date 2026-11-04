@@ -58,6 +58,7 @@ import com.example.auralocalai.R
 import com.example.auralocalai.data.work.ScaleScoring
 import com.example.auralocalai.data.work.ScoreBand
 import com.example.auralocalai.data.work.Flashcards
+import com.example.auralocalai.data.work.DocxIO
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.WorkViewModel
 
@@ -261,8 +262,11 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
     val scan = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) workViewModel.scanReport(context, bitmap, llm)
     }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) workViewModel.importReportFile(context, uri, llm)
+    }
+    val saveDocx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(DocxIO.MIME)) { uri ->
+        if (uri != null) workViewModel.saveReportAsDocx(context, uri)
     }
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
@@ -287,7 +291,7 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
             OutlinedButton(onClick = { scan.launch(null) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Default.CameraAlt, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_scan))
             }
-            OutlinedButton(onClick = { importLauncher.launch("text/*") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
+            OutlinedButton(onClick = { importLauncher.launch(arrayOf(DocxIO.MIME, "application/msword", "text/*")) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
                 Icon(Icons.Default.Description, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_import))
             }
         }
@@ -302,7 +306,7 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
             modifier = Modifier.fillMaxWidth()
         )
         Row(modifier = Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("SBAR", "SOAP").forEach { f ->
+            listOf("SOEP", "SBAR", "SOAP").forEach { f ->
                 FilterChip(selected = state.reportFormat == f, onClick = { workViewModel.setReportFormat(f) }, label = { Text(f) })
             }
         }
@@ -316,6 +320,13 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
         if (state.reportOutput.isNotBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             ResultCard(state.reportOutput)
+            Button(
+                onClick = { saveDocx.launch(workViewModel.suggestedReportFileName()) },
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Icon(Icons.Default.Description, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.report_save_docx))
+            }
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(stringResource(R.string.work_check_note), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
