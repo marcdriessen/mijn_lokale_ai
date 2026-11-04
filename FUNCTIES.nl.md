@@ -25,9 +25,13 @@ De app werkt niet op een emulator (de code geeft dan de melding dat een fysiek A
 
 ## 2. Schermen en functies
 
-De app heeft drie schermen: **Chat** (startscherm), **Modelbeheer** ("LOCAL LLM MANAGER") en
-**Instellingen** ("APP SETTINGS"). De app is Engels- en Nederlandstalig. Standaard volgt hij de taal van je telefoon;
-bij Instellingen → Appearance kun je ook zelf kiezen (English of Nederlands). In dit document staan de Engelse namen.
+De app heeft vier schermen: **Chat** (startscherm), **Dagelijkse briefing**, **Modelbeheer** ("LOCAL LLM MANAGER") en
+**Instellingen** ("APP SETTINGS"). De app is er in het Engels, Nederlands en Bulgaars. Standaard volgt hij de taal van je
+telefoon; bij Instellingen → Appearance kun je ook zelf kiezen. Het model krijgt de opdracht om in de taal van de app
+te antwoorden (tenzij jij duidelijk in een andere taal schrijft). In dit document staan de Engelse namen.
+
+Het uiterlijk is rustig en modern: warme neutrale kleuren met één teal accentkleur. In de chat staan antwoorden als
+gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
 ### 2.1 Chatscherm (startscherm)
 
@@ -109,6 +113,14 @@ bij Instellingen → Appearance kun je ook zelf kiezen (English of Nederlands). 
   - is het model actief, dan het label **ACTIVE** en een knop **Open Chat**;
   - tijdens het laden "Loading…" met de huidige stap (bijv. "Compiling GPU shaders…") en een annuleerknop;
   - na eerder laden een schatting van de laadtijd ("⚡ Load: ~… (device est.)").
+- **Geheugenkaart** bovenaan: hoeveel werkgeheugen (RAM) er nu vrij is, ververst elke 2 seconden.
+  Is er een model geladen, dan staat hier de knop **Model ontladen**.
+- **Model ontladen** staat ook op de kaart van het actieve model, naast **Open Chat**.
+- **Wisselen van model**: laad je een ander model terwijl er al een geladen is, dan ontlaadt de app eerst het oude model
+  en wacht tot Android het geheugen weer vrij meldt. Pas daarna wordt gecontroleerd of het nieuwe model past.
+- **Te weinig geheugen**: lukt laden niet door geheugentekort, dan zie je hoeveel GB vrij is en hoeveel nodig is,
+  met de knop **Toch proberen** (op eigen risico: Android kan de app sluiten als het geheugen opraakt).
+  Op toestellen met 8 GB of meer hoeft 70% van de berekende hoeveelheid vrij te zijn.
 - **Verwijderen** vraagt eerst om bevestiging en noemt hoeveel ruimte vrijkomt.
 - **Sideloaded Custom Models**: eigen modelbestanden (.litertlm of .task) die niet in de lijst staan,
   met een knop om ze te verwijderen.
@@ -147,15 +159,48 @@ bij Instellingen → Appearance kun je ook zelf kiezen (English of Nederlands). 
    - Temperature 0,0–1,5 (standaard 0,7) – hoe creatief/willekeurig;
    - Top-P 0,1–1,0 (standaard 0,9);
    - Top-K 1–100 (standaard 40);
-   - Repetition Penalty 1,0–1,5 (standaard 1,1) – minder herhaling;
+   - Repetition Penalty 1,0–1,5 (standaard 1,0) – minder herhaling;
    - **Reasoning / Thinking Mode** aan/uit – of redeneermodellen hun denkproces mogen tonen;
    - **Reset Defaults**.
 
-### 2.4 Op de achtergrond
+### 2.4 Dagelijkse briefing
+
+Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade.
+
+- **Datum** bovenaan en wanneer de getoonde briefing gemaakt is.
+- **Onderwerpen** als knoppen (aan/uit). Standaard: Tech & AI, Nederland, България, Gezondheid & Wetenschap,
+  Economie & Beurs en Wereldpolitiek (uit).
+- **Genereer briefing**: de app haalt de nieuwsfeeds op, houdt alleen artikelen waarvan de kop of samenvatting een
+  zoekwoord van een onderwerp bevat (zonder AI), en laat daarna het geladen model **per onderwerp** een korte
+  samenvatting schrijven in de taal van de app (intro + 3 tot 5 punten met de bron erbij).
+  Nieuws dat minder dan 3 uur oud is (bijv. 's ochtends opgehaald) wordt hergebruikt; de knop met de pijltjes haalt
+  het nieuws opnieuw op.
+- Zonder geladen model zie je een melding en alleen de koppen.
+- Per onderwerp een kaart met de samenvatting, **bron-chips** en de **koppen** (tik = artikel openen), en de knoppen
+  **Vraag verder** (start een nieuwe chat met het onderwerp, de samenvatting en de artikelen) en **Ground News**
+  (zoekt het onderwerp op ground.news via Google).
+- **Voorlezen** (tekst-naar-spraak van het toestel) en **Delen** van de hele briefing.
+- **Eerdere briefings** (klok-icoon): de laatste 30 worden bewaard; openen of verwijderen.
+- **Onderwerpen & bronnen** (schuifjes-icoon):
+  - onderwerpen aan/uit, bewerken (naam en zoekwoorden), verwijderen en toevoegen;
+  - **Zoekwoorden vertalen met AI**: het geladen model maakt zoekwoorden in het Nederlands, Engels en Bulgaars
+    (gebeurt ook automatisch bij een nieuw onderwerp als er een model geladen is);
+  - bronnen (RSS/Atom-feeds) aan/uit, **Test** (hoeveel artikelen gevonden), verwijderen en toevoegen.
+    Een adres met `{q}` is een zoekfeed: de app vult de zoekwoorden van je onderwerpen in;
+  - standaardbronnen: DW, Al Jazeera, Reuters en AP (die laatste twee via Google News, want zij hebben geen eigen
+    openbare feed), plus uitgeschakelde Google News-zoekfeeds in het Engels en Bulgaars en Google Новини (България);
+  - **Dagelijkse update** met tijdstip: haalt elke dag op de achtergrond het nieuws op (WorkManager) en geeft een
+    melding "Je dagelijkse briefing staat klaar". Het samenvatten gebeurt pas als je de briefing opent.
+
+### 2.5 Op de achtergrond
 
 - **Downloaden in de achtergrond**: een Android-dienst met melding ("Downloading Model") houdt de download
   gaande, ook als het scherm uit gaat. Een afgebroken download gaat verder waar hij was.
   Na afloop wordt het bestand gecontroleerd (SHA-256-controlecijfer) voordat het gebruikt wordt.
+- **Automatisch ontladen** (Instellingen → Chat Configuration): na 5, 15 of 30 minuten zonder gebruik wordt het
+  model ontladen om geheugen vrij te maken (standaard uit).
+- **Google Tensor (Pixel)**: Qwen-, DeepSeek- en Q8-modellen draaien bij "Auto" op de CPU, omdat ze op de Mali-GPU
+  wartaal geven. Met "GPU Only" kun je de GPU nog testen.
 - **Laden van het model**: de app probeert (bij "Auto") eerst de NPU, dan de GPU, dan de CPU.
   Op eenvoudige GPU's (bijv. Adreno 610) slaat Auto de GPU over. Als de NPU een keer niet werkt voor
   een model, onthoudt de app dat. Na 75 seconden GPU-voorbereiding geeft de app het op en valt terug.
@@ -244,14 +289,17 @@ kotlinx-serialization (JSON), AndroidX Security Crypto (versleutelde opslag).
 app/src/main/
 ├── AndroidManifest.xml          toestemmingen, startactiviteit, downloaddienst
 ├── jniLibs/arm64-v8a/           meegeleverde native bibliotheken (LiteRT, Qualcomm QNN voor de NPU)
-├── res/                         pictogrammen, thema en alle teksten (values/strings.xml = Engels, values-nl/strings.xml = Nederlands)
+├── res/                         pictogrammen, thema en alle teksten (values = Engels, values-nl = Nederlands, values-bg = Bulgaars)
 └── java/com/example/auralocalai/
     ├── MainActivity.kt          start de app, vraagt meldingstoestemming, zet het thema
-    ├── Navigation.kt            wisselen tussen de drie schermen
+    ├── Navigation.kt            wisselen tussen de schermen
+    ├── AppLocale.kt             taalkeuze in de app (toestel / English / Nederlands / Български)
     ├── ui/
-    │   ├── LlmViewModel.kt      het "brein" van de app: status, berichten versturen, bijlagen, instellingen
+    │   ├── LlmViewModel.kt      het "brein" van de app: status, berichten versturen, bijlagen, instellingen, geheugen
+    │   ├── BriefingViewModel.kt logica van de dagelijkse briefing
     │   └── screens/
     │       ├── ChatScreen.kt          chatscherm, zijlade, bijlagen, spraak
+    │       ├── BriefingScreen.kt      dagelijkse briefing
     │       ├── ModelManagerScreen.kt  modelbeheer
     │       └── SettingsScreen.kt      instellingen en diagnose
     ├── data/
@@ -265,7 +313,8 @@ app/src/main/
     │   ├── SearchIntentDetector.kt    bepaalt (bij "Auto") of er gezocht moet worden
     │   ├── SearchContextBuilder.kt    zet zoekresultaten netjes in de prompt
     │   ├── WebSearch.kt / WebSearchClient.kt   algemene zoeklogica
-    │   └── providers/                 Free (DuckDuckGo/Wikipedia/Jina), Brave, Serper
+    │   ├── providers/                 Free (DuckDuckGo/Wikipedia/Jina), Brave, Serper
+    │   └── briefing/                  briefing: modellen, RSS-parser, zoekwoordfilter, ophalen, prompts, opslag, achtergrondtaak
     ├── security/                versleutelde opslag van token en API-sleutel
     └── theme/                   kleuren, lettertypen, thema's
 ```

@@ -284,6 +284,18 @@ object SocDetector {
      * In AUTO mode, routing directly to CPU (XNNPACK) delivers instant startup, 100% stability,
      * and rock-solid responsiveness.
      */
+    /**
+     * Google Tensor (Mali GPU): Qwen-family and Q8 bundles produce garbled output on the Vulkan GPU path.
+     * In AUTO mode these models are routed straight to the CPU (XNNPACK). GPU Only still allows testing the GPU.
+     */
+    fun prefersCpuForModel(context: Context, preset: ModelPreset?, fileName: String): Boolean {
+        if (detectSoc(context).vendor != SocVendor.GOOGLE_TENSOR) return false
+        val id = "${preset?.id ?: ""} ${preset?.name ?: ""} $fileName".lowercase()
+        val isQwenFamily = id.contains("qwen") || id.contains("deepseek")
+        val isQ8 = preset?.quantization?.contains("Q8", ignoreCase = true) == true || id.contains("q8")
+        return isQwenFamily || isQ8
+    }
+
     fun shouldDefaultToCpu(context: Context): Boolean {
         val info = detectSoc(context)
         val combined = "${info.socModel} ${info.marketingName} ${Build.HARDWARE} ${Build.BOARD} ${Build.DEVICE} ${Build.PRODUCT}".uppercase()

@@ -797,7 +797,8 @@ fun SettingsScreen(
                     val languageOptions = listOf(
                         com.example.auralocalai.AppLocale.SYSTEM to stringResource(R.string.language_system),
                         "en" to "English",
-                        "nl" to "Nederlands"
+                        "nl" to "Nederlands",
+                        "bg" to "Български"
                     )
 
                     Column {
@@ -1107,6 +1108,41 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Auto-unload after inactivity (frees RAM)
+                    Text(
+                        text = stringResource(R.string.auto_unload_title),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.auto_unload_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0, 5, 15, 30).forEach { minutes ->
+                            FilterChip(
+                                selected = uiState.autoUnloadMinutes == minutes,
+                                onClick = { viewModel.setAutoUnloadMinutes(minutes) },
+                                label = {
+                                    Text(
+                                        text = if (minutes == 0) stringResource(R.string.auto_unload_off)
+                                               else stringResource(R.string.minutes_short, minutes),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     // 2. Custom System Prompt
                     Text(
                         text = stringResource(R.string.system_instructions),
@@ -1343,7 +1379,7 @@ fun SettingsScreen(
                                 temperature = 0.7f,
                                 topP = 0.9f,
                                 topK = 40,
-                                repetitionPenalty = 1.1f,
+                                repetitionPenalty = 1.0f,
                                 enableThinking = true,
                                 thinkingBudget = -1
                             )

@@ -21,6 +21,7 @@ import com.example.auralocalai.data.ModelDownloadService
 import com.example.auralocalai.data.ModelPreset
 import com.example.auralocalai.data.ChatRepository
 import com.example.auralocalai.data.ModelSafetyValidator
+import com.example.auralocalai.data.LowMemoryException
 import com.example.auralocalai.data.SearchContextBuilder
 import com.example.auralocalai.data.SearchIntentDetector
 import com.example.auralocalai.data.SearchIntentResult
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.suspendCancellableCoroutine
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.map
@@ -155,7 +157,7 @@ data class UiState(
     val temperature: Float = 0.7f,
     val topP: Float = 0.9f,
     val topK: Int = 40,
-    val repetitionPenalty: Float = 1.1f,
+    val repetitionPenalty: Float = 1.0f,
     val enableThinking: Boolean = true,
     val thinkingTokenBudget: Int = -1,
     val detectedMaxContextTokens: Int = 0,
@@ -163,7 +165,11 @@ data class UiState(
     val detectedSupportsVision: Boolean = false,
     val sessions: List<ChatSession> = emptyList(),
     val currentSessionId: String? = null,
-    val appLanguage: String = com.example.auralocalai.AppLocale.SYSTEM
+    val appLanguage: String = com.example.auralocalai.AppLocale.SYSTEM,
+    /** Set when loading failed for lack of free RAM: (fileName, modelId) so the UI can offer "Try anyway". */
+    val forceLoadCandidate: Pair<String, String>? = null,
+    /** Minutes of inactivity after which the model is unloaded automatically (0 = off). */
+    val autoUnloadMinutes: Int = 0
 )
 
 class LlmViewModel(application: Application) : AndroidViewModel(application) {
@@ -329,7 +335,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         val initialTemperature = prefs.getFloat("sampler_temperature", 0.7f)
         val initialTopP = prefs.getFloat("sampler_top_p", 0.9f)
         val initialTopK = prefs.getInt("sampler_top_k", 40)
-        val initialRepetitionPenalty = prefs.getFloat("sampler_repetition_penalty", 1.1f)
+        val initialRepetitionPenalty = prefs.getFloat("sampler_repetition_penalty", 1.0f)
         val initialEnableThinking = prefs.getBoolean("sampler_enable_thinking", true)
         val initialThinkingBudget = prefs.getInt("sampler_thinking_budget", -1)
 
@@ -350,7 +356,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 repetitionPenalty = initialRepetitionPenalty,
                 enableThinking = initialEnableThinking,
                 thinkingTokenBudget = initialThinkingBudget,
-                appLanguage = com.example.auralocalai.AppLocale.getLanguage(application)
+                appLanguage = com.example.auralocalai.AppLocale.getLanguage(application),
+                autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0)
             ) 
         }
 
@@ -663,6 +670,26 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun setAppLanguage(tag: String) {
         com.example.auralocalai.AppLocale.setLanguage(getApplication(), tag)
         _uiState.update { it.copy(appLanguage = com.example.auralocalai.AppLocale.getLanguage(getApplication())) }
+        // The answer-language instruction is part of the system prompt: rebuild the conversation.
+        if (inferenceEngine.isModelLoaded && !_uiState.value.isGenerating) {
+            viewModelScope.launch(Dispatchers.IO) {
+                inferenceEngine.resetConversation(
+                    systemPrompt = effectiveSystemPrompt(),
+                    initialHistory = buildEngineHistory()
+                )
+            }
+        }
+    }
+
+    /**
+     * The system prompt sent to the model: the user's instructions plus an instruction to answer
+     * in the app language (Dutch, Bulgarian, English, ...), unless the user writes in another language.
+     */
+    internal fun effectiveSystemPrompt(): String {
+        val base = _uiState.value.systemPrompt
+        val code = com.example.auralocalai.AppLocale.effectiveLanguage(getApplication())
+        val name = com.example.auralocalai.AppLocale.languageNameForModel(code) ?: return base
+        return "$base Always reply in $name, unless the user clearly writes in another language."
     }
 
     fun saveSystemPrompt(prompt: String) {
@@ -676,7 +703,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         if (inferenceEngine.isModelLoaded && !_uiState.value.isGenerating) {
             viewModelScope.launch(Dispatchers.IO) {
                 inferenceEngine.resetConversation(
-                    systemPrompt = prompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = buildEngineHistory()
                 )
             }
@@ -730,7 +757,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     thinkingTokenBudget = thinkingBudget
                 )
                 inferenceEngine.resetConversation(
-                    systemPrompt = _uiState.value.systemPrompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = buildEngineHistory(),
                     samplerConfig = sampler,
                     thinkingConfig = thinking
@@ -760,7 +787,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         // Reset the engine conversation so that any cancelled C++ decode state is cleaned up
         viewModelScope.launch(Dispatchers.IO) {
             inferenceEngine.resetConversation(
-                systemPrompt = _uiState.value.systemPrompt,
+                systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory()
             )
         }
@@ -823,6 +850,141 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             country = locale.country.lowercase().ifBlank { "us" },
             language = locale.language.lowercase().ifBlank { "en" }
         )
+    }
+
+    private var idleUnloadJob: Job? = null
+
+    private val oneShotMutex = kotlinx.coroutines.sync.Mutex()
+    private val _backgroundTaskRunning = MutableStateFlow(false)
+    /** True while the model runs a task outside the chat (daily briefing, keyword translation). */
+    val backgroundTaskRunning: StateFlow<Boolean> = _backgroundTaskRunning.asStateFlow()
+
+    /** True when a model is loaded and can answer. */
+    val isModelReady: Boolean
+        get() = inferenceEngine.isModelLoaded && _uiState.value.modelState is ModelState.Loaded
+
+    /** Context window (tokens) of the active model, used to size prompts. */
+    fun activeContextTokens(): Int {
+        val preset = ModelPreset.findByIdOrFileName(_uiState.value.activeModelId)
+        val detected = _uiState.value.detectedMaxContextTokens
+        return preset?.effectiveContextTokens
+            ?: (if (detected > 0) detected else ModelPreset.DEFAULT_CONTEXT_TOKENS)
+    }
+
+    /**
+     * Runs one prompt outside the chat (e.g. a briefing section) with its own system prompt.
+     * The chat conversation is restored afterwards. Returns null when no model is loaded,
+     * the chat is generating, or generation failed.
+     */
+    suspend fun runOneShotPrompt(
+        systemPrompt: String,
+        prompt: String,
+        onPartial: (String) -> Unit = {}
+    ): String? {
+        if (!isModelReady || _uiState.value.isGenerating) return null
+        return oneShotMutex.withLock {
+            _backgroundTaskRunning.value = true
+            idleUnloadJob?.cancel()
+            try {
+                withContext(Dispatchers.IO) {
+                    try {
+                        inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
+                        val builder = StringBuilder()
+                        inferenceEngine.generateResponse(
+                            prompt = prompt,
+                            repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
+                            turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
+                        ).collect { token ->
+                            builder.append(token)
+                            onPartial(stripThinkingBlocks(builder.toString()))
+                        }
+                        stripThinkingBlocks(builder.toString()).ifBlank { null }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("LlmViewModel", "One-shot prompt failed: ${e.message}")
+                        null
+                    } finally {
+                        // Restore the chat conversation (system prompt + history).
+                        inferenceEngine.resetConversation(
+                            systemPrompt = effectiveSystemPrompt(),
+                            initialHistory = buildEngineHistory()
+                        )
+                    }
+                }
+            } finally {
+                _backgroundTaskRunning.value = false
+                scheduleIdleUnload()
+            }
+        }
+    }
+
+    /** Starts a new chat and sends [message] in it (used by "Ask more" on a briefing card). */
+    fun startNewChatWith(message: String) {
+        viewModelScope.launch {
+            createNewSession().join()
+            sendMessage(message)
+        }
+    }
+
+    private fun formatGb(bytes: Long): String =
+        String.format(java.util.Locale.getDefault(), "%.1f", bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
+
+    /**
+     * Explicitly unloads the active model and frees its RAM (3-5 GB for larger models).
+     */
+    fun unloadModel() {
+        loadModelJob?.cancel()
+        loadModelJob = null
+        inferenceJob?.cancel()
+        idleUnloadJob?.cancel()
+        _uiState.update {
+            it.copy(
+                modelState = ModelState.Unloaded,
+                activeModelId = null,
+                activeBackend = "None",
+                loadingModelId = null,
+                loadingStage = null,
+                isGenerating = false,
+                forceLoadCandidate = null
+            )
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            inferenceEngine.unloadModel()
+        }
+    }
+
+    /** Retries the model load that failed for lack of free RAM, skipping the RAM check. */
+    fun forceLoadCandidate() {
+        val candidate = _uiState.value.forceLoadCandidate ?: return
+        loadModel(candidate.first, candidate.second, force = true)
+    }
+
+    fun dismissForceLoad() {
+        _uiState.update { it.copy(forceLoadCandidate = null) }
+    }
+
+    fun setAutoUnloadMinutes(minutes: Int) {
+        val value = minutes.coerceAtLeast(0)
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .edit().putInt("auto_unload_minutes", value).apply()
+        _uiState.update { it.copy(autoUnloadMinutes = value) }
+        scheduleIdleUnload()
+    }
+
+    /** (Re)starts the inactivity timer that unloads the model after the configured number of minutes. */
+    private fun scheduleIdleUnload() {
+        idleUnloadJob?.cancel()
+        val minutes = _uiState.value.autoUnloadMinutes
+        if (minutes <= 0) return
+        idleUnloadJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(minutes * 60_000L)
+            val state = _uiState.value
+            if (state.modelState is ModelState.Loaded && !state.isGenerating && state.loadingModelId == null) {
+                Log.i("LlmViewModel", "Auto-unloading model after $minutes min of inactivity")
+                unloadModel()
+            }
+        }
     }
 
     fun cancelLoading() {
@@ -978,10 +1140,24 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         return mapped
     }
 
-    fun loadModel(fileName: String, modelId: String) {
+    fun loadModel(fileName: String, modelId: String, force: Boolean = false) {
         loadModelJob?.cancel()
+        idleUnloadJob?.cancel()
         loadModelJob = viewModelScope.launch {
-            _uiState.update { it.copy(modelState = ModelState.Loading, loadingModelId = modelId, loadingStage = str(R.string.stage_validating)) }
+            _uiState.update { it.copy(modelState = ModelState.Loading, loadingModelId = modelId, forceLoadCandidate = null, loadingStage = str(R.string.stage_validating)) }
+
+            // Switching models: fully unload the previous one first and wait until Android reports the
+            // freed RAM, otherwise the RAM check below still sees the old model's 3-5 GB as in use.
+            if (inferenceEngine.isModelLoaded) {
+                _uiState.update { it.copy(loadingStage = str(R.string.stage_unloading_previous)) }
+                inferenceJob?.cancel()
+                withContext(Dispatchers.IO) { inferenceEngine.unloadModel() }
+                _uiState.update { it.copy(activeModelId = null, activeBackend = "None", loadingStage = str(R.string.stage_freeing_memory)) }
+                withContext(Dispatchers.IO) {
+                    ModelSafetyValidator.awaitMemorySettle(getApplication<Application>())
+                }
+                _uiState.update { it.copy(loadingStage = str(R.string.stage_validating)) }
+            }
             val matchingPreset = ModelPreset.presets.firstOrNull { it.id == modelId }
             val displayName = matchingPreset?.name ?: fileName
 
@@ -1002,10 +1178,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 modelPath = File(storageDir, fileName).absolutePath,
                 preferredBackend = _uiState.value.preferredBackend,
                 contextTurns = _uiState.value.contextWindowSize,
-                systemPrompt = _uiState.value.systemPrompt,
+                systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory(),
                 samplerConfig = sampler,
                 thinkingConfig = thinking,
+                forceLoad = force,
                 onStageUpdate = { stage ->
                     _uiState.update { it.copy(loadingStage = stage) }
                 }
@@ -1032,12 +1209,26 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         enableThinking = if (supportsThinking) (matchingPreset?.defaultThinkingEnabled ?: it.enableThinking) else false
                     )
                 }
+                scheduleIdleUnload()
             } else {
+                val error = result.exceptionOrNull()
+                val lowMemory = error as? LowMemoryException
+                val message = if (lowMemory != null) {
+                    str(
+                        R.string.err_low_memory,
+                        formatGb(lowMemory.availBytes),
+                        formatGb(lowMemory.requiredBytes)
+                    )
+                } else {
+                    friendlyErrorMessage(error?.message)
+                }
                 _uiState.update { 
                     it.copy(
-                        modelState = ModelState.Error(friendlyErrorMessage(result.exceptionOrNull()?.message)),
+                        modelState = ModelState.Error(message),
+                        activeModelId = null,
                         activeBackend = "None",
                         loadingModelId = null,
+                        forceLoadCandidate = if (lowMemory != null) fileName to modelId else null,
                         lastNpuError = inferenceEngine.lastNpuError?.let { err ->
                             val sw = java.io.StringWriter()
                             err.printStackTrace(java.io.PrintWriter(sw))
@@ -1321,6 +1512,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendMessage(content: String) {
+        // The model is busy with a background task (daily briefing / keyword translation).
+        if (_backgroundTaskRunning.value) return
         val imageUri = _uiState.value.selectedImageUri
         val videoUri = _uiState.value.selectedVideoUri
         val fileUri = _uiState.value.selectedFileUri
@@ -1386,6 +1579,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             renameSession(currentSession.id, cleanTitle)
         }
 
+        idleUnloadJob?.cancel()
         inferenceJob = viewModelScope.launch(Dispatchers.Default) {
             val activeModel = _uiState.value.activeModelId
             val activePreset = ModelPreset.findByIdOrFileName(activeModel)
@@ -1616,6 +1810,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     state.copy(messages = updatedMessages, isGenerating = false, isSearching = false, activeSearchQuery = null)
                 }
                 saveMessages(_uiState.value.messages)
+                scheduleIdleUnload()
             }
         }
     }
@@ -1623,9 +1818,9 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Creates a new chat session, switches to it, and clears conversation state.
      */
-    fun createNewSession(title: String? = null) {
+    fun createNewSession(title: String? = null): Job {
         inferenceJob?.cancel()
-        viewModelScope.launch(Dispatchers.IO) {
+        return viewModelScope.launch(Dispatchers.IO) {
             val newSession = chatRepository.createSession(
                 title = title ?: str(R.string.new_chat),
                 modelId = _uiState.value.activeModelId
@@ -1647,7 +1842,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (inferenceEngine.isModelLoaded) {
                 inferenceEngine.resetConversation(
-                    systemPrompt = _uiState.value.systemPrompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = emptyList()
                 )
             }
@@ -1677,7 +1872,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (inferenceEngine.isModelLoaded) {
                 inferenceEngine.resetConversation(
-                    systemPrompt = _uiState.value.systemPrompt,
+                    systemPrompt = effectiveSystemPrompt(),
                     initialHistory = buildEngineHistory()
                 )
             }
@@ -1716,7 +1911,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     if (inferenceEngine.isModelLoaded) {
                         inferenceEngine.resetConversation(
-                            systemPrompt = _uiState.value.systemPrompt,
+                            systemPrompt = effectiveSystemPrompt(),
                             initialHistory = buildEngineHistory()
                         )
                     }
@@ -1793,7 +1988,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         // history has to be dropped as well.
         viewModelScope.launch(Dispatchers.IO) {
             inferenceEngine.resetConversation(
-                systemPrompt = _uiState.value.systemPrompt,
+                systemPrompt = effectiveSystemPrompt(),
                 initialHistory = emptyList()
             )
         }

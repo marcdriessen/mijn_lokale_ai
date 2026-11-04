@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Menu
@@ -91,7 +92,8 @@ fun ChatScreen(
     viewModel: LlmViewModel,
     onNavigateToModelManager: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToBriefing: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -454,6 +456,19 @@ fun ChatScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    FilledTonalButton(
+                        onClick = {
+                            coroutineScope.launch { drawerState.close() }
+                            onNavigateToBriefing()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Newspaper, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.briefing_title), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -606,6 +621,17 @@ fun ChatScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+                        }
+                        IconButton(
+                            onClick = onNavigateToBriefing,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Newspaper,
+                                contentDescription = stringResource(R.string.briefing_title),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                         IconButton(
                             onClick = onNavigateToModelManager,
@@ -773,12 +799,12 @@ fun ChatScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.surface)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 1.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(24.dp)
+                                shape = RoundedCornerShape(28.dp)
                             )
                             .padding(8.dp)
                     ) {
@@ -1045,7 +1071,7 @@ fun ChatScreen(
                                         imageVector = Icons.AutoMirrored.Filled.Send,
                                         contentDescription = stringResource(R.string.send_message),
                                         tint = if (canSend) {
-                                            Color.White
+                                            MaterialTheme.colorScheme.onPrimary
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                                         },
@@ -1344,30 +1370,23 @@ fun ChatBubble(
     isActivelyGenerating: Boolean = false,
     isReasoningModel: Boolean = false
 ) {
+    // Modern chat layout: your own messages in a soft bubble, answers as plain full-width text.
     val bubbleColor = if (message.isUser) {
-        MaterialTheme.colorScheme.primary
+        MaterialTheme.colorScheme.surfaceVariant
     } else {
-        MaterialTheme.colorScheme.surface
+        Color.Transparent
     }
 
     val alignment = if (message.isUser) Alignment.End else Alignment.Start
     val shape = if (message.isUser) {
-        RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+        RoundedCornerShape(22.dp, 22.dp, 6.dp, 22.dp)
     } else {
-        RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
+        RoundedCornerShape(0.dp)
     }
 
-    val borderStroke = if (message.isUser) {
-        BorderStroke(0.dp, Color.Transparent)
-    } else {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    }
+    val borderStroke = BorderStroke(0.dp, Color.Transparent)
 
-    val textColor = if (message.isUser) {
-        Color.White
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val textColor = MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = Modifier
@@ -1379,12 +1398,15 @@ fun ChatBubble(
             shape = shape,
             colors = CardDefaults.cardColors(containerColor = bubbleColor),
             border = borderStroke,
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (message.isUser) 1.dp else 2.dp
-            ),
-            modifier = Modifier.widthIn(max = 340.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            modifier = if (message.isUser) Modifier.widthIn(max = 320.dp) else Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(
+                modifier = Modifier.padding(
+                    horizontal = if (message.isUser) 16.dp else 2.dp,
+                    vertical = if (message.isUser) 11.dp else 4.dp
+                )
+            ) {
                 if (message.imageUri != null) {
                     AsyncImage(
                         model = message.imageUri,

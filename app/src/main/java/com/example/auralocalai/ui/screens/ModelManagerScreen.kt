@@ -123,6 +123,19 @@ fun ModelManagerScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Device memory meter, unload button and "Try anyway" after a low-memory failure
+            item {
+                MemoryStatusCard(
+                    isModelLoaded = uiState.modelState is ModelState.Loaded,
+                    loadedModelName = (uiState.modelState as? ModelState.Loaded)?.modelName,
+                    lowMemoryMessage = (uiState.modelState as? ModelState.Error)?.message,
+                    showForceLoad = uiState.forceLoadCandidate != null,
+                    onUnload = { viewModel.unloadModel() },
+                    onForceLoad = { viewModel.forceLoadCandidate() },
+                    onDismissForceLoad = { viewModel.dismissForceLoad() }
+                )
+            }
+
             // Header info banner
             item {
                 Card(
@@ -235,6 +248,7 @@ fun ModelManagerScreen(
                     onDownload = { viewModel.downloadModel(preset) },
                     onLoad = { viewModel.loadModel(preset.fileName, preset.id) },
                     onOpenChat = onBack,
+                    onUnload = { viewModel.unloadModel() },
                     onCancelLoad = { viewModel.cancelLoading() },
                     onCancel = { viewModel.cancelDownload() },
                     onDelete = { modelToDelete = preset }
@@ -456,6 +470,7 @@ fun PresetModelCard(
     onDownload: () -> Unit,
     onLoad: () -> Unit,
     onOpenChat: () -> Unit,
+    onUnload: () -> Unit,
     onCancelLoad: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit
@@ -681,29 +696,15 @@ fun PresetModelCard(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Surface(
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = DarkSuccess.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, DarkSuccess.copy(alpha = 0.35f))
+                                OutlinedButton(
+                                    onClick = onUnload,
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.height(36.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(DarkSuccess)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.ready_offline),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = DarkSuccess
-                                        )
-                                    }
+                                    Text(stringResource(R.string.unload_model), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 Button(
@@ -921,6 +922,129 @@ fun DownloadProgressPanel(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
                             Text(stringResource(R.string.dismiss), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MemoryStatusCard(
+    isModelLoaded: Boolean,
+    loadedModelName: String?,
+    lowMemoryMessage: String?,
+    showForceLoad: Boolean,
+    onUnload: () -> Unit,
+    onForceLoad: () -> Unit,
+    onDismissForceLoad: () -> Unit
+) {
+    val context = LocalContext.current
+    var availBytes by remember { mutableStateOf(0L) }
+    var totalBytes by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) {
+        val activityManager = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        val memInfo = android.app.ActivityManager.MemoryInfo()
+        while (true) {
+            activityManager?.getMemoryInfo(memInfo)
+            availBytes = memInfo.availMem
+            totalBytes = memInfo.totalMem
+            kotlinx.coroutines.delay(2_000L)
+        }
+    }
+    fun gb(bytes: Long): String =
+        String.format(java.util.Locale.getDefault(), "%.1f", bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.memory_title),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            val usedFraction = if (totalBytes > 0L) {
+                (1f - availBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+            } else 0f
+            LinearProgressIndicator(
+                progress = { usedFraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (usedFraction > 0.85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.memory_free, gb(availBytes), gb(totalBytes)),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (isModelLoaded) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.memory_model_loaded, loadedModelName ?: ""),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = onUnload,
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.height(34.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                    ) {
+                        Text(stringResource(R.string.unload_model), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            if (showForceLoad && lowMemoryMessage != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = lowMemoryMessage,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            lineHeight = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = onDismissForceLoad) {
+                                Text(stringResource(R.string.dismiss), fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = onForceLoad,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text(stringResource(R.string.try_anyway), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
