@@ -54,6 +54,32 @@ class NewsFetcher(
             }
         }
 
+    /**
+     * Finds a preview image for an article page (og:image / twitter:image). Only reads the start
+     * of the page. Returns null for Google News redirect links or on any error.
+     */
+    suspend fun fetchPreviewImage(articleUrl: String): String? = withContext(Dispatchers.IO) {
+        if (articleUrl.isBlank() || articleUrl.contains("news.google.com")) return@withContext null
+        try {
+            val request = Request.Builder()
+                .url(articleUrl)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "text/html")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val source = response.body?.source() ?: return@withContext null
+                source.request(MAX_HTML_BYTES)
+                val html = source.buffer.snapshot().utf8().take(MAX_HTML_BYTES.toInt())
+                OG_IMAGE_REGEXES.firstNotNullOfOrNull { regex -> regex.find(html)?.groupValues?.get(1) }
+                    ?.let { RssParser.decodeEntities(it) }
+                    ?.takeIf { it.startsWith("http") }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun download(url: String): String {
         val request = Request.Builder()
             .url(url)
@@ -71,5 +97,11 @@ class NewsFetcher(
         const val USER_AGENT = "Mozilla/5.0 (Android) AuraLocalAI-Briefing/1.0"
         const val MAX_SEARCH_QUERIES = 12
         const val MAX_FEED_CHARS = 2_000_000
+        const val MAX_HTML_BYTES = 300_000L
+        private val OG_IMAGE_REGEXES = listOf(
+            Regex("<meta[^>]+property=[\"']og:image(?::url)?[\"'][^>]+content=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image(?::url)?[\"']", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]+name=[\"']twitter:image[\"'][^>]+content=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+        )
     }
 }

@@ -1642,6 +1642,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     val country = locale.country.lowercase().ifBlank { "us" }
                     val language = locale.language.lowercase().ifBlank { "en" }
 
+                    if (providerId == "brave") {
+                        // Count chat searches towards the shared monthly Brave counter (see the clinical Q&A).
+                        withContext(Dispatchers.IO) {
+                            com.example.auralocalai.data.medical.MedicalRepository(getApplication<Application>().filesDir).recordBraveUse()
+                        }
+                    }
                     searchOutcome = webSearchClient.search(
                         providerId = providerId,
                         query = queryToSearch,

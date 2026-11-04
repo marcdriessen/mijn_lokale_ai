@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -36,12 +37,21 @@ class BriefingWorker(
     override suspend fun doWork(): Result {
         val repository = BriefingRepository(applicationContext.filesDir)
         val config = repository.loadConfig()
-        if (!config.autoUpdateEnabled) return Result.success()
+        val profileId = inputData.getString(KEY_PROFILE_ID)
+        val profile = config.profiles.firstOrNull { it.id == profileId } ?: return Result.success()
+        if (!profile.scheduleEnabled) return Result.success()
+        val now = Calendar.getInstance()
+        if (profile.startDateMillis > 0 && now.timeInMillis < profile.startDateMillis) return Result.success()
+        if (profile.schedule == BriefingFrequency.WEEKDAYS) {
+            val day = now.get(Calendar.DAY_OF_WEEK)
+            if (day == Calendar.SATURDAY || day == Calendar.SUNDAY) return Result.success()
+        }
 
-        val topics = config.topics.filter { it.enabled }
+        val topics = profile.topics.filter { it.enabled }
         if (topics.isEmpty()) return Result.success()
         val keywords = topics.flatMap { it.allKeywords }.distinctBy { it.lowercase() }
 
+        // Background runs use the RSS feeds only (web search needs the encrypted API key and the UI).
         val results = NewsFetcher().fetchAll(config.sources, keywords)
         val items = results.flatMap { it.items }
         if (items.isEmpty()) {
@@ -49,12 +59,12 @@ class BriefingWorker(
         }
         repository.saveCache(FetchCache(System.currentTimeMillis(), items))
 
-        val matched = topics.sumOf { TopicMatcher.selectForTopic(items, it, config.maxItemsPerTopic).size }
-        showReadyNotification(matched)
+        val matched = TopicMatcher.selectArticles(items, topics, profile.maxArticles).size
+        if (profile.notify) showReadyNotification(matched, profile)
         return Result.success()
     }
 
-    private fun showReadyNotification(articleCount: Int) {
+    private fun showReadyNotification(articleCount: Int, profile: BriefingProfile) {
         val context = applicationContext
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -73,57 +83,70 @@ class BriefingWorker(
         }
         val intent = Intent(context, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_OPEN_BRIEFING, true)
+            putExtra(MainActivity.EXTRA_BRIEFING_PROFILE, profile.id)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            NOTIFICATION_ID,
+            NOTIFICATION_ID + profile.id.hashCode().and(0xFFFF),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_download_done)
-            .setContentTitle(localized.getString(R.string.briefing_notif_title))
+            .setContentTitle(profile.name.ifBlank { localized.getString(R.string.briefing_notif_title) })
             .setContentText(localized.getString(R.string.briefing_notif_text, articleCount))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
-        manager.notify(NOTIFICATION_ID, notification)
+        manager.notify(NOTIFICATION_ID + profile.id.hashCode().and(0xFFFF), notification)
     }
 
     companion object {
         const val CHANNEL_ID = "daily_briefing_channel"
         const val NOTIFICATION_ID = 2001
+        const val KEY_PROFILE_ID = "profile_id"
     }
 }
 
 object BriefingScheduler {
-    private const val WORK_NAME = "daily_briefing_fetch"
+    private const val TAG = "briefing_profile"
+    private const val LEGACY_WORK_NAME = "daily_briefing_fetch"
 
-    /** Schedules (or cancels) the daily news download at [BriefingConfig.autoUpdateHour]. */
+    /** (Re)schedules a background news download for every profile with a schedule. */
     fun apply(context: Context, config: BriefingConfig) {
         val workManager = WorkManager.getInstance(context.applicationContext)
-        if (!config.autoUpdateEnabled) {
-            workManager.cancelUniqueWork(WORK_NAME)
-            return
+        workManager.cancelUniqueWork(LEGACY_WORK_NAME)
+        workManager.cancelAllWorkByTag(TAG)
+        config.profiles.filter { it.scheduleEnabled }.forEach { profile ->
+            val periodDays = if (profile.schedule == BriefingFrequency.WEEKLY) 7L else 1L
+            val delayMs = nextRunAt(profile, Calendar.getInstance()) - System.currentTimeMillis()
+            val request = PeriodicWorkRequestBuilder<BriefingWorker>(periodDays, TimeUnit.DAYS)
+                .setInitialDelay(delayMs.coerceAtLeast(0L), TimeUnit.MILLISECONDS)
+                .setInputData(Data.Builder().putString(BriefingWorker.KEY_PROFILE_ID, profile.id).build())
+                .addTag(TAG)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+            workManager.enqueueUniquePeriodicWork("briefing_${profile.id}", ExistingPeriodicWorkPolicy.UPDATE, request)
         }
-        val now = Calendar.getInstance()
+    }
+
+    /** Next moment the profile should run, on or after its start date. */
+    fun nextRunAt(profile: BriefingProfile, now: Calendar): Long {
         val next = (now.clone() as Calendar).apply {
-            set(Calendar.HOUR_OF_DAY, config.autoUpdateHour.coerceIn(0, 23))
-            set(Calendar.MINUTE, 0)
+            if (profile.startDateMillis > timeInMillis) timeInMillis = profile.startDateMillis
+            set(Calendar.HOUR_OF_DAY, profile.hour.coerceIn(0, 23))
+            set(Calendar.MINUTE, profile.minute.coerceIn(0, 59))
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            if (!after(now)) add(Calendar.DAY_OF_YEAR, 1)
         }
-        val delayMs = next.timeInMillis - now.timeInMillis
-        val request = PeriodicWorkRequestBuilder<BriefingWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        workManager.enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
+        while (!next.after(now) || (profile.schedule == BriefingFrequency.WEEKLY && next.get(Calendar.DAY_OF_WEEK) != profile.weekday)) {
+            next.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return next.timeInMillis
     }
 }

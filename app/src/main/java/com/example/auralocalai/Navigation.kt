@@ -13,7 +13,7 @@ import com.example.auralocalai.ui.screens.ModelManagerScreen
 import com.example.auralocalai.ui.screens.SettingsScreen
 
 @Composable
-fun MainNavigation(llmViewModel: LlmViewModel, openBriefing: Boolean = false) {
+fun MainNavigation(llmViewModel: LlmViewModel, openBriefing: Boolean = false, briefingProfileId: String? = null) {
   val backStack = rememberNavBackStack(Main)
   androidx.compose.runtime.LaunchedEffect(openBriefing) {
     if (openBriefing && backStack.lastOrNull() != Briefing) backStack.add(Briefing)
@@ -49,7 +49,8 @@ fun MainNavigation(llmViewModel: LlmViewModel, openBriefing: Boolean = false) {
               onBack = { backStack.removeLastOrNull() },
               onOpenChat = { while (backStack.size > 1) backStack.removeLastOrNull() },
               onOpenModels = { backStack.add(ModelManager) },
-              modifier = Modifier.fillMaxSize()
+              modifier = Modifier.fillMaxSize(),
+              initialProfileId = briefingProfileId
           )
         }
         entry<Medical> {

@@ -29,12 +29,13 @@ class MainActivity : ComponentActivity() {
     }
 
     val openBriefing = intent?.getBooleanExtra(EXTRA_OPEN_BRIEFING, false) == true
+    val briefingProfileId = intent?.getStringExtra(EXTRA_BRIEFING_PROFILE)
     enableEdgeToEdge()
     setContent {
       val themeMode by llmViewModel.themeMode.collectAsState()
       AuraLocalAITheme(themeMode = themeMode) { 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { 
-          MainNavigation(llmViewModel, openBriefing = openBriefing) 
+          MainNavigation(llmViewModel, openBriefing = openBriefing, briefingProfileId = briefingProfileId) 
         } 
       }
     }
@@ -43,5 +44,6 @@ class MainActivity : ComponentActivity() {
   companion object {
     /** Set by the daily-briefing notification to open the briefing screen. */
     const val EXTRA_OPEN_BRIEFING = "open_briefing"
+    const val EXTRA_BRIEFING_PROFILE = "briefing_profile"
   }
 }

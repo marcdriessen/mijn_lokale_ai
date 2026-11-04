@@ -25,12 +25,13 @@ De app werkt niet op een emulator (de code geeft dan de melding dat een fysiek A
 
 ## 2. Schermen en functies
 
-De app heeft vijf schermen: **Chat** (startscherm), **Dagelijkse briefing**, **Vraagbaak GGZ & verslaving**, **Modelbeheer** ("LOCAL LLM MANAGER") en
+De app heeft vijf schermen: **Chat** (startscherm), **Nieuwsbriefings**, **Vraagbaak GGZ & verslaving**, **Modelbeheer** ("LOCAL LLM MANAGER") en
 **Instellingen** ("APP SETTINGS"). De app is er in het Engels, Nederlands en Bulgaars. Standaard volgt hij de taal van je
 telefoon; bij Instellingen → Appearance kun je ook zelf kiezen. Het model krijgt de opdracht om in de taal van de app
 te antwoorden (tenzij jij duidelijk in een andere taal schrijft). In dit document staan de Engelse namen.
 
-Het uiterlijk is rustig en modern: warme neutrale kleuren met één teal accentkleur. In de chat staan antwoorden als
+Het uiterlijk is rustig en redactioneel: warm gebroken wit (of donker), donkergroene tekst en accenten, en
+serif-koppen zoals in een krant. Modelbeschrijvingen staan in de gekozen taal. In de chat staan antwoorden als
 gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
 
 ### 2.1 Chatscherm (startscherm)
@@ -163,34 +164,30 @@ gewone tekst over de volle breedte en je eigen berichten in een zachte ballon.
    - **Reasoning / Thinking Mode** aan/uit – of redeneermodellen hun denkproces mogen tonen;
    - **Reset Defaults**.
 
-### 2.4 Dagelijkse briefing
+### 2.4 Nieuwsbriefings
 
-Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade.
+Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade. De opmaak is redactioneel, zoals een
+krant: datum en editie (ochtend/middag/avond), de naam van de briefing als grote serif-kop, een korte intro en
+onderwerp-labels, en daaronder **"Voor jou geselecteerd"** met artikelkaarten.
 
-- **Datum** bovenaan en wanneer de getoonde briefing gemaakt is.
-- **Onderwerpen** als knoppen (aan/uit). Standaard: Tech & AI, Nederland, България, Gezondheid & Wetenschap,
-  Economie & Beurs en Wereldpolitiek (uit).
-- **Genereer briefing**: de app haalt de nieuwsfeeds op, houdt alleen artikelen waarvan de kop of samenvatting een
-  zoekwoord van een onderwerp bevat (zonder AI), en laat daarna het geladen model **per onderwerp** een korte
-  samenvatting schrijven in de taal van de app (intro + 3 tot 5 punten met de bron erbij).
-  Nieuws dat minder dan 3 uur oud is (bijv. 's ochtends opgehaald) wordt hergebruikt; de knop met de pijltjes haalt
-  het nieuws opnieuw op.
-- Zonder geladen model zie je een melding en alleen de koppen.
-- Per onderwerp een kaart met de samenvatting, **bron-chips** en de **koppen** (tik = artikel openen), en de knoppen
-  **Vraag verder** (start een nieuwe chat met het onderwerp, de samenvatting en de artikelen) en **Ground News**
-  (zoekt het onderwerp op ground.news via Google).
-- **Voorlezen** (tekst-naar-spraak van het toestel) en **Delen** van de hele briefing.
-- **Eerdere briefings** (klok-icoon): de laatste 30 worden bewaard; openen of verwijderen.
-- **Onderwerpen & bronnen** (schuifjes-icoon):
-  - onderwerpen aan/uit, bewerken (naam en zoekwoorden), verwijderen en toevoegen;
-  - **Zoekwoorden vertalen met AI**: het geladen model maakt zoekwoorden in het Nederlands, Engels en Bulgaars
-    (gebeurt ook automatisch bij een nieuw onderwerp als er een model geladen is);
-  - bronnen (RSS/Atom-feeds) aan/uit, **Test** (hoeveel artikelen gevonden), verwijderen en toevoegen.
-    Een adres met `{q}` is een zoekfeed: de app vult de zoekwoorden van je onderwerpen in;
-  - standaardbronnen: DW, Al Jazeera, Reuters en AP (die laatste twee via Google News, want zij hebben geen eigen
-    openbare feed), plus uitgeschakelde Google News-zoekfeeds in het Engels en Bulgaars en Google Новини (България);
-  - **Dagelijkse update** met tijdstip: haalt elke dag op de achtergrond het nieuws op (WorkManager) en geeft een
-    melding "Je dagelijkse briefing staat klaar". Het samenvatten gebeurt pas als je de briefing opent.
+- **Meerdere briefings (profielen)** bovenaan als knoppen, plus **Nieuwe briefing**. Standaard:
+  "Dagelijks nieuws over ggz en verslavingszorg" en "Wereldnieuws".
+- **Artikelkaart**: afbeelding (uit de feed of de artikelpagina) met onderwerp-label, bron en datum, een titel en
+  korte samenvatting door het lokale model, een blok **"Betekenis voor jouw werk"** (op basis van je instructies),
+  **Lees het artikel bij …**, **Vraag verder** (chat) en **Ground News**.
+- **Genereer briefing** / **nieuws opnieuw ophalen**, **voorlezen**, **delen** en **eerdere briefings** (klok-icoon).
+- **Briefing bewerken** (potlood-icoon), opgezet als een geplande taak:
+  - naam en **instructies** (vrije tekst, bijv. "toegespitst op mijn werk als psychiatrisch verpleegkundige");
+  - **triggers**: automatisch uitvoeren aan/uit, **dagelijks / werkdagen / wekelijks** (met weekdag), **tijdstip**
+    en **begindatum**; bovenaan staat wanneer de volgende uitvoering is;
+  - **geavanceerd**: meldingen aan/uit, nieuws via **nieuwsfeeds, webzoeken of beide**, websites voor webzoeken
+    (bijv. nos.nl, ggznieuws.nl; via Brave, telt mee voor de maandlimiet), aantal artikelen (3–12);
+  - **onderwerpen** met zoekwoorden (aan/uit, bewerken, verwijderen, toevoegen, vertalen met AI naar NL/EN/BG).
+- **Bronnen** (RSS-icoon, gedeeld door alle briefings): aan/uit, testen, verwijderen, toevoegen. Naast DW, Al Jazeera,
+  Reuters en AP zijn er Nederlandse bronnen: NOS, GGZ Nieuws, Skipr, Zorgvisie en Trimbos (via Google News) en een
+  Nederlandse Google Nieuws-zoekfeed.
+- **Op de achtergrond** haalt een geplande briefing alleen het nieuws op (via nieuwsfeeds) en stuurt een melding; het
+  model schrijft de artikelen als je de briefing opent.
 
 ### 2.5 Vraagbaak GGZ & verslaving
 
