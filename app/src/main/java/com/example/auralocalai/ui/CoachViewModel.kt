@@ -11,7 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class CoachTurn(val fromLearner: Boolean, val text: String)
+data class CoachTurn(
+    val fromLearner: Boolean,
+    val text: String,
+    val reply: com.example.auralocalai.data.coach.CoachReply? = null
+)
 
 data class CoachUiState(
     val targetLanguage: String = "bg",
@@ -51,16 +55,22 @@ class CoachViewModel(application: Application) : AndroidViewModel(application) {
         }
         _state.update { it.copy(turns = it.turns + CoachTurn(true, clean), busy = true) }
         val system = "You are a friendly, patient language coach for $target at level ${s.level}. The learner's own language is $native. " +
-            "For the learner's last message: if it has mistakes, first write 'Correctie:' followed by the corrected sentence in $target " +
-            "and a one-line explanation in $native. Then write 'Antwoord:' followed by one short reply in $target that continues the conversation " +
-            "and ends with a simple question. Keep it short and at level ${s.level}." +
+            "Answer in exactly this format, each label on its own line:\n" +
+            "CORRECTION: the learner's last message corrected in $target, or OK when it has no real mistakes (ignore capital letters and punctuation)\n" +
+            "EXPLANATION: one short sentence in $native about the mistake (empty when OK)\n" +
+            "REPLY: one or two short sentences in $target that continue the conversation and end with a simple question\n" +
+            "TRANSLATION: the REPLY translated into $native\n" +
+            "Use simple words for level ${s.level}. Do not use markdown." +
             (if (s.scenario.isNotBlank()) " Situation: ${s.scenario}." else "")
         viewModelScope.launch {
             val answer = llm.runOneShotPrompt(system, "Conversation so far:\n$history\n\nRespond to the learner's last message.")
             _state.update {
                 it.copy(
                     busy = false,
-                    turns = if (answer != null) it.turns + CoachTurn(false, answer.trim()) else it.turns,
+                    turns = if (answer != null) {
+                        val parsed = com.example.auralocalai.data.coach.CoachReply.parse(answer, clean)
+                        it.turns + CoachTurn(false, parsed.reply.ifBlank { answer.trim() }, parsed)
+                    } else it.turns,
                     message = if (answer == null) str(R.string.translate_ai_failed) else null
                 )
             }

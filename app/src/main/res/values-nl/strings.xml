@@ -664,4 +664,7 @@
     <string name="ocr_script_settings_desc">Voor foto’s en gescande PDF’s in chat, Vertalen, Werk en de bibliotheek. Cyrillisch vraagt één keer een download van ongeveer 13 MB en werkt daarna offline.</string>
     <string name="ocr_downloading_cyrillic">Cyrillische tekstherkenning downloaden (eenmalig, ca. 13 MB)…</string>
     <string name="ocr_cyrillic_missing">Cyrillische tekstherkenning kon niet worden gedownload. Maak één keer verbinding met internet en probeer opnieuw.</string>
+    <string name="stage_switching_cpu">De grafische chip faalde – model wordt opnieuw gestart op de processor…</string>
+    <string name="err_gpu_invoke">Het model liep vast op de grafische chip van deze telefoon. De app gebruikt voor dit model nu de processor; probeer het opnieuw.</string>
+    <string name="coach_correction_label">✏️ Beter:</string>
 </resources>

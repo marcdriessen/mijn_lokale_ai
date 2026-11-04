@@ -665,4 +665,7 @@
     <string name="ocr_script_settings_desc">For photos and scanned PDFs in chat, Translate, Work and the library. Cyrillic needs a one-time download of about 13 MB, then it works offline.</string>
     <string name="ocr_downloading_cyrillic">Downloading Cyrillic text recognition (once, about 13 MB)…</string>
     <string name="ocr_cyrillic_missing">Cyrillic text recognition could not be downloaded. Connect to the internet once and try again.</string>
+    <string name="stage_switching_cpu">The graphics chip failed – restarting the model on the processor…</string>
+    <string name="err_gpu_invoke">The model stopped on the graphics chip of this phone. The app now uses the processor for this model; please try again.</string>
+    <string name="coach_correction_label">✏️ Better:</string>
 </resources>

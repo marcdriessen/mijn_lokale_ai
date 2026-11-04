@@ -876,6 +876,65 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
      * The chat conversation is restored afterwards. Returns null when no model is loaded,
      * the chat is generating, or generation failed.
      */
+    /** File name of the loaded model (for reloading on the CPU after a GPU failure). */
+    private var loadedModelFile: String? = null
+
+    private fun gpuFailurePrefs() =
+        getApplication<Application>().getSharedPreferences("gpu_invoke_failures", Context.MODE_PRIVATE)
+
+    /** "Failed to invoke the compiled model" (status 13): the GPU path of this model breaks on this phone. */
+    private fun isGpuInvokeFailure(message: String?): Boolean {
+        val m = message ?: return false
+        return m.contains("Failed to invoke", ignoreCase = true) ||
+            (m.contains("Status Code: 13", ignoreCase = true) && m.contains("executor", ignoreCase = true))
+    }
+
+    /**
+     * Reloads the current model on the CPU after a GPU failure and remembers this for the model,
+     * so next time it starts on the CPU directly. Returns true when the model runs again.
+     */
+    private suspend fun fallbackToCpu(): Boolean {
+        val file = loadedModelFile ?: return false
+        val modelId = _uiState.value.activeModelId ?: return false
+        if (inferenceEngine.activeBackend == "CPU") return false
+        gpuFailurePrefs().edit().putBoolean(file, true).apply()
+        Log.w("LlmViewModel", "GPU invoke failed for $file; reloading on CPU")
+        val matchingPreset = ModelPreset.presets.firstOrNull { it.id == modelId }
+        _uiState.update { it.copy(loadingStage = str(R.string.stage_switching_cpu)) }
+        return withContext(Dispatchers.IO) {
+            inferenceEngine.unloadModel()
+            ModelSafetyValidator.awaitMemorySettle(getApplication<Application>())
+            val result = inferenceEngine.loadModel(
+                modelPath = File(storageDir, file).absolutePath,
+                preferredBackend = "CPU_ONLY",
+                contextTurns = _uiState.value.contextWindowSize,
+                systemPrompt = effectiveSystemPrompt(),
+                initialHistory = buildEngineHistory(),
+                samplerConfig = SamplerConfig(
+                    topK = _uiState.value.topK,
+                    topP = _uiState.value.topP.toDouble(),
+                    temperature = _uiState.value.temperature.toDouble(),
+                    seed = 0
+                ),
+                thinkingConfig = ThinkingConfig(
+                    enableThinking = matchingPreset?.defaultThinkingEnabled ?: _uiState.value.enableThinking,
+                    thinkingTokenBudget = _uiState.value.thinkingTokenBudget
+                ),
+                forceLoad = true,
+                onStageUpdate = {}
+            )
+            _uiState.update {
+                it.copy(
+                    loadingStage = null,
+                    activeBackend = inferenceEngine.activeBackend,
+                    modelState = if (result.isSuccess) it.modelState else ModelState.Error(friendlyErrorMessage(result.exceptionOrNull()?.message)),
+                    activeModelId = if (result.isSuccess) it.activeModelId else null
+                )
+            }
+            result.isSuccess
+        }
+    }
+
     suspend fun runOneShotPrompt(
         systemPrompt: String,
         prompt: String,
@@ -888,17 +947,39 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) {
                     try {
-                        inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
-                        val builder = StringBuilder()
-                        inferenceEngine.generateResponse(
-                            prompt = prompt,
-                            repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
-                            turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
-                        ).collect { token ->
-                            builder.append(token)
-                            onPartial(stripThinkingBlocks(builder.toString()))
+                        var attempt = 0
+                        var answer: String? = null
+                        while (true) {
+                            try {
+                                inferenceEngine.resetConversation(systemPrompt = systemPrompt, initialHistory = emptyList())
+                                val builder = StringBuilder()
+                                inferenceEngine.generateResponse(
+                                    prompt = prompt,
+                                    repetitionPenaltyConfig = RepetitionPenaltyConfig(repetitionPenalty = _uiState.value.repetitionPenalty),
+                                    turnThinkingConfig = ThinkingConfig(enableThinking = false, thinkingTokenBudget = -1)
+                                ).collect { token ->
+                                    builder.append(token)
+                                    onPartial(stripThinkingBlocks(builder.toString()))
+                                }
+                                answer = stripThinkingBlocks(builder.toString()).ifBlank { null }
+                                break
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.w("LlmViewModel", "One-shot prompt failed: ${e.message}")
+                                if (attempt == 0 && e.message?.contains("prefill", ignoreCase = true) == true) {
+                                    attempt++
+                                    kotlinx.coroutines.delay(800L)
+                                    continue
+                                }
+                                if (attempt == 0 && isGpuInvokeFailure(e.message) && fallbackToCpu()) {
+                                    attempt++
+                                    continue
+                                }
+                                break
+                            }
                         }
-                        stripThinkingBlocks(builder.toString()).ifBlank { null }
+                        answer
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -1084,6 +1165,9 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             lower.contains("conversation is not alive") || lower.contains("not alive") ->
                 str(R.string.err_conversation_reset)
 
+            lower.contains("failed to invoke") ->
+                str(R.string.err_gpu_invoke)
+
             lower.contains("cancellationexception") || lower.contains("job was cancelled") ->
                 str(R.string.err_generation_stopped)
 
@@ -1213,9 +1297,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 thinkingTokenBudget = _uiState.value.thinkingTokenBudget
             )
 
+            val knownGpuFailure = gpuFailurePrefs().getBoolean(fileName, false)
+            val backend = if (knownGpuFailure && _uiState.value.preferredBackend == "AUTO") "CPU_ONLY" else _uiState.value.preferredBackend
             val result = inferenceEngine.loadModel(
                 modelPath = File(storageDir, fileName).absolutePath,
-                preferredBackend = _uiState.value.preferredBackend,
+                preferredBackend = backend,
                 contextTurns = _uiState.value.contextWindowSize,
                 systemPrompt = effectiveSystemPrompt(),
                 initialHistory = buildEngineHistory(),
@@ -1228,6 +1314,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             )
             val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
             if (result.isSuccess) {
+                loadedModelFile = fileName
                 recordModelLoadBenchmark(modelId, elapsedMs)
                 // Remembered so the morning briefing can load the same model in the background.
                 getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
@@ -1761,6 +1848,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                         if (generationAttempt == 0 && accumulatedBuilder.isEmpty() && e.message?.contains("prefill", ignoreCase = true) == true) {
                             generationAttempt++
                             kotlinx.coroutines.delay(800L)
+                            continue
+                        }
+                        // GPU path broke ("Failed to invoke the compiled model"): reload on the CPU and try again.
+                        if (generationAttempt < 2 && accumulatedBuilder.isEmpty() && isGpuInvokeFailure(e.message) && fallbackToCpu()) {
+                            generationAttempt = 2
                             continue
                         }
                         throw e

@@ -81,8 +81,9 @@ fun CoachScreen(
             coachViewModel.clearMessage()
         }
     }
-    LaunchedEffect(state.turns.size) {
-        if (state.turns.isNotEmpty()) listState.animateScrollToItem(state.turns.size - 1)
+    LaunchedEffect(state.turns.size, state.busy) {
+        val count = listState.layoutInfo.totalItemsCount
+        if (state.turns.isNotEmpty() && count > 0) listState.animateScrollToItem(count - 1)
     }
     val scenarios = listOf(
         stringResource(R.string.coach_sc_meet),
@@ -132,12 +133,39 @@ fun CoachScreen(
                             modifier = Modifier.widthIn(max = 320.dp)
                         ) {
                             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-                                Text(turn.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f, fill = false))
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                    val parsed = turn.reply
+                                    if (!turn.fromLearner && parsed?.correction != null) {
+                                        Text(
+                                            stringResource(R.string.coach_correction_label),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                        Text(parsed.correction, style = MaterialTheme.typography.bodyMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                                        parsed.explanation?.let {
+                                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                    }
+                                    Text(
+                                        turn.text,
+                                        style = if (turn.fromLearner) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (!turn.fromLearner) parsed?.translation?.let {
+                                        Spacer(modifier = Modifier.size(4.dp))
+                                        Text(
+                                            it,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                                 if (!turn.fromLearner) {
                                     IconButton(onClick = {
-                                        val reply = turn.text.substringAfter("Antwoord:", turn.text).trim()
                                         tts.value?.setLanguage(Locale.forLanguageTag(state.targetLanguage))
-                                        tts.value?.speak(reply, TextToSpeech.QUEUE_FLUSH, null, "coach")
+                                        tts.value?.speak(turn.text, TextToSpeech.QUEUE_FLUSH, null, "coach")
                                     }, modifier = Modifier.size(32.dp)) {
                                         Icon(Icons.Default.VolumeUp, contentDescription = stringResource(R.string.briefing_read_aloud), modifier = Modifier.size(18.dp))
                                     }

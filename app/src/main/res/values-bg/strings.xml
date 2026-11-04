@@ -664,4 +664,7 @@
     <string name="ocr_script_settings_desc">За снимки и сканирани PDF в чата, Превод, Работа и библиотеката. Кирилицата изисква еднократно изтегляне от около 13 MB, след това работи офлайн.</string>
     <string name="ocr_downloading_cyrillic">Изтегляне на разпознаване на кирилица (еднократно, около 13 MB)…</string>
     <string name="ocr_cyrillic_missing">Разпознаването на кирилица не можа да бъде изтеглено. Свържете се веднъж с интернет и опитайте отново.</string>
+    <string name="stage_switching_cpu">Графичният чип се провали – моделът се рестартира на процесора…</string>
+    <string name="err_gpu_invoke">Моделът спря на графичния чип на този телефон. Приложението вече използва процесора за този модел; опитайте отново.</string>
+    <string name="coach_correction_label">✏️ По-добре:</string>
 </resources>

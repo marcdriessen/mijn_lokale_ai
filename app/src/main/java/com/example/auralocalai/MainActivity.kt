@@ -40,6 +40,8 @@ class MainActivity : FragmentActivity() {
 
   /** False while the app lock is on and the user has not unlocked yet. */
   private val unlocked = mutableStateOf(true)
+  /** Moment the app went to the background (elapsed realtime), 0 while visible. */
+  private var stoppedAt = 0L
   private var authenticating = false
 
   override fun attachBaseContext(newBase: android.content.Context) {
@@ -71,7 +73,9 @@ class MainActivity : FragmentActivity() {
       val isUnlocked by unlocked
       AuraLocalAITheme(themeMode = themeMode) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-          if (isUnlocked) {
+          // The app stays composed under the lock screen, so open screens, picked files and
+          // half-typed text are kept while the user unlocks.
+          androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
             MainNavigation(
               llmViewModel,
               openBriefing = openBriefing,
@@ -79,17 +83,21 @@ class MainActivity : FragmentActivity() {
               sharedText = sharedText,
               sharedImage = sharedImage
             )
-          } else {
-            Column(
-              modifier = Modifier.fillMaxSize().padding(32.dp),
-              verticalArrangement = Arrangement.Center,
-              horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-              Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-              Spacer(modifier = Modifier.height(16.dp))
-              Text(stringResource(R.string.lock_title), style = MaterialTheme.typography.headlineSmall)
-              Spacer(modifier = Modifier.height(24.dp))
-              Button(onClick = { authenticate() }) { Text(stringResource(R.string.lock_unlock)) }
+            if (!isUnlocked) {
+              androidx.activity.compose.BackHandler { moveTaskToBack(true) }
+              Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Column(
+                  modifier = Modifier.fillMaxSize().padding(32.dp),
+                  verticalArrangement = Arrangement.Center,
+                  horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                  Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                  Spacer(modifier = Modifier.height(16.dp))
+                  Text(stringResource(R.string.lock_title), style = MaterialTheme.typography.headlineSmall)
+                  Spacer(modifier = Modifier.height(24.dp))
+                  Button(onClick = { authenticate() }) { Text(stringResource(R.string.lock_unlock)) }
+                }
+              }
             }
           }
         }
@@ -102,10 +110,18 @@ class MainActivity : FragmentActivity() {
     if (!unlocked.value) authenticate()
   }
 
+  override fun onStart() {
+    super.onStart()
+    // Lock again only after the app was really away for a while. Picking a file, taking a photo
+    // or the system speech dialog also send the app to the background for a moment.
+    val awayMs = if (stoppedAt > 0L) android.os.SystemClock.elapsedRealtime() - stoppedAt else 0L
+    if (AppSecurity.isLockEnabled(this) && stoppedAt > 0L && awayMs > LOCK_GRACE_MS) unlocked.value = false
+    stoppedAt = 0L
+  }
+
   override fun onStop() {
     super.onStop()
-    // Lock again when the app goes to the background.
-    if (AppSecurity.isLockEnabled(this) && !isChangingConfigurations) unlocked.value = false
+    if (!isChangingConfigurations) stoppedAt = android.os.SystemClock.elapsedRealtime()
   }
 
   private fun authenticate() {
@@ -148,5 +164,7 @@ class MainActivity : FragmentActivity() {
     /** Set by the daily-briefing notification to open the briefing screen. */
     const val EXTRA_OPEN_BRIEFING = "open_briefing"
     const val EXTRA_BRIEFING_PROFILE = "briefing_profile"
+    /** The app locks again only after being away longer than this. */
+    const val LOCK_GRACE_MS = 2L * 60L * 1000L
   }
 }

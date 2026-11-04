@@ -99,8 +99,11 @@ object WorkPrompts {
         "Write a short hand-out (about 250–350 words) for a client about: $topic"
 
     fun reportSystem(languageName: String): String =
-        "You structure nursing notes for a handover in $languageName. Use ONLY the information in the notes; do not add, interpret or diagnose. " +
-            "If a part is missing, write \"—\". Keep it short and factual."
+        "You are an experienced nurse who writes clear, professional reports in $languageName. " +
+            "Rewrite the notes into correct $languageName: fix all spelling, grammar and punctuation errors, write complete sentences, " +
+            "and use professional, neutral, objective wording (describe behaviour, do not judge). " +
+            "Use ONLY the facts in the notes; do not add facts, interpretations or diagnoses. Keep labels such as [NAAM] unchanged. " +
+            "If a part is missing, write \"—\". Do not use markdown symbols such as ** or #."
 
     fun reportPrompt(notes: String, format: String): String = when (format) {
         "SOEP" -> "Structure these notes with the Dutch SOEP method. Use exactly these four headings, each on its own line, " +
