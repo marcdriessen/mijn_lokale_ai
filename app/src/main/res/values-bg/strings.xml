@@ -947,4 +947,18 @@
     <string name="model_desc_phi4_mini">Компактен модел на Microsoft, силен в разсъжденията; най-добър на английски.</string>
     <string name="model_desc_qwen3_8b">Голям многоезичен модел (8B, вкл. български): по-умен, но по-бавен и изисква много свободна памет.</string>
     <string name="model_desc_gemma4_12b">Най-големият Gemma 4 за телефон с 12 GB: по-добър от E4B, но бавен и изисква много памет.</string>
+    <string name="routing_title">Автоматичен модел според задачата</string>
+    <string name="routing_desc">Приложението само превключва към най-добрия изтеглен модел за всяка задача, напр. Hy-MT2 за превод и MedGemma за медицински въпроси. В паметта се побира само един модел, затова превключването отнема 10–30 секунди.</string>
+    <string name="routing_auto_with">Автоматично: %1$s</string>
+    <string name="routing_auto_none">Автоматично (няма изтеглен подходящ модел)</string>
+    <string name="routing_current">Зареденият модел (без превключване)</string>
+    <string name="routing_tip">Съвет: %1$s е най-добър тук; изтеглете го от Модели.</string>
+    <string name="routing_task_chat">Чат и писане</string>
+    <string name="routing_task_medical">Медицински въпроси и психообучение</string>
+    <string name="routing_task_translate">Превод</string>
+    <string name="routing_task_report">Доклади (SOAP)</string>
+    <string name="routing_task_coach">Езиков треньор</string>
+    <string name="routing_task_news">Новини</string>
+    <string name="routing_switching">Превключване към %1$s за тази задача…</string>
+    <string name="routing_failed">%1$s не се побира в паметта сега; предишният модел се зарежда отново.</string>
 </resources>

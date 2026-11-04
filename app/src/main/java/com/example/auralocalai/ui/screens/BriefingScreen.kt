@@ -645,11 +645,11 @@ fun BriefingScreen(
             url = url,
             onDismiss = { browserUrl = null },
             onSummarize = { title, text ->
-                if (!llmViewModel.isModelReady) context.getString(R.string.translate_need_model)
+                if (!llmViewModel.canServe(com.example.auralocalai.data.ModelRouting.Task.NEWS)) context.getString(R.string.translate_need_model)
                 else llmViewModel.runOneShotPrompt(
                     "You summarise web pages for one reader. Write in $languageName. Use only the text given; do not add facts.",
                     "Title: $title\n\nText:\n${text.take(6_000)}\n\nGive a short summary (max 6 bullet points) with the key facts.",
-                    temperature = 0.2
+                    temperature = 0.2, task = com.example.auralocalai.data.ModelRouting.Task.NEWS
                 )
             },
             onSave = { title, text, pageUrl -> briefingViewModel.saveTextToLibrary(title, text, pageUrl) }

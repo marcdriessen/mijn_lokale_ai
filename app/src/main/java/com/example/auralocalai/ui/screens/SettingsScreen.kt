@@ -1262,6 +1262,12 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Automatic model choice per task
+                    ModelRoutingSection(uiState, viewModel)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     // 2. Custom System Prompt
                     Text(
                         text = stringResource(R.string.system_instructions),

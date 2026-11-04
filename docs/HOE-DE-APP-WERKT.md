@@ -43,6 +43,13 @@ een keuze **"Via Engels"**. De vraag wordt offline naar het Engels vertaald, het
 het Engels, en het antwoord wordt teruggezet naar de taal van de app. Codeblokken en opmaak blijven
 daarbij intact.
 
+**Automatisch model per taak** (Instellingen → Model): er past één model tegelijk in het geheugen.
+De app wisselt zelf naar het beste gedownloade model voor de taak: Hy-MT2 voor vertalen, MedGemma
+voor de vraagbaak en psycho-educatie, en Gemma 4 E4B (of het beste algemene model) voor chat,
+rapportage, taalcoach en nieuws. Per taak kan ook een vast model of "geladen model (niet wisselen)"
+worden gekozen. Wisselen kost 10–30 seconden; past een model niet, dan wordt het vorige teruggezet.
+De dagelijkse briefing op de achtergrond gebruikt het model voor "Nieuws".
+
 ## 3. De mini-apps
 
 | Mini-app | Wat het doet |

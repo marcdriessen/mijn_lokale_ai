@@ -1,5 +1,6 @@
 package com.example.auralocalai.ui
 
+import com.example.auralocalai.data.ModelRouting
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -64,8 +65,8 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
     fun setReportNotes(v: String) = _state.update { it.copy(reportNotes = v) }
     fun setReportFormat(v: String) = _state.update { it.copy(reportFormat = v) }
 
-    private fun requireModel(llm: LlmViewModel): Boolean {
-        if (!llm.isModelReady) {
+    private fun requireModel(llm: LlmViewModel, task: ModelRouting.Task = ModelRouting.Task.CHAT): Boolean {
+        if (!llm.canServe(task)) {
             _state.update { it.copy(message = str(R.string.translate_need_model)) }
             return false
         }
@@ -74,13 +75,14 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
 
     fun generatePsychoEducation(llm: LlmViewModel) {
         val topic = _state.value.psychoTopic.trim()
-        if (topic.isEmpty() || !requireModel(llm)) return
+        if (topic.isEmpty() || !requireModel(llm, ModelRouting.Task.MEDICAL)) return
         val language = AppLocale.languageNameForModel(_state.value.psychoLanguage) ?: "Dutch"
         viewModelScope.launch {
             _state.update { it.copy(busy = str(R.string.translate_ai_busy), psychoOutput = "") }
             val text = llm.runOneShotPrompt(
                 WorkPrompts.psychoEducationSystem(language, _state.value.psychoLevel),
-                WorkPrompts.psychoEducationPrompt(topic)
+                WorkPrompts.psychoEducationPrompt(topic),
+                task = ModelRouting.Task.MEDICAL
             )
             _state.update { it.copy(busy = null, psychoOutput = text ?: "", message = if (text == null) str(R.string.translate_ai_failed) else null) }
         }
@@ -185,23 +187,25 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
 
     fun generateReport(llm: LlmViewModel) {
         val typed = _state.value.reportNotes.trim()
-        if (typed.isEmpty() || !requireModel(llm)) return
+        if (typed.isEmpty() || !requireModel(llm, ModelRouting.Task.REPORT)) return
         val language = AppLocale.languageNameForModel(AppLocale.effectiveLanguage(getApplication())) ?: "Dutch"
         viewModelScope.launch {
             _state.update { it.copy(busy = str(R.string.anon_busy), reportOutput = "") }
+            llm.ensureModelFor(ModelRouting.Task.REPORT)
             // Typed notes are checked too, so no personal data reaches the model output.
             val anon = llm.anonymize(typed)
             val notes = anon.text
             _state.update { it.copy(reportNotes = notes, busy = str(R.string.report_correcting)) }
             // Step 1: correct spelling and grammar; step 2: structure. Low temperature keeps the model factual.
-            val corrected = llm.runOneShotPrompt(WorkPrompts.spellingSystem(language), WorkPrompts.spellingPrompt(notes), temperature = 0.1)
+            val corrected = llm.runOneShotPrompt(WorkPrompts.spellingSystem(language), WorkPrompts.spellingPrompt(notes), temperature = 0.1, task = ModelRouting.Task.REPORT)
                 ?.let { com.example.auralocalai.data.work.DocxIO.cleanMarkdown(it) }
                 ?.takeIf { it.length > notes.length / 2 } ?: notes
             _state.update { it.copy(busy = str(R.string.report_structuring)) }
             val text = llm.runOneShotPrompt(
                 WorkPrompts.reportSystem(language),
                 WorkPrompts.reportPrompt(corrected, _state.value.reportFormat),
-                temperature = 0.2
+                temperature = 0.2,
+                task = ModelRouting.Task.REPORT
             )?.let { com.example.auralocalai.data.work.DocxIO.cleanMarkdown(it) }
             _state.update { it.copy(busy = null, reportOutput = text ?: "", message = if (text == null) str(R.string.translate_ai_failed) else null) }
         }

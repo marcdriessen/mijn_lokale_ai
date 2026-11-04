@@ -43,7 +43,7 @@ class CoachViewModel(application: Application) : AndroidViewModel(application) {
     fun send(text: String, llm: LlmViewModel) {
         val clean = text.trim()
         if (clean.isEmpty() || _state.value.busy) return
-        if (!llm.isModelReady) {
+        if (!llm.canServe(com.example.auralocalai.data.ModelRouting.Task.COACH)) {
             _state.update { it.copy(message = str(R.string.translate_need_model)) }
             return
         }
@@ -63,7 +63,7 @@ class CoachViewModel(application: Application) : AndroidViewModel(application) {
             "Use simple words for level ${s.level}. Do not use markdown." +
             (if (s.scenario.isNotBlank()) " Situation: ${s.scenario}." else "")
         viewModelScope.launch {
-            val answer = llm.runOneShotPrompt(system, "Conversation so far:\n$history\n\nRespond to the learner's last message.")
+            val answer = llm.runOneShotPrompt(system, "Conversation so far:\n$history\n\nRespond to the learner's last message.", task = com.example.auralocalai.data.ModelRouting.Task.COACH)
             _state.update {
                 it.copy(
                     busy = false,

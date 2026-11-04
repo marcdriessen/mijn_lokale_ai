@@ -947,4 +947,18 @@
     <string name="model_desc_phi4_mini">Compact model van Microsoft, sterk in redeneren en uitleg; het best in het Engels (gebruik ‘Via Engels’).</string>
     <string name="model_desc_qwen3_8b">Groot meertalig model (8B, o.a. Nederlands en Bulgaars): duidelijk slimmer dan 4B-modellen, maar trager en vraagt veel vrij geheugen. Draait op deze telefoon op de processor.</string>
     <string name="model_desc_gemma4_12b">De grootste Gemma 4 die op een telefoon met 12 GB past: merkbaar beter in taal en kennis dan E4B. Traag en vraagt veel geheugen; herstart eerst de telefoon en sluit andere apps.</string>
+    <string name="routing_title">Automatisch model per taak</string>
+    <string name="routing_desc">De app wisselt zelf naar het beste gedownloade model voor elke taak, bijvoorbeeld Hy-MT2 voor vertalen en MedGemma voor medische vragen. Er past maar één model tegelijk in het geheugen, dus wisselen duurt 10–30 seconden.</string>
+    <string name="routing_auto_with">Automatisch: %1$s</string>
+    <string name="routing_auto_none">Automatisch (geen geschikt model gedownload)</string>
+    <string name="routing_current">Geladen model (niet wisselen)</string>
+    <string name="routing_tip">Tip: %1$s werkt hier het best; download het bij Modellen.</string>
+    <string name="routing_task_chat">Chat en schrijven</string>
+    <string name="routing_task_medical">Vraagbaak en psycho-educatie</string>
+    <string name="routing_task_translate">Vertalen</string>
+    <string name="routing_task_report">Rapportage (SOEP)</string>
+    <string name="routing_task_coach">Taalcoach</string>
+    <string name="routing_task_news">Nieuws</string>
+    <string name="routing_switching">Wisselen naar %1$s voor deze taak…</string>
+    <string name="routing_failed">%1$s past nu niet in het geheugen; het vorige model wordt weer geladen.</string>
 </resources>

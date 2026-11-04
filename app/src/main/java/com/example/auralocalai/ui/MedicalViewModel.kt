@@ -208,8 +208,8 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                 // 3. PubMed (free); the model turns the question into English search terms
                 if (config.usePubMed) {
                     _state.update { it.copy(progress = str(R.string.medical_searching_pubmed)) }
-                    val pubQuery = if (llm.isModelReady) {
-                        llm.runOneShotPrompt(MedicalPrompts.PUBMED_QUERY_SYSTEM_PROMPT, MedicalPrompts.pubMedQueryPrompt(clean))
+                    val pubQuery = if (llm.canServe(com.example.auralocalai.data.ModelRouting.Task.MEDICAL)) {
+                        llm.runOneShotPrompt(MedicalPrompts.PUBMED_QUERY_SYSTEM_PROMPT, MedicalPrompts.pubMedQueryPrompt(clean), task = com.example.auralocalai.data.ModelRouting.Task.MEDICAL)
                             ?.let { MedicalPrompts.cleanQuery(it) }
                             ?.ifBlank { null } ?: clean
                     } else clean
@@ -255,14 +255,14 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
 
                 val text = when {
                     sources.isEmpty() -> str(R.string.medical_no_sources)
-                    !llm.isModelReady -> str(R.string.medical_no_model_sources_only)
+                    !llm.canServe(com.example.auralocalai.data.ModelRouting.Task.MEDICAL) -> str(R.string.medical_no_model_sources_only)
                     else -> {
                         _state.update { it.copy(progress = str(R.string.medical_answering)) }
                         val budget = (llm.activeContextTokens() * 5 / 2).coerceIn(2_000, 12_000)
                         llm.runOneShotPrompt(
                             MedicalPrompts.systemPrompt(languageName),
                             MedicalPrompts.answerPrompt(clean, sources, languageName, budget),
-                            temperature = 0.3
+                            temperature = 0.3, task = com.example.auralocalai.data.ModelRouting.Task.MEDICAL
                         ) { partial ->
                             answer = answer.copy(answer = partial)
                             _state.update { it.copy(current = answer) }

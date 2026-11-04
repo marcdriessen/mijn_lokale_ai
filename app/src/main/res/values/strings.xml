@@ -948,4 +948,18 @@
     <string name="model_desc_phi4_mini">Compact Microsoft model, strong in reasoning and explanations; best in English (use “Via English”).</string>
     <string name="model_desc_qwen3_8b">Large multilingual model (8B, incl. Dutch and Bulgarian): clearly smarter than 4B models, but slower and needs a lot of free memory. On this phone it runs on the processor.</string>
     <string name="model_desc_gemma4_12b">The largest Gemma 4 that fits on a 12 GB phone: noticeably better language and knowledge than E4B. Slow and memory hungry; restart the phone and close other apps first.</string>
+    <string name="routing_title">Automatic model per task</string>
+    <string name="routing_desc">The app switches to the best downloaded model for each task, e.g. Hy-MT2 for translating and MedGemma for medical questions. Only one model fits in memory, so switching takes 10–30 seconds.</string>
+    <string name="routing_auto_with">Automatic: %1$s</string>
+    <string name="routing_auto_none">Automatic (no suitable model downloaded)</string>
+    <string name="routing_current">Loaded model (do not switch)</string>
+    <string name="routing_tip">Tip: %1$s works best here; download it under Models.</string>
+    <string name="routing_task_chat">Chat and writing</string>
+    <string name="routing_task_medical">Medical Q&amp;A and psychoeducation</string>
+    <string name="routing_task_translate">Translating</string>
+    <string name="routing_task_report">Reports (SOAP)</string>
+    <string name="routing_task_coach">Language coach</string>
+    <string name="routing_task_news">News</string>
+    <string name="routing_switching">Switching to %1$s for this task…</string>
+    <string name="routing_failed">%1$s does not fit in memory right now; the previous model is loaded again.</string>
 </resources>

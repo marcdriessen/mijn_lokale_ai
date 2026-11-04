@@ -179,7 +179,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         if (clean.isEmpty()) return
         val topicId = "topic_" + System.currentTimeMillis()
         updateProfileInternal(profileId) { p -> p.copy(topics = p.topics + BriefingTopic(topicId, clean)) }
-        if (llm.isModelReady) translateKeywords(profileId, topicId, llm)
+        if (llm.canServe(com.example.auralocalai.data.ModelRouting.Task.NEWS)) translateKeywords(profileId, topicId, llm)
     }
 
     fun updateTopic(profileId: String, topicId: String, name: String, keywordsText: String) = updateProfileInternal(profileId) { p ->
@@ -194,13 +194,13 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     /** Lets the local model write keywords for the topic in Dutch, English and Bulgarian. */
     fun translateKeywords(profileId: String, topicId: String, llm: LlmViewModel) {
         val topic = _state.value.config.profiles.firstOrNull { it.id == profileId }?.topics?.firstOrNull { it.id == topicId } ?: return
-        if (!llm.isModelReady) {
+        if (!llm.canServe(com.example.auralocalai.data.ModelRouting.Task.NEWS)) {
             _state.update { it.copy(message = str(R.string.briefing_need_model_keywords)) }
             return
         }
         viewModelScope.launch {
             _state.update { it.copy(translatingTopicId = topicId) }
-            val answer = llm.runOneShotPrompt(BriefingPrompts.KEYWORD_SYSTEM_PROMPT, BriefingPrompts.keywordPrompt(topic.name))
+            val answer = llm.runOneShotPrompt(BriefingPrompts.KEYWORD_SYSTEM_PROMPT, BriefingPrompts.keywordPrompt(topic.name), task = com.example.auralocalai.data.ModelRouting.Task.NEWS)
             val newKeywords = answer?.let { TopicMatcher.parseKeywordList(it.lines().firstOrNull { line -> line.isNotBlank() } ?: it) }
             if (newKeywords.isNullOrEmpty()) {
                 _state.update { it.copy(translatingTopicId = null, message = str(R.string.briefing_keywords_failed)) }
@@ -487,7 +487,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                     com.example.auralocalai.data.briefing.ResearchFeed.fetch(profile.topics)
                 } else emptyList()
                 val generator = BriefingGenerator(repository, fetcher, translator) { doi -> com.example.auralocalai.data.medical.StudyLookup.lookup(doi) }
-                val model = if (llm.isModelReady) BriefingGenerator.ModelCall { system, prompt -> llm.runOneShotPrompt(system, prompt) } else null
+                val model = if (llm.canServe(com.example.auralocalai.data.ModelRouting.Task.NEWS)) BriefingGenerator.ModelCall { system, prompt -> llm.runOneShotPrompt(system, prompt, task = com.example.auralocalai.data.ModelRouting.Task.NEWS) } else null
                 val briefing = generator.build(
                     profile = profile,
                     config = _state.value.config,
@@ -573,7 +573,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     /** Writes an overview of the last 7 days of briefings with the shared model. */
     fun weeklyDigest(llm: LlmViewModel) {
-        if (!llm.isModelReady) {
+        if (!llm.canServe(com.example.auralocalai.data.ModelRouting.Task.NEWS)) {
             _state.update { it.copy(message = str(R.string.translate_need_model)) }
             return
         }
@@ -593,7 +593,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             _state.update { it.copy(digestBusy = true, weeklyDigest = null) }
             val text = llm.runOneShotPrompt(
                 "You are a news editor. Write in $languageName. Use only the items given.",
-                "Write a weekly overview of these news items: a short intro, then per topic a heading with 2–4 bullet points of the most important developments.\n\n$list"
+                "Write a weekly overview of these news items: a short intro, then per topic a heading with 2–4 bullet points of the most important developments.\n\n$list", task = com.example.auralocalai.data.ModelRouting.Task.NEWS
             )
             _state.update { it.copy(digestBusy = false, weeklyDigest = text ?: str(R.string.translate_ai_failed)) }
         }

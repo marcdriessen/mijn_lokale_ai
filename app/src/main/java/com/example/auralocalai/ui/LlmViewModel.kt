@@ -175,7 +175,11 @@ data class UiState(
     /** Set when loading failed for lack of free RAM: (fileName, modelId) so the UI can offer "Try anyway". */
     val forceLoadCandidate: Pair<String, String>? = null,
     /** Minutes of inactivity after which the model is unloaded automatically (0 = off). */
-    val autoUnloadMinutes: Int = 0
+    val autoUnloadMinutes: Int = 0,
+    /** Switch automatically to the best downloaded model for each task (translation, medical, ...). */
+    val autoModelRouting: Boolean = true,
+    /** Per task key: ModelRouting.AUTO, ModelRouting.CURRENT or a model id. */
+    val modelForTask: Map<String, String> = emptyMap()
 )
 
 class LlmViewModel(application: Application) : AndroidViewModel(application) {
@@ -367,7 +371,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 aiSearchModels = listOf("gemini", "openai").associateWith { id ->
                     prefs.getString("ai_search_model_$id", "").orEmpty().also { com.example.auralocalai.data.providers.AiSearchSettings.set(id, it) }
                 },
-                autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0)
+                autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0),
+                autoModelRouting = prefs.getBoolean(PREF_AUTO_MODEL_ROUTING, true),
+                modelForTask = com.example.auralocalai.data.ModelRouting.Task.entries.associate { task ->
+                    task.key to (prefs.getString(com.example.auralocalai.data.ModelRouting.prefKey(task), com.example.auralocalai.data.ModelRouting.AUTO)
+                        ?: com.example.auralocalai.data.ModelRouting.AUTO)
+                }
             ) 
         }
 
@@ -988,8 +997,10 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         systemPrompt: String,
         prompt: String,
         temperature: Double? = null,
+        task: com.example.auralocalai.data.ModelRouting.Task? = null,
         onPartial: (String) -> Unit = {}
     ): String? {
+        if (task != null) ensureModelFor(task)
         if (!isModelReady || _uiState.value.isGenerating) return null
         return oneShotMutex.withLock {
             _backgroundTaskRunning.value = true
@@ -1139,6 +1150,68 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(forceLoadCandidate = null) }
     }
 
+    fun setAutoModelRouting(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .edit().putBoolean(PREF_AUTO_MODEL_ROUTING, enabled).apply()
+        routingFailures.clear()
+        _uiState.update { it.copy(autoModelRouting = enabled) }
+    }
+
+    /** [choice] is ModelRouting.AUTO, ModelRouting.CURRENT or a model id. */
+    fun setModelForTask(task: com.example.auralocalai.data.ModelRouting.Task, choice: String) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .edit().putString(com.example.auralocalai.data.ModelRouting.prefKey(task), choice).apply()
+        routingFailures.clear()
+        _uiState.update { it.copy(modelForTask = it.modelForTask + (task.key to choice)) }
+    }
+
+    /** Models that failed to load during automatic switching (not tried again this session). */
+    private val routingFailures = mutableSetOf<String>()
+
+    /** The model id the task should use, or null to keep the loaded model. */
+    fun targetModelFor(task: com.example.auralocalai.data.ModelRouting.Task): String? {
+        val state = _uiState.value
+        val ids = com.example.auralocalai.data.ModelRouting.downloadedIds(state.localModels) - routingFailures
+        return com.example.auralocalai.data.ModelRouting.choose(task, ids, state.modelForTask[task.key], state.autoModelRouting)
+    }
+
+    /** True when the task can run: a model is loaded, or automatic switching will load one. */
+    fun canServe(task: com.example.auralocalai.data.ModelRouting.Task): Boolean =
+        isModelReady || targetModelFor(task) != null
+
+    /**
+     * Loads the best model for [task] when automatic switching is on and another model is loaded
+     * (or none). Does nothing while the model is busy. When the new model does not fit, the
+     * previous one is loaded again. Returns true when a model is ready afterwards.
+     */
+    suspend fun ensureModelFor(task: com.example.auralocalai.data.ModelRouting.Task): Boolean {
+        loadModelJob?.takeIf { it.isActive }?.join()
+        val targetId = targetModelFor(task) ?: return isModelReady
+        if (targetId == _uiState.value.activeModelId && isModelReady) return true
+        if (_uiState.value.isGenerating || oneShotMutex.isLocked) return isModelReady
+        val preset = ModelPreset.presetsById[targetId] ?: return isModelReady
+        val previousFile = if (isModelReady) loadedModelFile else null
+        val previousId = _uiState.value.activeModelId
+        showToast(str(R.string.routing_switching, preset.name))
+        loadModel(preset.fileName, preset.id)
+        loadModelJob?.join()
+        if (!isModelReady) {
+            routingFailures += targetId
+            if (previousFile != null && previousId != null) {
+                showToast(str(R.string.routing_failed, preset.name))
+                loadModel(previousFile, previousId)
+                loadModelJob?.join()
+            }
+        }
+        return isModelReady
+    }
+
+    private fun showToast(text: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            android.widget.Toast.makeText(getApplication(), text, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     fun setAutoUnloadMinutes(minutes: Int) {
         val value = minutes.coerceAtLeast(0)
         getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -1198,6 +1271,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun stripThinkingBlocks(rawContent: String): String = Companion.stripThinkingBlocks(rawContent)
 
     companion object {
+        const val PREF_AUTO_MODEL_ROUTING = "auto_model_routing"
         /** Search services with a key that can do real web searches (also used by the Q&A and the news). */
         val WEB_SEARCH_PROVIDERS = setOf("brave", "serper", "gemini", "openai")
         fun stripThinkingBlocks(rawContent: String): String {
@@ -1635,6 +1709,21 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendMessage(content: String) {
+        val chat = com.example.auralocalai.data.ModelRouting.Task.CHAT
+        val target = targetModelFor(chat)
+        if (target == null || (target == _uiState.value.activeModelId && isModelReady) ||
+            _backgroundTaskRunning.value || _uiState.value.isGenerating
+        ) {
+            sendMessageNow(content)
+            return
+        }
+        viewModelScope.launch {
+            ensureModelFor(chat)
+            sendMessageNow(content)
+        }
+    }
+
+    private fun sendMessageNow(content: String) {
         // The model is busy with a background task (daily briefing / keyword translation).
         if (_backgroundTaskRunning.value) return
         val imageUri = _uiState.value.selectedImageUri

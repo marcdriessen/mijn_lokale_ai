@@ -2,6 +2,8 @@ package com.example.auralocalai.data.briefing
 
 import android.content.Context
 import com.example.auralocalai.data.LlmInferenceEngine
+import com.example.auralocalai.data.ModelPreset
+import com.example.auralocalai.data.ModelRouting
 import com.example.auralocalai.ui.LlmViewModel
 import com.google.ai.edge.litertlm.ThinkingConfig
 import java.io.File
@@ -17,8 +19,15 @@ class BackgroundModel(private val context: Context) {
     /** Loads the last used model. Returns false when there is none or it does not fit in memory now. */
     suspend fun load(): Boolean {
         val prefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val fileName = prefs.getString(PREF_LAST_MODEL_FILE, null) ?: return false
         val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "models")
+        // With automatic model choice on, the briefing uses the best model for news.
+        val routed = if (prefs.getBoolean(LlmViewModel.PREF_AUTO_MODEL_ROUTING, true)) {
+            val task = ModelRouting.Task.NEWS
+            val files = dir.listFiles()?.map { it.name }.orEmpty()
+            ModelRouting.choose(task, ModelRouting.downloadedIds(files), prefs.getString(ModelRouting.prefKey(task), ModelRouting.AUTO), true)
+                ?.let { ModelPreset.presetsById[it]?.fileName }
+        } else null
+        val fileName = routed ?: prefs.getString(PREF_LAST_MODEL_FILE, null) ?: return false
         val file = File(dir, fileName)
         if (!file.exists()) return false
         val candidate = LlmInferenceEngine(context)

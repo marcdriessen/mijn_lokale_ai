@@ -137,7 +137,7 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
     fun translateWithAi(llm: LlmViewModel) {
         val text = _state.value.input.trim()
         if (text.isEmpty()) return
-        if (!llm.isModelReady) {
+        if (!llm.canServe(com.example.auralocalai.data.ModelRouting.Task.TRANSLATE)) {
             _state.update { it.copy(message = str(R.string.translate_need_model)) }
             return
         }
@@ -152,7 +152,7 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
                         "Keep the meaning, tone, line breaks, headings and lists exactly. Keep labels such as [NAAM] unchanged. " +
                         "Reply with the translation only, without notes or explanations.",
                     part,
-                    temperature = 0.2
+                    temperature = 0.2, task = com.example.auralocalai.data.ModelRouting.Task.TRANSLATE
                 )
                 if (answer == null) {
                     _state.update { it.copy(busy = null, output = out.toString().trim(), message = str(R.string.translate_ai_failed)) }
@@ -262,7 +262,7 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
     fun runAi(action: AiAction, llm: LlmViewModel) {
         val text = _state.value.output.ifBlank { _state.value.input }.trim()
         if (text.isEmpty()) return
-        if (!llm.isModelReady) {
+        if (!llm.canServe(com.example.auralocalai.data.ModelRouting.Task.CHAT)) {
             _state.update { it.copy(message = str(R.string.translate_need_model)) }
             return
         }
@@ -276,7 +276,7 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
             _state.update { it.copy(busy = str(R.string.translate_ai_busy)) }
             val answer = llm.runOneShotPrompt(
                 "You are a helpful writing assistant. Always answer in $languageName.",
-                "$instruction\n\nText:\n${text.take(6_000)}"
+                "$instruction\n\nText:\n${text.take(6_000)}", task = com.example.auralocalai.data.ModelRouting.Task.CHAT
             )
             _state.update { it.copy(busy = null, output = answer ?: it.output, message = if (answer == null) str(R.string.translate_ai_failed) else null) }
         }
