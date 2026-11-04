@@ -250,6 +250,10 @@ Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in
 - Je stelt een vraag en kiest waar gezocht wordt (knoppen):
   - **Mijn bibliotheek**: eigen PDF-, Word- (.docx), ODT-, RTF-, HTML-, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
     (max. 40 pagina's) en in tekstdelen opgeknipt; zoeken gebeurt offline op de telefoon;
+  - **Kennisbank GGZ & verslaving** (offline): ±286.000 Nederlandse vraag/antwoord-paren over psychiatrie en
+    verslaving uit UMCU-datasets (MIRIAD, Medical Flashcards, WikiDoc, MedQA), machinaal vertaald. Eén keer
+    downloaden of importeren via het bibliotheek-icoon; daarna zoekt de app offline (SQLite-zoekindex) en geeft de
+    beste 4 treffers met artikeltitel en link als bron aan het model. Zie `docs/DATASETS.md`;
   - **Vertrouwde sites** via Brave (één zoekopdracht per vraag, beperkt tot de ingestelde sites): GGZ Standaarden,
     Akwa GGZ, Trimbos, NISPA, Farmacotherapeutisch Kompas, Richtlijnendatabase, NHG en Vilans. Sites zijn aan/uit te
     zetten en toe te voegen. Werkt alleen als Brave bij Instellingen als zoekdienst met API-sleutel is ingesteld;

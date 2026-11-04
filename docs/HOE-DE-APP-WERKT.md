@@ -216,6 +216,14 @@ Een vakvraag wordt beantwoord met **bronnen**, in deze volgorde:
    worden in stukken (passages) geknipt en geanonimiseerd. Bij een vraag zoekt een TF-IDF-score de
    best passende passages.
 
+4. **Kennisbank GGZ & verslaving** (offline, optioneel). Een SQLite-bestand met FTS4-index
+   (`kennisbank.sqlite`, ±286.000 vraag/antwoord-paren) dat `tools/maak_kennisbank.py` bouwt uit
+   UMCU-datasets op Hugging Face. De workflow `kennisbank.yml` zet het als `kennisbank.sqlite.gz` op de release
+   `kennisbank`; de app downloadt het van daar (niet in privacymodus) of importeert het als bestand.
+   Zoeken (`data/medical/KnowledgeBase.kt`): de vraag wordt genormaliseerd (kleine letters, zonder accenten),
+   prefix-zoektermen gaan naar FTS4, en de kandidaten worden in Kotlin met TF-IDF gerangschikt. De beste 4 gaan
+   als bron "Kennisbank" mee, met artikeltitel, jaar en link.
+
 Daarna gaat het zo verder:
 
 - De gevonden stukken worden **genummerd** [1], [2], … aan het model gegeven.

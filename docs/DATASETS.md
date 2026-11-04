@@ -67,3 +67,19 @@ De app zou een CSV/JSON/Parquet-bestand kunnen inlezen met een **kolomkeuze**:
 Downloaden kan als Parquet via de knop "Files and versions" op de datasetpagina, of als CSV
 via de viewer (`https://datasets-server.huggingface.co/rows?dataset=...`). Neem een **steekproef**
 (bv. 500–2.000 rijen): de volledige sets zijn te groot voor de telefoon en niet nodig.
+
+## 6. Kennisbank GGZ & verslaving (gebouwd)
+
+Uit de UMCU-sets is een offline kennisbank gemaakt voor de Vraagbaak:
+
+- Script: `tools/maak_kennisbank.py` (stdlib + `pyarrow`). Proefje: `--max-miriad 100000`.
+- Workflow: `.github/workflows/kennisbank.yml` draait bij een wijziging van het script (of handmatig) en zet
+  `kennisbank.sqlite.gz` op de release **kennisbank**.
+- Inhoud: uit **MIRIAD4.4.nl** (4,4 mln paren, met artikeltitel en link) alles uit de specialismen *Psychiatry* en
+  *Psychology & Behavioral Health*, plus vragen uit andere specialismen waarvan de vraag of titel over middelen,
+  verslaving of psychiatrische beelden gaat (dierproeven overgeslagen). Daarnaast dezelfde filter op Medical
+  Flashcards, WikiDoc, WikiDoc patiëntinformatie, MedQA symptomen en MediQA.
+- In de app: Vraagbaak → bibliotheek-icoon → **Kennisbank** → Downloaden (of Bestand importeren). Daarna staat de
+  knop "Kennisbank" aan en komen treffers als bron [n] in het antwoord.
+- Trefwoorden aanpassen = de lijsten `VERSLAVING` en `PSYCHIATRIE` in het script; na een push bouwt de workflow
+  automatisch een nieuwe versie.

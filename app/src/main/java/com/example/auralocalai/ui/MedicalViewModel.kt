@@ -48,7 +48,11 @@ data class MedicalUiState(
     val notes: List<String> = emptyList(),
     val braveUsed: Int = 0,
     val importing: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    /** Offline knowledge base; null when not installed. */
+    val knowledge: com.example.auralocalai.data.medical.KnowledgeBase.Info? = null,
+    /** Progress text while the knowledge base is downloaded or imported. */
+    val knowledgeProgress: String? = null
 )
 
 /**
@@ -64,6 +68,8 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
     private val _state = MutableStateFlow(MedicalUiState())
     val state: StateFlow<MedicalUiState> = _state.asStateFlow()
     private var runJob: Job? = null
+    private val knowledgeBase = com.example.auralocalai.data.medical.KnowledgeBase(application.filesDir)
+    private var knowledgeJob: Job? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -74,7 +80,8 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     library = repository.loadLibrary(),
                     history = history,
                     current = history.firstOrNull(),
-                    braveUsed = repository.braveUsageThisMonth()
+                    braveUsed = repository.braveUsageThisMonth(),
+                    knowledge = knowledgeBase.info()
                 )
             }
         }
@@ -94,6 +101,7 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
     fun setUsePubMed(value: Boolean) = updateConfig { it.copy(usePubMed = value) }
     fun setUseSites(value: Boolean) = updateConfig { it.copy(useSites = value) }
     fun setUseLibrary(value: Boolean) = updateConfig { it.copy(useLibrary = value) }
+    fun setUseKnowledgeBase(value: Boolean) = updateConfig { it.copy(useKnowledgeBase = value) }
     fun setMonthlyLimit(value: Int) = updateConfig { it.copy(monthlyBraveLimit = value.coerceIn(0, 100_000)) }
 
     fun toggleSite(domain: String) = updateConfig { config ->
@@ -152,6 +160,29 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     val hits = withContext(Dispatchers.Default) { PassageIndex.search(_state.value.library, clean, limit = 3) }
                     hits.forEach { hit ->
                         sources += MedicalSource(SourceKind.LIBRARY.name, hit.documentName, "", hit.passage, str(R.string.medical_origin_library))
+                    }
+                }
+
+                // 1a. Offline knowledge base (GGZ & verslaving), downloaded once
+                if (config.useKnowledgeBase && knowledgeBase.isInstalled) {
+                    val hits = withContext(Dispatchers.IO) {
+                        try {
+                            knowledgeBase.search(clean, limit = 4)
+                        } catch (e: Exception) {
+                            notes += str(R.string.knowledge_search_failed, e.message ?: "")
+                            emptyList()
+                        }
+                    }
+                    hits.forEach { hit ->
+                        val origin = listOf(str(R.string.knowledge_origin), hit.source, hit.specialty, hit.year)
+                            .filter { it.isNotBlank() }.joinToString(" · ")
+                        sources += MedicalSource(
+                            SourceKind.KNOWLEDGE.name,
+                            hit.title.ifBlank { hit.question },
+                            hit.url,
+                            "${str(R.string.knowledge_q)}: ${hit.question}\n${str(R.string.knowledge_a)}: ${hit.answer}",
+                            origin
+                        )
                     }
                 }
 
@@ -280,6 +311,114 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                 _state.update { it.copy(isRunning = false, progress = null, notes = notes.toList()) }
             }
         }
+    }
+
+    // ---------------- Offline knowledge base ----------------
+
+    /** Downloads the knowledge base (gzip) from the GitHub release. Not available in privacy mode. */
+    fun downloadKnowledgeBase() {
+        if (knowledgeJob?.isActive == true) return
+        if (com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())) {
+            _state.update { it.copy(message = str(R.string.knowledge_privacy_blocked)) }
+            return
+        }
+        knowledgeJob = viewModelScope.launch {
+            _state.update { it.copy(knowledgeProgress = str(R.string.knowledge_connecting)) }
+            try {
+                val info = kotlinx.coroutines.runInterruptible(Dispatchers.IO) {
+                    val client = okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                        .build()
+                    val request = okhttp3.Request.Builder().url(com.example.auralocalai.data.medical.KnowledgeBase.DOWNLOAD_URL).build()
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) throw java.io.IOException("HTTP ${response.code}")
+                        val body = response.body ?: throw java.io.IOException("empty response")
+                        val totalMb = body.contentLength().takeIf { it > 0 }?.let { it / 1_000_000 }
+                        val counting = CountingStream(body.byteStream()) { read ->
+                            val mb = read / 1_000_000
+                            _state.update {
+                                it.copy(
+                                    knowledgeProgress = if (totalMb != null) str(R.string.knowledge_downloading, mb, totalMb)
+                                    else str(R.string.knowledge_downloading_unknown, mb)
+                                )
+                            }
+                        }
+                        knowledgeBase.install(counting, gzipped = true)
+                    }
+                }
+                _state.update { it.copy(knowledge = info, message = str(R.string.knowledge_installed, info.count)) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(message = str(R.string.knowledge_failed, e.message ?: e.javaClass.simpleName)) }
+            } finally {
+                _state.update { it.copy(knowledgeProgress = null) }
+            }
+        }
+    }
+
+    /** Imports a knowledge base file (.sqlite or .sqlite.gz) chosen by the user. */
+    fun importKnowledgeBase(uri: Uri, context: Context) {
+        if (knowledgeJob?.isActive == true) return
+        knowledgeJob = viewModelScope.launch {
+            val name = displayName(context, uri)
+            _state.update { it.copy(knowledgeProgress = str(R.string.medical_importing, name)) }
+            try {
+                val info = kotlinx.coroutines.runInterruptible(Dispatchers.IO) {
+                    val stream = context.contentResolver.openInputStream(uri) ?: throw java.io.IOException(name)
+                    val buffered = java.io.BufferedInputStream(stream, 64 * 1024)
+                    // gzip files start with 0x1f 0x8b
+                    buffered.mark(2)
+                    val gzipped = buffered.read() == 0x1f && buffered.read() == 0x8b
+                    buffered.reset()
+                    knowledgeBase.install(buffered, gzipped) { written ->
+                        _state.update { it.copy(knowledgeProgress = str(R.string.knowledge_unpacking, written / 1_000_000)) }
+                    }
+                }
+                _state.update { it.copy(knowledge = info, message = str(R.string.knowledge_installed, info.count)) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(message = str(R.string.knowledge_failed, e.message ?: e.javaClass.simpleName)) }
+            } finally {
+                _state.update { it.copy(knowledgeProgress = null) }
+            }
+        }
+    }
+
+    fun cancelKnowledgeBase() {
+        knowledgeJob?.cancel()
+        knowledgeJob = null
+        _state.update { it.copy(knowledgeProgress = null) }
+    }
+
+    fun deleteKnowledgeBase() {
+        viewModelScope.launch(Dispatchers.IO) {
+            knowledgeBase.delete()
+            _state.update { it.copy(knowledge = null) }
+        }
+    }
+
+    override fun onCleared() {
+        knowledgeBase.close()
+        super.onCleared()
+    }
+
+    /** Reports the number of bytes read so far (at most every 2 MB). */
+    private class CountingStream(inner: java.io.InputStream, private val onRead: (Long) -> Unit) : java.io.FilterInputStream(inner) {
+        private var count = 0L
+        private var last = 0L
+        private fun add(n: Int) {
+            if (n <= 0) return
+            count += n
+            if (count - last >= 2_000_000) {
+                last = count
+                onRead(count)
+            }
+        }
+        override fun read(): Int = super.read().also { if (it >= 0) add(1) }
+        override fun read(b: ByteArray, off: Int, len: Int): Int = super.read(b, off, len).also { add(it) }
     }
 
     // ---------------- Offline library ----------------

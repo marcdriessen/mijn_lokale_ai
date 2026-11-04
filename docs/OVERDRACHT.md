@@ -27,6 +27,10 @@
   - Dnevnik, Zorgvisie, ZorgWelzijn en Reuters staan uit (bronversie 7).
   - Gewone cookies tellen niet meer als login.
 
+- Kennisbank GGZ & verslaving (offline, ±286.000 vraag/antwoord-paren uit UMCU-datasets) voor de Vraagbaak:
+  `tools/maak_kennisbank.py`, workflow `kennisbank.yml` → release `kennisbank`, app-code `data/medical/KnowledgeBase.kt`.
+  Zie `docs/DATASETS.md`.
+
 ## Open punten
 - Testronde door de gebruiker. Checklist:
   - ontgrendelen;
@@ -36,5 +40,6 @@
   - taalcoach;
   - nieuws om 08:00;
   - vraagbaak.
+- Kennisbank testen op de telefoon (downloaden, vragen stellen). Later eventueel: leerkaarten/quiz uit de kennisbank.
 - Eigen scorelijsten (naast CIWA, COWS en AUDIT).
 - Eventueel: "Dataset importeren" met kolomkeuze, voor de Vraagbaak (vraag/antwoord), de Taalcoach (NL/BG-zinsparen) en leerkaarten. Geschikte Hugging Face-sets staan in `docs/DATASETS.md`.
