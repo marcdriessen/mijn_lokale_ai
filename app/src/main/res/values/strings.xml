@@ -891,4 +891,11 @@
     <string name="monitor_added_library">%1$s added to the library of the Q&amp;A</string>
     <string name="monitor_channel">Guideline changes</string>
     <string name="monitor_notif_title">A watched guideline has changed</string>
+    <string name="provider_gemini">Gemini + Google Search</string>
+    <string name="provider_gemini_desc">A Google AI searches Google for you and summarises with sources. Own API key (Google AI Studio).</string>
+    <string name="provider_openai">OpenAI web search</string>
+    <string name="provider_openai_desc">An OpenAI model searches the web and summarises with sources. Own API key (platform.openai.com, paid per use).</string>
+    <string name="provider_gemini_help">Get a key at aistudio.google.com → Get API key. Google Search via the API needs billing switched on in Google Cloud; Google gives a monthly number of searches free. Only your search question is sent, never patient data.</string>
+    <string name="provider_openai_help">Get a key at platform.openai.com → API keys and add credit. A ChatGPT subscription does not include API use. Only your search question is sent, never patient data.</string>
+    <string name="provider_ai_model">Model (empty = recommended)</string>
 </resources>

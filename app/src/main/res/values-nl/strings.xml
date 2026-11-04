@@ -890,4 +890,11 @@
     <string name="monitor_added_library">%1$s toegevoegd aan de bibliotheek van de Vraagbaak</string>
     <string name="monitor_channel">Wijzigingen in richtlijnen</string>
     <string name="monitor_notif_title">Een bewaakte richtlijn is gewijzigd</string>
+    <string name="provider_gemini">Gemini + Google Search</string>
+    <string name="provider_gemini_desc">Een AI van Google zoekt voor je op Google en vat samen met bronnen. Eigen API-sleutel (Google AI Studio).</string>
+    <string name="provider_openai">OpenAI webzoeken</string>
+    <string name="provider_openai_desc">Een model van OpenAI zoekt op het web en vat samen met bronnen. Eigen API-sleutel (platform.openai.com, betalen per gebruik).</string>
+    <string name="provider_gemini_help">Maak een sleutel op aistudio.google.com → Get API key. Zoeken met Google via de API vraagt dat betalen aan staat in Google Cloud; Google geeft per maand een aantal zoekopdrachten gratis. Alleen je zoekvraag wordt verstuurd, nooit cliëntgegevens.</string>
+    <string name="provider_openai_help">Maak een sleutel op platform.openai.com → API keys en zet tegoed op het account. Een ChatGPT-abonnement geeft geen API-gebruik. Alleen je zoekvraag wordt verstuurd, nooit cliëntgegevens.</string>
+    <string name="provider_ai_model">Model (leeg = aanbevolen)</string>
 </resources>

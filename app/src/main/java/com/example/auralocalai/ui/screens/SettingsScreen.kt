@@ -574,7 +574,9 @@ fun SettingsScreen(
                     val providers = listOf(
                         Triple("free", stringResource(R.string.provider_free), stringResource(R.string.provider_free_desc)),
                         Triple("brave", stringResource(R.string.provider_brave), stringResource(R.string.provider_brave_desc)),
-                        Triple("serper", stringResource(R.string.provider_serper), stringResource(R.string.provider_serper_desc))
+                        Triple("serper", stringResource(R.string.provider_serper), stringResource(R.string.provider_serper_desc)),
+                        Triple("gemini", stringResource(R.string.provider_gemini), stringResource(R.string.provider_gemini_desc)),
+                        Triple("openai", stringResource(R.string.provider_openai), stringResource(R.string.provider_openai_desc))
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -619,11 +621,49 @@ fun SettingsScreen(
                         }
                     }
 
+                    // AI search: where to get a key, and which model to use.
+                    if (uiState.webSearchProviderId == "gemini" || uiState.webSearchProviderId == "openai") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            stringResource(if (uiState.webSearchProviderId == "gemini") R.string.provider_gemini_help else R.string.provider_openai_help),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        var modelInput by remember(uiState.webSearchProviderId) {
+                            mutableStateOf(uiState.aiSearchModels[uiState.webSearchProviderId].orEmpty())
+                        }
+                        OutlinedTextField(
+                            value = modelInput,
+                            onValueChange = {
+                                modelInput = it
+                                viewModel.setAiSearchModel(uiState.webSearchProviderId, it)
+                            },
+                            label = { Text(stringResource(R.string.provider_ai_model)) },
+                            placeholder = {
+                                Text(
+                                    if (uiState.webSearchProviderId == "gemini") com.example.auralocalai.data.providers.GeminiSearchProvider.DEFAULT_MODEL
+                                    else com.example.auralocalai.data.providers.OpenAiSearchProvider.DEFAULT_MODEL
+                                )
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                        )
+                    }
+
                     // 3. API Key Input (if Brave or Serper selected)
                     if (uiState.webSearchProviderId != "free") {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = stringResource(R.string.provider_api_key, if (uiState.webSearchProviderId == "brave") "Brave Search" else "Serper"),
+                            text = stringResource(
+                                R.string.provider_api_key,
+                                when (uiState.webSearchProviderId) {
+                                    "brave" -> "Brave Search"
+                                    "gemini" -> "Gemini (Google AI Studio)"
+                                    "openai" -> "OpenAI"
+                                    else -> "Serper"
+                                }
+                            ),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

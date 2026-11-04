@@ -144,6 +144,8 @@ data class UiState(
     val preferredBackend: String = "AUTO",
     /** Chat answers via English: question translated to English, answer translated back (ML Kit, offline). */
     val pivotEnglish: Boolean = false,
+    /** Model names for the AI search services (provider id → model). */
+    val aiSearchModels: Map<String, String> = emptyMap(),
     /** Short status shown while the answer is translated back. */
     val pivotStatus: String? = null,
     val socInfo: SocInfo? = null,
@@ -362,6 +364,9 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 thinkingTokenBudget = initialThinkingBudget,
                 appLanguage = com.example.auralocalai.AppLocale.getLanguage(application),
                 pivotEnglish = prefs.getBoolean("chat_pivot_english", false),
+                aiSearchModels = listOf("gemini", "openai").associateWith { id ->
+                    prefs.getString("ai_search_model_$id", "").orEmpty().also { com.example.auralocalai.data.providers.AiSearchSettings.set(id, it) }
+                },
                 autoUnloadMinutes = prefs.getInt("auto_unload_minutes", 0)
             ) 
         }
@@ -422,7 +427,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             val token = tokenStorage.getToken()
             val degraded = !tokenStorage.isHardwareEncrypted
             val benchmarks = loadBenchmarksFromPrefs()
-            val searchKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+            val searchKey = currentSearchKey()
             _uiState.update {
                 it.copy(
                     sessions = allSessions,
@@ -804,10 +809,25 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(webSearchMode = mode) }
     }
 
+    /** Each search service keeps its own encrypted key (Brave keeps the original slot). */
+    private fun searchKeyName(providerId: String = _uiState.value.webSearchProviderId): String =
+        if (providerId == "brave") SecretStorage.KEY_SEARCH_API_KEY else SecretStorage.KEY_SEARCH_API_KEY + "_" + providerId
+
+    private fun currentSearchKey(providerId: String = _uiState.value.webSearchProviderId): String =
+        tokenStorage.getSecret(searchKeyName(providerId))
+
+    /** Model name for the AI search services (Gemini / OpenAI), changeable in Settings. */
+    fun setAiSearchModel(providerId: String, model: String) {
+        getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE).edit()
+            .putString("ai_search_model_$providerId", model.trim()).apply()
+        com.example.auralocalai.data.providers.AiSearchSettings.set(providerId, model.trim())
+        _uiState.update { it.copy(aiSearchModels = it.aiSearchModels + (providerId to model.trim())) }
+    }
+
     fun setWebSearchProvider(providerId: String) {
         val prefs = getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         prefs.edit().putString("web_search_provider", providerId).apply()
-        _uiState.update { it.copy(webSearchProviderId = providerId) }
+        _uiState.update { it.copy(webSearchProviderId = providerId, searchApiKeyConfigured = currentSearchKey(providerId).isNotBlank()) }
     }
 
     fun setWebSearchMaxResults(maxResults: Int) {
@@ -818,7 +838,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveSearchApiKey(key: String): Boolean {
-        val success = tokenStorage.saveSecret(SecretStorage.KEY_SEARCH_API_KEY, key.trim())
+        val success = tokenStorage.saveSecret(searchKeyName(), key.trim())
         if (success) {
             _uiState.update { it.copy(searchApiKeyConfigured = key.isNotBlank()) }
         }
@@ -826,7 +846,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearSearchApiKey(): Boolean {
-        val success = tokenStorage.clearSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        val success = tokenStorage.clearSecret(searchKeyName())
         if (success) {
             _uiState.update { it.copy(searchApiKeyConfigured = false) }
         }
@@ -845,7 +865,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun testSearch(query: String = "local AI news"): SearchOutcome {
         val providerId = _uiState.value.webSearchProviderId
-        val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        val apiKey = currentSearchKey(providerId)
         val locale = java.util.Locale.getDefault()
         return webSearchClient.search(
             providerId = providerId,
@@ -1037,15 +1057,16 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
     /** True when Brave is the chosen search provider and its API key is saved. */
     val isBraveConfigured: Boolean
-        get() = _uiState.value.webSearchProviderId == "brave" && _uiState.value.searchApiKeyConfigured
+        get() = _uiState.value.webSearchProviderId in WEB_SEARCH_PROVIDERS && _uiState.value.searchApiKeyConfigured
 
     /** Runs a Brave search with the saved key (used by the clinical Q&A). Null when Brave is not set up. */
     suspend fun searchWithBrave(query: String, maxResults: Int, language: String): SearchOutcome? {
         if (!isBraveConfigured) return null
-        val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+        val providerId = _uiState.value.webSearchProviderId
+        val apiKey = currentSearchKey(providerId)
         if (apiKey.isBlank()) return null
         return webSearchClient.search(
-            providerId = "brave",
+            providerId = providerId,
             query = query,
             apiKey = apiKey,
             maxResults = maxResults,
@@ -1177,6 +1198,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun stripThinkingBlocks(rawContent: String): String = Companion.stripThinkingBlocks(rawContent)
 
     companion object {
+        /** Search services with a key that can do real web searches (also used by the Q&A and the news). */
+        val WEB_SEARCH_PROVIDERS = setOf("brave", "serper", "gemini", "openai")
         fun stripThinkingBlocks(rawContent: String): String {
             return rawContent
                 .replace(Regex("""<think>[\s\S]*?(</think>|\Z)""", RegexOption.IGNORE_CASE), "")
@@ -1719,13 +1742,13 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             if (!queryToSearch.isNullOrBlank()) {
                 _uiState.update { it.copy(isSearching = true, activeSearchQuery = queryToSearch, webSearchError = null) }
                 try {
-                    val apiKey = tokenStorage.getSecret(SecretStorage.KEY_SEARCH_API_KEY)
+                    val apiKey = currentSearchKey(providerId)
                     val locale = java.util.Locale.getDefault()
                     val country = locale.country.lowercase().ifBlank { "us" }
                     val language = locale.language.lowercase().ifBlank { "en" }
 
-                    if (providerId == "brave") {
-                        // Count chat searches towards the shared monthly Brave counter (see the clinical Q&A).
+                    if (providerId != "free") {
+                        // Count chat searches towards the shared monthly search counter (see the clinical Q&A).
                         withContext(Dispatchers.IO) {
                             com.example.auralocalai.data.medical.MedicalRepository(getApplication<Application>().filesDir).recordBraveUse()
                         }

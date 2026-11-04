@@ -890,4 +890,11 @@
     <string name="monitor_added_library">%1$s е добавено в библиотеката</string>
     <string name="monitor_channel">Промени в насоките</string>
     <string name="monitor_notif_title">Наблюдавана насока е променена</string>
+    <string name="provider_gemini">Gemini + Google Search</string>
+    <string name="provider_gemini_desc">ИИ на Google търси в Google и обобщава с източници. Собствен API ключ (Google AI Studio).</string>
+    <string name="provider_openai">Уеб търсене на OpenAI</string>
+    <string name="provider_openai_desc">Модел на OpenAI търси в мрежата и обобщава с източници. Собствен API ключ (платено на използване).</string>
+    <string name="provider_gemini_help">Ключ от aistudio.google.com → Get API key. Търсенето с Google чрез API изисква включено плащане в Google Cloud; част от търсенията са безплатни всеки месец.</string>
+    <string name="provider_openai_help">Ключ от platform.openai.com → API keys и добавете кредит. Абонаментът за ChatGPT не включва API.</string>
+    <string name="provider_ai_model">Модел (празно = препоръчан)</string>
 </resources>
