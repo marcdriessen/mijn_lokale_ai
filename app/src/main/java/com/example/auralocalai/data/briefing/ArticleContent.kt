@@ -9,6 +9,8 @@ object ArticleContent {
     const val STATUS_FULL = "full"
     const val STATUS_FEED = "feed"
     const val STATUS_SUMMARY_ONLY = "summary_only"
+    /** Behind a paywall (or blocked) and no free version of the same news was found. */
+    const val STATUS_PAYWALL = "paywall"
 
     private val NOISE = listOf(
         "cookie", "cookies", "accepteer", "accept all", "privacy", "abonneer", "subscribe", "log in", "inloggen",
@@ -24,6 +26,42 @@ object ArticleContent {
         if (text.length < 500 || paragraphs.size < 3) return false
         val noisy = paragraphs.count { p -> NOISE.any { p.lowercase().contains(it) } }
         return noisy * 3 < paragraphs.size
+    }
+
+    /** Whether the reader can actually read an article page. */
+    enum class Access { FREE, PAYWALL, BLOCKED, UNREADABLE }
+
+    private val BLOCK_MARKERS = listOf(
+        "attention required! | cloudflare", "you have been blocked", "just a moment...", "enable javascript and cookies to continue",
+        "access denied", "verify you are human", "captcha"
+    )
+    private val PAYWALL_MARKERS = listOf(
+        // structured data / meta
+        "\"isaccessibleforfree\":false", "\"isaccessibleforfree\":\"false\"", "content_tier\" content=\"locked", "content_tier\" content=\"metered",
+        // English
+        "subscribe to read", "subscribe to continue", "to continue reading", "this article is for subscribers", "subscriber-only", "subscribers only",
+        // Dutch
+        "alleen voor abonnees", "lees verder met een abonnement", "word abonnee", "log in om verder te lezen", "dit is een premium artikel", "plus-artikel",
+        // Bulgarian
+        "само за абонати", "абонирайте се, за да прочетете", "абонирай се, за да прочетеш", "съдържанието е достъпно само", "за да прочетете цялата статия",
+        "платено съдържание", "достъпно за абонати"
+    )
+
+    /**
+     * Decides from the page and its extracted text whether the article can be read. Paywall words in a
+     * footer do not count when the full text is there; they count when the text is short or missing.
+     */
+    fun access(html: String, text: String): Access {
+        val page = html.take(400_000).lowercase().replace(" ", "")
+        val pageSpaced = html.take(400_000).lowercase()
+        if (BLOCK_MARKERS.any { pageSpaced.contains(it) } && !isUsable(text)) return Access.BLOCKED
+        val paywallHint = PAYWALL_MARKERS.any { m -> page.contains(m.replace(" ", "")) }
+        return when {
+            paywallHint && !isUsable(text) -> Access.PAYWALL
+            paywallHint && page.contains("\"isaccessibleforfree\":false") -> Access.PAYWALL
+            !isUsable(text) -> Access.UNREADABLE
+            else -> Access.FREE
+        }
     }
 
     private val LINK_TAG = Regex("<link\\b[^>]*>", RegexOption.IGNORE_CASE)

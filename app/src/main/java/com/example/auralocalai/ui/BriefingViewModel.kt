@@ -37,6 +37,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Full text of an opened article, translated into the briefing language (translation to original). */
+data class FullArticle(
+    val link: String,
+    val sourceName: String = "",
+    val paragraphs: List<Pair<String, String>> = emptyList(),
+    val loading: Boolean = true,
+    val done: Int = 0,
+    val total: Int = 0,
+    val unavailable: Boolean = false,
+    val alreadyInLanguage: Boolean = false
+)
+
 data class BriefingUiState(
     val config: BriefingConfig = BriefingConfig(),
     val selectedProfileId: String = "",
@@ -52,6 +64,8 @@ data class BriefingUiState(
     /** Latest headlines per source, translated into the app language (translation to original). */
     val sourcePreviews: Map<String, List<Pair<String, String>>> = emptyMap(),
     val previewingSourceId: String? = null,
+    /** The opened article, read in full and translated paragraph by paragraph. */
+    val fullArticle: FullArticle? = null,
     val translatingTopicId: String? = null,
     val weeklyDigest: String? = null,
     val digestBusy: Boolean = false
@@ -271,6 +285,66 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 repo.saveLibrary(repo.loadLibrary().filterNot { it.name == name } + doc)
             }
             _state.update { it.copy(message = str(if (text != null) R.string.briefing_saved_full else R.string.briefing_saved_summary)) }
+        }
+    }
+
+    private var fullArticleJob: kotlinx.coroutines.Job? = null
+
+    fun clearFullArticle() {
+        fullArticleJob?.cancel()
+        _state.update { it.copy(fullArticle = null) }
+    }
+
+    /**
+     * Reads the whole article (or, when it is paywalled or blocked, the same news at one of the other
+     * sources) and translates it paragraph by paragraph into [languageCode] with offline translation.
+     */
+    fun loadFullArticle(article: com.example.auralocalai.data.briefing.BriefingArticle, languageCode: String) {
+        if (_state.value.fullArticle?.link == article.item.link) return
+        fullArticleJob?.cancel()
+        _state.update { it.copy(fullArticle = FullArticle(article.item.link, article.item.sourceName)) }
+        fullArticleJob = viewModelScope.launch {
+            var source = article.item
+            var text: String? = null
+            for (candidate in listOf(article.item) + article.related) {
+                val link = if (com.example.auralocalai.data.briefing.GoogleNewsResolver.isGoogleNews(candidate.link)) {
+                    com.example.auralocalai.data.briefing.GoogleNewsResolver.resolve(candidate.link) ?: continue
+                } else candidate.link
+                val page = fetcher.fetchArticle(link, maxChars = 30_000) ?: continue
+                if (page.access == com.example.auralocalai.data.briefing.ArticleContent.Access.FREE &&
+                    com.example.auralocalai.data.briefing.ArticleContent.isUsable(page.text)
+                ) {
+                    source = candidate.copy(link = link)
+                    text = page.text
+                    break
+                }
+            }
+            val body = text
+            if (body == null) {
+                _state.update { s -> s.copy(fullArticle = s.fullArticle?.copy(loading = false, unavailable = true)) }
+                return@launch
+            }
+            val paragraphs = body.split(Regex("\n\\s*\n")).map { it.trim() }.filter { it.isNotBlank() }.take(80)
+            _state.update { s -> s.copy(fullArticle = s.fullArticle?.copy(sourceName = source.sourceName, link = article.item.link, total = paragraphs.size)) }
+            val translator = MlKitNewsTranslator()
+            try {
+                val from = translator.identify(body.take(2_000))
+                if (from != null && from.equals(languageCode, ignoreCase = true)) {
+                    _state.update { s -> s.copy(fullArticle = s.fullArticle?.copy(paragraphs = paragraphs.map { it to it }, loading = false, done = paragraphs.size, alreadyInLanguage = true)) }
+                    return@launch
+                }
+                val out = mutableListOf<Pair<String, String>>()
+                for (p in paragraphs) {
+                    val translated = runCatching {
+                        if (from != null) translator.translateFrom(p, from, languageCode) else translator.translate(p, languageCode)
+                    }.getOrNull()
+                    out += (translated ?: p) to p
+                    _state.update { s -> s.copy(fullArticle = s.fullArticle?.copy(paragraphs = out.toList(), done = out.size)) }
+                }
+                _state.update { s -> s.copy(fullArticle = s.fullArticle?.copy(loading = false)) }
+            } finally {
+                translator.close()
+            }
         }
     }
 

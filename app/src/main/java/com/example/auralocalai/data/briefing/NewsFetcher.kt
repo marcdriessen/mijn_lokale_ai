@@ -82,7 +82,7 @@ class NewsFetcher(
     }
 
     /** Picture and readable text of an article page. */
-    data class ArticlePage(val imageUrl: String?, val text: String)
+    data class ArticlePage(val imageUrl: String?, val text: String, val access: ArticleContent.Access = ArticleContent.Access.FREE)
 
     /**
      * Downloads an article page once and returns both its preview image and its main text.
@@ -99,6 +99,9 @@ class NewsFetcher(
             WebLogins.cookieFor(articleUrl)?.let { builder.header("Cookie", it) }
             val request = builder.build()
             client.newCall(request).execute().use { response ->
+                if (response.code == 401 || response.code == 402 || response.code == 403 || response.code == 429) {
+                    return@withContext ArticlePage(null, "", if (response.code == 402) ArticleContent.Access.PAYWALL else ArticleContent.Access.BLOCKED)
+                }
                 if (!response.isSuccessful) return@withContext null
                 val source = response.body?.source() ?: return@withContext null
                 source.request(MAX_ARTICLE_BYTES)
@@ -107,7 +110,7 @@ class NewsFetcher(
                     ?.let { RssParser.decodeEntities(it) }
                     ?.takeIf { it.startsWith("http") }
                 val text = com.example.auralocalai.data.translate.PageTextExtractor.extract(html, maxChars = maxChars).text
-                ArticlePage(image, text)
+                ArticlePage(image, text, ArticleContent.access(html, text))
             }
         } catch (_: Exception) {
             null

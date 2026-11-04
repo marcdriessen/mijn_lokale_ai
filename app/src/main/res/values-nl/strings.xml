@@ -928,4 +928,14 @@
     <string name="logins_no_session">Niet ingelogd</string>
     <string name="logins_open">Openen</string>
     <string name="logins_logout_all">Overal uitloggen</string>
+    <string name="briefing_text_paywall">betaald artikel – alleen intro</string>
+    <string name="briefing_free_instead_of">gratis versie (i.p.v. %1$s)</string>
+    <string name="full_article_title">Volledig artikel</string>
+    <string name="full_article_loading">Artikel ophalen…</string>
+    <string name="full_article_translating">Vertalen… %1$d van %2$d alinea’s</string>
+    <string name="full_article_translated">Vertaald uit %1$s (offline). Controleer belangrijke details in het origineel.</string>
+    <string name="full_article_source">Uit %1$s</string>
+    <string name="full_article_unavailable">De volledige tekst kan hier niet gelezen worden (betaald of geblokkeerd) en er is geen gratis versie gevonden. Gebruik ‘Lezen in de app’ om in te loggen, of open de bron.</string>
+    <string name="full_article_show_original">Origineel tonen</string>
+    <string name="full_article_show_translation">Vertaling tonen</string>
 </resources>

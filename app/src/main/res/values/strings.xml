@@ -929,4 +929,14 @@
     <string name="logins_no_session">Not logged in</string>
     <string name="logins_open">Open</string>
     <string name="logins_logout_all">Log out everywhere</string>
+    <string name="briefing_text_paywall">paid article – intro only</string>
+    <string name="briefing_free_instead_of">free version (instead of %1$s)</string>
+    <string name="full_article_title">Full article</string>
+    <string name="full_article_loading">Reading the article…</string>
+    <string name="full_article_translating">Translating… %1$d of %2$d paragraphs</string>
+    <string name="full_article_translated">Translated from %1$s (offline). Check important details in the original.</string>
+    <string name="full_article_source">From %1$s</string>
+    <string name="full_article_unavailable">The full text cannot be read here (paid or blocked) and no free version was found. Use “Read in the app” to log in, or open the source.</string>
+    <string name="full_article_show_original">Show original</string>
+    <string name="full_article_show_translation">Show translation</string>
 </resources>

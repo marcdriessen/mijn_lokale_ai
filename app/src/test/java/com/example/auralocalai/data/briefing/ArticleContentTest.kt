@@ -43,4 +43,14 @@ class ArticleContentTest {
         assertTrue(BriefingPrompts.articlePrompt(item, "Ggz", "Dutch", "HELE TEKST").contains("HELE TEKST"))
         assertTrue(BriefingPrompts.articlePrompt(item, "Ggz", "Dutch").contains("only the introduction"))
     }
+
+    @Test
+    fun recognisesPaywallAndBlocks() {
+        val full = List(8) { para }.joinToString("\n\n")
+        assertEquals(ArticleContent.Access.FREE, ArticleContent.access("<html><footer>Word abonnee</footer></html>", full))
+        assertEquals(ArticleContent.Access.PAYWALL, ArticleContent.access("<div>Само за абонати</div>", para))
+        assertEquals(ArticleContent.Access.PAYWALL, ArticleContent.access("<script type=\"application/ld+json\">{\"isAccessibleForFree\": false}</script>", para))
+        assertEquals(ArticleContent.Access.BLOCKED, ArticleContent.access("<title>Attention Required! | Cloudflare</title> Sorry, you have been blocked", ""))
+        assertEquals(ArticleContent.Access.UNREADABLE, ArticleContent.access("<html></html>", "kort"))
+    }
 }

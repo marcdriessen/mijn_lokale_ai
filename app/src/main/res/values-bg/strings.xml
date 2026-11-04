@@ -928,4 +928,14 @@
     <string name="logins_no_session">Не сте влезли</string>
     <string name="logins_open">Отвори</string>
     <string name="logins_logout_all">Изход навсякъде</string>
+    <string name="briefing_text_paywall">платена статия – само увод</string>
+    <string name="briefing_free_instead_of">безплатна версия (вместо %1$s)</string>
+    <string name="full_article_title">Цялата статия</string>
+    <string name="full_article_loading">Зареждане на статията…</string>
+    <string name="full_article_translating">Превеждане… %1$d от %2$d абзаца</string>
+    <string name="full_article_translated">Преведено от %1$s (офлайн). Проверете важните подробности в оригинала.</string>
+    <string name="full_article_source">От %1$s</string>
+    <string name="full_article_unavailable">Пълният текст не може да се прочете (платен или блокиран) и няма безплатна версия.</string>
+    <string name="full_article_show_original">Покажи оригинала</string>
+    <string name="full_article_show_translation">Покажи превода</string>
 </resources>

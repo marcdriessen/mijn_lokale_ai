@@ -102,29 +102,44 @@ class BriefingGenerator(
                     }
                 }.awaitAll()
             }
-            val pages = coroutineScope {
+            // Read each article. When it is behind a paywall, blocked or unreadable, look for the same
+            // news at another (free) source and use that one instead.
+            val pool = items.filterNot { Paywall.isPaywalled(it) }
+            val readResults = coroutineScope {
                 articles.map { article ->
                     async {
                         val feedText = article.item.content.takeIf { ArticleContent.isUsable(it) }
-                        if (feedText != null && !article.item.imageUrl.isNullOrBlank()) {
-                            NewsFetcher.ArticlePage(article.item.imageUrl, feedText)
-                        } else {
-                            val page = runCatching { fetcher.fetchArticle(article.item.link) }.getOrNull()
-                            NewsFetcher.ArticlePage(
-                                article.item.imageUrl?.takeIf { it.isNotBlank() } ?: page?.imageUrl,
-                                feedText ?: page?.text?.takeIf { ArticleContent.isUsable(it) }.orEmpty()
+                        if (feedText != null) {
+                            return@async Triple(article, NewsFetcher.ArticlePage(article.item.imageUrl, feedText), false)
+                        }
+                        val page = runCatching { fetcher.fetchArticle(article.item.link) }.getOrNull()
+                        val readable = page != null && page.access == ArticleContent.Access.FREE && ArticleContent.isUsable(page.text)
+                        if (readable) return@async Triple(article, page!!, false)
+                        val alternative = findFreeAlternative(article.item, pool)
+                        if (alternative != null) {
+                            val (altItem, altPage) = alternative
+                            val replaced = article.copy(
+                                item = altItem.copy(imageUrl = altItem.imageUrl ?: article.item.imageUrl ?: page?.imageUrl),
+                                related = (listOf(article.item) + article.related).filter { it.link != altItem.link }.take(4),
+                                replacedSource = article.item.sourceName
                             )
+                            Triple(replaced, altPage, false)
+                        } else {
+                            val blocked = page?.access == ArticleContent.Access.PAYWALL || page?.access == ArticleContent.Access.BLOCKED
+                            Triple(article, NewsFetcher.ArticlePage(article.item.imageUrl ?: page?.imageUrl, ""), blocked)
                         }
                     }
                 }.awaitAll()
             }
+            val pages = readResults.map { it.second }
             val fullTexts = pages.map { it.text }
-            articles = articles.mapIndexed { i, a ->
+            articles = readResults.mapIndexed { i, (a, _, paywalled) ->
                 a.copy(
-                    item = a.item.copy(imageUrl = pages[i].imageUrl, content = ""),
+                    item = a.item.copy(imageUrl = pages[i].imageUrl ?: a.item.imageUrl, content = ""),
                     textStatus = when {
                         fullTexts[i].isNotBlank() && a.item.content.isNotBlank() && ArticleContent.isUsable(a.item.content) -> ArticleContent.STATUS_FEED
                         fullTexts[i].isNotBlank() -> ArticleContent.STATUS_FULL
+                        paywalled -> ArticleContent.STATUS_PAYWALL
                         else -> ArticleContent.STATUS_SUMMARY_ONLY
                     }
                 )
@@ -188,6 +203,27 @@ class BriefingGenerator(
             articles = articles,
             moreItems = moreItems
         )
+    }
+
+    /**
+     * The same news at another, freely readable source: similar headline, different publisher, not on
+     * the paywall list. Tries up to 4 candidates and returns the first one whose full text can be read.
+     */
+    private suspend fun findFreeAlternative(item: NewsItem, pool: List<NewsItem>): Pair<NewsItem, NewsFetcher.ArticlePage>? {
+        val candidates = NewsIntelligence.relatedReports(item, pool, threshold = 0.3, max = 4)
+        for (candidate in candidates) {
+            val link = if (GoogleNewsResolver.isGoogleNews(candidate.link)) {
+                runCatching { GoogleNewsResolver.resolve(candidate.link) }.getOrNull() ?: continue
+            } else candidate.link
+            if (Paywall.isPaywalled(candidate.copy(link = link))) continue
+            val feedText = candidate.content.takeIf { ArticleContent.isUsable(it) }
+            if (feedText != null) return candidate.copy(link = link) to NewsFetcher.ArticlePage(candidate.imageUrl, feedText)
+            val page = runCatching { fetcher.fetchArticle(link) }.getOrNull() ?: continue
+            if (page.access == ArticleContent.Access.FREE && ArticleContent.isUsable(page.text)) {
+                return candidate.copy(link = link, publisherDomain = Paywall.domainOf(link)) to page
+            }
+        }
+        return null
     }
 
     private suspend fun loadRssItems(

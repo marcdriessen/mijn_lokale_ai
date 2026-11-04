@@ -90,7 +90,9 @@ data class BriefingArticle(
     /** Reports about the same event from other sources (for comparison). */
     val related: List<NewsItem> = emptyList(),
     /** The study behind a research news item, found via its DOI. */
-    val study: LinkedStudy? = null
+    val study: LinkedStudy? = null,
+    /** Source that was replaced because it was behind a paywall or blocked (the news is shown from a free source). */
+    val replacedSource: String = ""
 )
 
 @Serializable

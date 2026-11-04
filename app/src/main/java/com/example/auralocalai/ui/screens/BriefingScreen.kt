@@ -551,8 +551,15 @@ fun BriefingScreen(
         )
     }
 
+    LaunchedEffect(detailArticle?.item?.link) {
+        val opened = detailArticle
+        if (opened != null) briefingViewModel.loadFullArticle(opened, briefingLanguage) else briefingViewModel.clearFullArticle()
+    }
+
     detailArticle?.let { article ->
         ArticleDetailDialog(
+            fullArticle = state.fullArticle?.takeIf { it.link == article.item.link },
+            languageCode = briefingLanguage,
             article = article,
             canAskMore = modelReady && !state.isRunning,
             onAskMore = {
@@ -928,12 +935,14 @@ private fun DiscoverCard(
                     relativeTime(article.item.publishedMillis),
                     article.item.sourceName,
                     if (article.item.sourceCategory == com.example.auralocalai.data.briefing.SourceCategory.FORUM) stringResource(R.string.briefing_forum_label) else null,
+                    if (article.replacedSource.isNotBlank()) stringResource(R.string.briefing_free_instead_of, article.replacedSource) else null,
                     if (article.related.isNotEmpty()) stringResource(R.string.briefing_more_sources, article.related.size) else null,
                     if (article.study != null) stringResource(R.string.briefing_study_short) else null,
                     when (article.textStatus) {
                         com.example.auralocalai.data.briefing.ArticleContent.STATUS_FULL,
                         com.example.auralocalai.data.briefing.ArticleContent.STATUS_FEED -> stringResource(R.string.briefing_text_full)
                         com.example.auralocalai.data.briefing.ArticleContent.STATUS_SUMMARY_ONLY -> stringResource(R.string.briefing_text_intro)
+                        com.example.auralocalai.data.briefing.ArticleContent.STATUS_PAYWALL -> stringResource(R.string.briefing_text_paywall)
                         else -> null
                     }
                 ).joinToString(" · "),
@@ -1241,6 +1250,8 @@ private fun relativeTime(millis: Long?): String? =
 /** Full article view: picture, headline, summary, "what this means for your work" and links. */
 @Composable
 private fun ArticleDetailDialog(
+    fullArticle: com.example.auralocalai.ui.FullArticle?,
+    languageCode: String,
     article: BriefingArticle,
     canAskMore: Boolean,
     onAskMore: () -> Unit,
@@ -1328,6 +1339,53 @@ private fun ArticleDetailDialog(
                             }
                         }
                     }
+                    // The whole article, translated into the briefing language.
+                    fullArticle?.let { full ->
+                        var showOriginal by remember(full.link) { mutableStateOf(false) }
+                        val speaker = com.example.auralocalai.ui.components.rememberSpeaker()
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.full_article_title),
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (full.paragraphs.isNotEmpty()) {
+                                IconButton(onClick = { speaker.toggle(full.paragraphs.joinToString("\n") { if (showOriginal) it.second else it.first }, languageCode) }) {
+                                    Icon(Icons.Default.Headphones, contentDescription = stringResource(R.string.briefing_listen))
+                                }
+                            }
+                        }
+                        Text(
+                            when {
+                                full.unavailable -> stringResource(R.string.full_article_unavailable)
+                                full.loading && full.total == 0 -> stringResource(R.string.full_article_loading)
+                                full.loading -> stringResource(R.string.full_article_translating, full.done, full.total)
+                                full.alreadyInLanguage -> stringResource(R.string.full_article_source, full.sourceName)
+                                else -> stringResource(R.string.full_article_translated, full.sourceName)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (full.loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                        if (full.paragraphs.isNotEmpty() && !full.alreadyInLanguage) {
+                            TextButton(onClick = { showOriginal = !showOriginal }) {
+                                Text(stringResource(if (showOriginal) R.string.full_article_show_translation else R.string.full_article_show_original))
+                            }
+                        }
+                        full.paragraphs.forEach { (translated, original) ->
+                            Text(
+                                if (showOriginal) original else translated,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                fontSize = 17.sp,
+                                lineHeight = 26.sp,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
+                    }
+
                     // The study behind a research news item (found via its DOI).
                     article.study?.let { study ->
                         Spacer(modifier = Modifier.height(16.dp))
