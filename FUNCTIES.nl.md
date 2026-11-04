@@ -25,7 +25,7 @@ De app werkt niet op een emulator (de code geeft dan de melding dat een fysiek A
 
 ## 2. Schermen en functies
 
-De app heeft vier schermen: **Chat** (startscherm), **Dagelijkse briefing**, **Modelbeheer** ("LOCAL LLM MANAGER") en
+De app heeft vijf schermen: **Chat** (startscherm), **Dagelijkse briefing**, **Vraagbaak GGZ & verslaving**, **Modelbeheer** ("LOCAL LLM MANAGER") en
 **Instellingen** ("APP SETTINGS"). De app is er in het Engels, Nederlands en Bulgaars. Standaard volgt hij de taal van je
 telefoon; bij Instellingen → Appearance kun je ook zelf kiezen. Het model krijgt de opdracht om in de taal van de app
 te antwoorden (tenzij jij duidelijk in een andere taal schrijft). In dit document staan de Engelse namen.
@@ -192,7 +192,30 @@ Bereikbaar via het krantje-icoon bovenin de chat of de knop in de zijlade.
   - **Dagelijkse update** met tijdstip: haalt elke dag op de achtergrond het nieuws op (WorkManager) en geeft een
     melding "Je dagelijkse briefing staat klaar". Het samenvatten gebeurt pas als je de briefing opent.
 
-### 2.5 Op de achtergrond
+### 2.5 Vraagbaak GGZ & verslaving
+
+Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in de psychiatrie, verslavingszorg en somatiek.
+
+- **Waarschuwing** bovenaan: geen patiëntgegevens invoeren; antwoorden ondersteunen het professionele oordeel.
+- Je stelt een vraag en kiest waar gezocht wordt (knoppen):
+  - **Mijn bibliotheek**: eigen PDF's, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
+    (max. 40 pagina's) en in tekstdelen opgeknipt; zoeken gebeurt offline op de telefoon;
+  - **Vertrouwde sites** via Brave (één zoekopdracht per vraag, beperkt tot de ingestelde sites): GGZ Standaarden,
+    Akwa GGZ, Trimbos, NISPA, Farmacotherapeutisch Kompas, Richtlijnendatabase, NHG en Vilans. Sites zijn aan/uit te
+    zetten en toe te voegen. Werkt alleen als Brave bij Instellingen als zoekdienst met API-sleutel is ingesteld;
+  - **PubMed** (gratis): het model maakt van je vraag Engelse zoektermen; titels en samenvattingen worden opgehaald.
+- Het model antwoordt **alleen op basis van de gevonden bronnen**, met nummers zoals [1], en zegt het als de bronnen
+  de vraag niet beantwoorden. Het noemt **nooit doseringen**; de knop **Farmacotherapeutisch Kompas** zoekt het
+  onderwerp op die site.
+- Onder het antwoord staan de genummerde bronnen (tik = tekst tonen en bron openen), plus **Vraag verder** (chat) en
+  **Kopiëren**.
+- **Teller** voor Brave-zoekopdrachten per maand met een instelbare limiet (standaard 1000); daarna zoekt de
+  vraagbaak alleen nog in PubMed en je bibliotheek.
+- **Eerdere vragen** (klok-icoon): de laatste 30 worden bewaard.
+- Inhoud van de DSM-5-TR en Vilans-protocollen is niet vrij beschikbaar; die kun je alleen gebruiken door je eigen
+  (toegestane) documenten aan je bibliotheek toe te voegen.
+
+### 2.6 Op de achtergrond
 
 - **Downloaden in de achtergrond**: een Android-dienst met melding ("Downloading Model") houdt de download
   gaande, ook als het scherm uit gaat. Een afgebroken download gaat verder waar hij was.
@@ -297,9 +320,11 @@ app/src/main/
     ├── ui/
     │   ├── LlmViewModel.kt      het "brein" van de app: status, berichten versturen, bijlagen, instellingen, geheugen
     │   ├── BriefingViewModel.kt logica van de dagelijkse briefing
+    │   ├── MedicalViewModel.kt  logica van de vraagbaak (bibliotheek, Brave, PubMed, antwoord)
     │   └── screens/
     │       ├── ChatScreen.kt          chatscherm, zijlade, bijlagen, spraak
     │       ├── BriefingScreen.kt      dagelijkse briefing
+    │       ├── MedicalScreen.kt       vraagbaak GGZ & verslaving
     │       ├── ModelManagerScreen.kt  modelbeheer
     │       └── SettingsScreen.kt      instellingen en diagnose
     ├── data/
@@ -314,7 +339,8 @@ app/src/main/
     │   ├── SearchContextBuilder.kt    zet zoekresultaten netjes in de prompt
     │   ├── WebSearch.kt / WebSearchClient.kt   algemene zoeklogica
     │   ├── providers/                 Free (DuckDuckGo/Wikipedia/Jina), Brave, Serper
-    │   └── briefing/                  briefing: modellen, RSS-parser, zoekwoordfilter, ophalen, prompts, opslag, achtergrondtaak
+    │   ├── briefing/                  briefing: modellen, RSS-parser, zoekwoordfilter, ophalen, prompts, opslag, achtergrondtaak
+    │   └── medical/                   vraagbaak: PubMed, bibliotheek-zoeken, prompts, opslag en Brave-teller
     ├── security/                versleutelde opslag van token en API-sleutel
     └── theme/                   kleuren, lettertypen, thema's
 ```
