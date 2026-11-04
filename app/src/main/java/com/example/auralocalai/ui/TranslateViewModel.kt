@@ -122,7 +122,7 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
                 if (text.isBlank()) {
                     _state.update { it.copy(busy = null, message = str(R.string.translate_no_text_photo)) }
                 } else {
-                    _state.update { it.copy(input = text, busy = null) }
+                    _state.update { it.copy(input = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text) ?: text, busy = null) }
                     translate()
                 }
             } catch (e: Exception) {

@@ -93,6 +93,7 @@ fun SettingsScreen(
             // Privacy & security
             var lockEnabled by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isLockEnabled(context)) }
             var privacyMode by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isPrivacyMode(context)) }
+            var anonymize by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isAnonymizeEnabled(context)) }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -121,6 +122,17 @@ fun SettingsScreen(
                         Switch(checked = privacyMode, onCheckedChange = {
                             privacyMode = it
                             com.example.auralocalai.AppSecurity.setPrivacyMode(context, it)
+                        })
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.security_anonymize), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.security_anonymize_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = anonymize, onCheckedChange = {
+                            anonymize = it
+                            com.example.auralocalai.AppSecurity.setAnonymizeEnabled(context, it)
                         })
                     }
                 }

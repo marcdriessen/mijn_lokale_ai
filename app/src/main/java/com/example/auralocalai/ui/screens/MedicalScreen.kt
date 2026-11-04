@@ -93,8 +93,10 @@ fun MedicalScreen(
     onOpenModels: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    medicalViewModel: MedicalViewModel = viewModel()
+    medicalViewModel: MedicalViewModel = viewModel(),
+    workViewModel: com.example.auralocalai.ui.WorkViewModel = viewModel()
 ) {
+    var workTab by remember { mutableStateOf(0) }
     val state by medicalViewModel.state.collectAsState()
     val llmState by llmViewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -126,10 +128,33 @@ fun MedicalScreen(
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
     ) { padding ->
-        LazyColumn(
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    R.string.work_tab_qa,
+                    R.string.work_tab_psy,
+                    R.string.work_tab_scales,
+                    R.string.work_tab_report,
+                    R.string.work_tab_cards
+                ).forEachIndexed { index, label ->
+                    FilterChip(selected = workTab == index, onClick = { workTab = index }, label = { Text(stringResource(label)) })
+                }
+            }
+            when (workTab) {
+                1 -> PsychoEducationTab(workViewModel, llmViewModel)
+                2 -> ScalesTab()
+                3 -> ReportTab(workViewModel, llmViewModel)
+                4 -> FlashcardsTab(workViewModel, llmViewModel)
+                else -> LazyColumn(
             modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
+                .weight(1f)
+                .fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -281,6 +306,8 @@ fun MedicalScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
+            }
+        }
             }
         }
     }

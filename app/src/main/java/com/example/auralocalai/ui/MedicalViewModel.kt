@@ -249,7 +249,8 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
             _state.update { it.copy(importing = name) }
             try {
                 val text = if (name.endsWith(".pdf", ignoreCase = true)) ocrPdf(context, uri) else readText(context, uri)
-                val passages = PassageIndex.chunk(text)
+                // Personal data never enters the library.
+                val passages = PassageIndex.chunk(com.example.auralocalai.data.privacy.Anonymizer.anonymize(text).text)
                 if (passages.isEmpty()) {
                     _state.update { it.copy(message = str(R.string.medical_import_empty, name)) }
                 } else {

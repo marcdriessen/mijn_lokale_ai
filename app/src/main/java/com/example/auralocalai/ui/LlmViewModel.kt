@@ -938,6 +938,24 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    /**
+     * Removes personal data: fixed rules first, then (when a model is loaded) the local model lists
+     * remaining names, which are masked with the same rules. The model never rewrites the text.
+     */
+    suspend fun anonymize(text: String): com.example.auralocalai.data.privacy.Anonymizer.Result {
+        val first = com.example.auralocalai.data.privacy.Anonymizer.anonymize(text)
+        if (!isModelReady || first.text.isBlank()) return first
+        val names = com.example.auralocalai.data.privacy.Anonymizer.parseNames(
+            runOneShotPrompt(
+                com.example.auralocalai.data.privacy.Anonymizer.NAME_FINDER_SYSTEM,
+                com.example.auralocalai.data.privacy.Anonymizer.nameFinderPrompt(first.text)
+            )
+        )
+        if (names.isEmpty()) return first
+        val second = com.example.auralocalai.data.privacy.Anonymizer.anonymize(first.text, names)
+        return com.example.auralocalai.data.privacy.Anonymizer.Result(second.text, first.replacements + second.replacements)
+    }
+
     /** Starts a new chat and sends [message] in it (used by "Ask more" on a briefing card). */
     fun startNewChatWith(message: String) {
         viewModelScope.launch {
@@ -1314,7 +1332,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 
                 _uiState.update { 
                     it.copy(
-                        extractedOcrText = visionText.text,
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), visionText.text),
                         isAttachmentProcessing = false
                     )
                 }
@@ -1440,7 +1458,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
                         _uiState.update { 
                             it.copy(
-                                extractedOcrText = combinedText.toString(),
+                                extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), combinedText.toString()),
                                 isAttachmentProcessing = false
                             )
                         }
@@ -1478,7 +1496,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     _uiState.update { 
                         it.copy(
-                            extractedOcrText = text,
+                            extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
                             isAttachmentProcessing = false
                         )
                     }
