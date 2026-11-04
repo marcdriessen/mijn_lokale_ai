@@ -37,4 +37,4 @@
   - nieuws om 08:00;
   - vraagbaak.
 - Eigen scorelijsten (naast CIWA, COWS en AUDIT).
-- Eventueel: "Dataset importeren" met kolomkeuze, voor de Vraagbaak (vraag/antwoord), de Taalcoach (NL/BG-zinsparen) en leerkaarten.
+- Eventueel: "Dataset importeren" met kolomkeuze, voor de Vraagbaak (vraag/antwoord), de Taalcoach (NL/BG-zinsparen) en leerkaarten. Geschikte Hugging Face-sets staan in `docs/DATASETS.md`.
