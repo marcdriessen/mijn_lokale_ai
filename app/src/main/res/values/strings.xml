@@ -941,4 +941,11 @@
     <string name="full_article_show_translation">Show translation</string>
     <string name="tts_language_missing_named">No %1$s voice is installed on this phone, so it is not read aloud. Install it: Settings › System › Languages › Text-to-speech › Speech Services by Google › Install voice data.</string>
     <string name="briefing_fulltext_progress">Preparing full articles… %1$d of %2$d</string>
+    <string name="model_desc_medgemma">Gemma trained on medical texts by Google Health: better with medical terms and clinical questions. Not approved for clinical decisions. Needs a (free) Hugging Face token and accepting the licence.</string>
+    <string name="model_desc_hy_mt2">Dedicated translation model (33 languages, incl. Dutch, English, German, Polish, Turkish, Arabic, Ukrainian; not Bulgarian). Use it in Translate → “Translate with AI model”; not a chat model.</string>
+    <string name="model_desc_ministral3">European model by Mistral AI, good in European languages including Dutch. All-round and lighter than Gemma 4 E4B.</string>
+    <string name="model_desc_qwen3_5_4b">Newer Qwen with better reasoning and 100+ languages, including Dutch and Bulgarian.</string>
+    <string name="model_desc_phi4_mini">Compact Microsoft model, strong in reasoning and explanations; best in English (use “Via English”).</string>
+    <string name="model_desc_qwen3_8b">Large multilingual model (8B, incl. Dutch and Bulgarian): clearly smarter than 4B models, but slower and needs a lot of free memory. On this phone it runs on the processor.</string>
+    <string name="model_desc_gemma4_12b">The largest Gemma 4 that fits on a 12 GB phone: noticeably better language and knowledge than E4B. Slow and memory hungry; restart the phone and close other apps first.</string>
 </resources>

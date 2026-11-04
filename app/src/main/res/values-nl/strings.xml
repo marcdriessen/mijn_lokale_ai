@@ -940,4 +940,11 @@
     <string name="full_article_show_translation">Vertaling tonen</string>
     <string name="tts_language_missing_named">Er is geen %1$s stem geïnstalleerd op deze telefoon, dus er wordt niet voorgelezen. Installeer hem via Instellingen › Systeem › Talen › Tekst-naar-spraak › Spraakservices van Google › Spraakgegevens installeren.</string>
     <string name="briefing_fulltext_progress">Volledige artikelen klaarzetten… %1$d van %2$d</string>
+    <string name="model_desc_medgemma">Gemma die door Google Health is getraind op medische teksten: beter met medische termen en klinische vragen. Niet goedgekeurd voor klinische beslissingen. Vraagt een (gratis) Hugging Face-sleutel en het accepteren van de licentie.</string>
+    <string name="model_desc_hy_mt2">Speciaal vertaalmodel (33 talen, o.a. Nederlands, Engels, Duits, Pools, Turks, Arabisch, Oekraïens; géén Bulgaars). Gebruik het in Vertalen → ‘Vertalen met AI-model’; geen chatmodel.</string>
+    <string name="model_desc_ministral3">Europees model van Mistral AI, goed in Europese talen waaronder Nederlands. Allround en lichter dan Gemma 4 E4B.</string>
+    <string name="model_desc_qwen3_5_4b">Nieuwere Qwen met beter redeneren en 100+ talen, waaronder Nederlands en Bulgaars.</string>
+    <string name="model_desc_phi4_mini">Compact model van Microsoft, sterk in redeneren en uitleg; het best in het Engels (gebruik ‘Via Engels’).</string>
+    <string name="model_desc_qwen3_8b">Groot meertalig model (8B, o.a. Nederlands en Bulgaars): duidelijk slimmer dan 4B-modellen, maar trager en vraagt veel vrij geheugen. Draait op deze telefoon op de processor.</string>
+    <string name="model_desc_gemma4_12b">De grootste Gemma 4 die op een telefoon met 12 GB past: merkbaar beter in taal en kennis dan E4B. Traag en vraagt veel geheugen; herstart eerst de telefoon en sluit andere apps.</string>
 </resources>

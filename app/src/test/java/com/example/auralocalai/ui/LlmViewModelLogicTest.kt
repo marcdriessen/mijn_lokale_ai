@@ -81,7 +81,7 @@ class LlmViewModelLogicTest {
 
     @Test
     fun `model catalog invariant checks`() {
-        assertEquals(10, ModelPreset.presets.size)
+        assertEquals(17, ModelPreset.presets.size)
         for (preset in ModelPreset.presets) {
             assertNotNull(preset.id)
             val sha = preset.expectedSha256

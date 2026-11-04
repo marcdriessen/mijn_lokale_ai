@@ -93,7 +93,7 @@ class TelemetryBenchmarkTest {
     @Test
     fun testModelPresetCatalogMetadataIntegrity() {
         val presets = ModelPreset.presets
-        assertEquals(10, presets.size)
+        assertEquals(17, presets.size)
 
         // 1. Qwen 3 0.6B (Pocket Turbo)
         val qwen06 = presets.first { it.id == "qwen3-0.6b" }

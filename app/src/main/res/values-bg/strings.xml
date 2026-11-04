@@ -940,4 +940,11 @@
     <string name="full_article_show_translation">Покажи превода</string>
     <string name="tts_language_missing_named">На телефона няма инсталиран глас за %1$s. Инсталирайте го: Настройки › Система › Езици › Синтезиран говор › Речеви услуги от Google › Инсталиране на гласови данни.</string>
     <string name="briefing_fulltext_progress">Подготовка на пълните статии… %1$d от %2$d</string>
+    <string name="model_desc_medgemma">Gemma, обучена от Google Health на медицински текстове. Не е одобрена за клинични решения. Изисква безплатен Hugging Face ключ.</string>
+    <string name="model_desc_hy_mt2">Специален модел за превод (33 езика, без български). За „Превод с ИИ модел“; не е чат модел.</string>
+    <string name="model_desc_ministral3">Европейски модел на Mistral AI, добър в европейските езици. По-лек от Gemma 4 E4B.</string>
+    <string name="model_desc_qwen3_5_4b">По-нов Qwen с по-добро разсъждение и над 100 езика, вкл. български.</string>
+    <string name="model_desc_phi4_mini">Компактен модел на Microsoft, силен в разсъжденията; най-добър на английски.</string>
+    <string name="model_desc_qwen3_8b">Голям многоезичен модел (8B, вкл. български): по-умен, но по-бавен и изисква много свободна памет.</string>
+    <string name="model_desc_gemma4_12b">Най-големият Gemma 4 за телефон с 12 GB: по-добър от E4B, но бавен и изисква много памет.</string>
 </resources>
