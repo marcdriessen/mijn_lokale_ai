@@ -848,4 +848,8 @@
     <string name="briefing_show_less">Show less</string>
     <string name="briefing_listen">Listen</string>
     <string name="briefing_details">Details and sources</string>
+    <string name="personalize_title">Personalise your feed</string>
+    <string name="personalize_subtitle">Choose topics to see stories put together especially for you</string>
+    <string name="personalize_save">Save</string>
+    <string name="personalize_saved">Topics saved. Tap “Update now” to fetch news for them.</string>
 </resources>

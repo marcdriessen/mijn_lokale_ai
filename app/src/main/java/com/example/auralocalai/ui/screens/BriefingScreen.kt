@@ -47,6 +47,19 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Healing
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.TheaterComedy
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
@@ -146,6 +159,7 @@ fun BriefingScreen(
     var isSpeaking by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf<String?>(null) }
     var detailArticle by remember { mutableStateOf<BriefingArticle?>(null) }
+    var showPersonalize by remember { mutableStateOf(false) }
     val modelReady = llmState.modelState is ModelState.Loaded
     val profile = state.selectedProfile
 
@@ -197,6 +211,7 @@ fun BriefingScreen(
                 onBack = onBack
             ) {
                 if (profile != null) {
+                    CircleIconButton(Icons.Default.Favorite, stringResource(R.string.personalize_title)) { showPersonalize = true }
                     CircleIconButton(Icons.Default.Tune, stringResource(R.string.briefing_edit_profile)) { editingProfileId = profile.id }
                 }
                 CircleIconButton(Icons.Default.Add, stringResource(R.string.briefing_new_profile), accent = true) {
@@ -451,6 +466,23 @@ fun BriefingScreen(
                 }
             }
         }
+    }
+
+    if (showPersonalize && profile != null) {
+        PersonalizeSheet(
+            topics = profile.topics,
+            language = com.example.auralocalai.AppLocale.effectiveLanguage(context),
+            onDismiss = { showPersonalize = false },
+            onSave = { enabledIds ->
+                val language = com.example.auralocalai.AppLocale.effectiveLanguage(context)
+                briefingViewModel.saveProfile(
+                    profile.copy(topics = com.example.auralocalai.data.briefing.TopicPresets.apply(profile.topics, enabledIds, language))
+                )
+                showPersonalize = false
+                selectedTab = null
+                Toast.makeText(context, context.getString(R.string.personalize_saved), Toast.LENGTH_LONG).show()
+            }
+        )
     }
 
     detailArticle?.let { article ->
@@ -829,6 +861,107 @@ private fun DiscoverCard(
             }
         }
         androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    }
+}
+
+/** Icon for a topic chip: presets get their own icon, own topics a tag. */
+private fun topicIcon(id: String): androidx.compose.ui.graphics.vector.ImageVector = when (id) {
+    "preset_tech" -> Icons.Default.Memory
+    "preset_business" -> Icons.Default.Public
+    "preset_culture" -> Icons.Default.TheaterComedy
+    "preset_sport" -> Icons.Default.SportsSoccer
+    "preset_entertainment" -> Icons.Default.Tv
+    "preset_health", "care_nursing" -> Icons.Default.HealthAndSafety
+    "preset_ggz", "care_ggz" -> Icons.Default.Psychology
+    "preset_addiction", "care_addiction" -> Icons.Default.Healing
+    "preset_nl", "preset_bg", "netherlands", "bulgaria" -> Icons.Default.Flag
+    "preset_world", "world_politics" -> Icons.Default.Language
+    "preset_climate" -> Icons.Default.Eco
+    else -> Icons.Default.Tag
+}
+
+/** "Personalise your feed": choose topics (own and ready-made) for the selected briefing. */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun PersonalizeSheet(
+    topics: List<BriefingTopic>,
+    language: String,
+    onDismiss: () -> Unit,
+    onSave: (Set<String>) -> Unit
+) {
+    val initial = remember(topics) { topics.filter { it.enabled }.map { it.id }.toSet() }
+    var selected by remember(topics) { mutableStateOf(initial) }
+    val presets = com.example.auralocalai.data.briefing.TopicPresets.ALL
+    // Own topics first, then ready-made topics that are not in the briefing yet.
+    val choices = topics.map { it.id to it.name } + presets.filter { p -> topics.none { it.id == p.id } }.map { it.id to it.name(language) }
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                stringResource(R.string.personalize_title),
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 26.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.personalize_subtitle),
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                fontSize = 18.sp,
+                lineHeight = 25.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                choices.forEach { (id, name) ->
+                    val on = id in selected
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (on) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
+                        border = if (on) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.clickable { selected = if (on) selected - id else selected + id }
+                    ) {
+                        Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                topicIcon(id),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (on) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                name,
+                                fontSize = 16.sp,
+                                color = if (on) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { onSave(selected) },
+                enabled = selected != initial && selected.isNotEmpty(),
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            ) { Text(stringResource(R.string.personalize_save), fontSize = 16.sp) }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 

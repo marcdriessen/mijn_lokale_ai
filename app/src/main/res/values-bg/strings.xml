@@ -847,4 +847,8 @@
     <string name="briefing_show_less">Покажи по-малко</string>
     <string name="briefing_listen">Слушай</string>
     <string name="briefing_details">Подробности и източник</string>
+    <string name="personalize_title">Персонализирайте емисията</string>
+    <string name="personalize_subtitle">Изберете теми, за да виждате истории, подбрани специално за вас</string>
+    <string name="personalize_save">Запази</string>
+    <string name="personalize_saved">Темите са запазени. Натиснете „Обнови сега“, за да заредите новини.</string>
 </resources>
