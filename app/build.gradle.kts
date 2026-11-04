@@ -18,6 +18,16 @@ android {
         }
     }
 
+    // One fixed signing key for every build (local and GitHub), so a new version installs over the
+    // previous one without "app not installed" conflicts. This is a debug key, not a Play Store key.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("signing/shared-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
