@@ -13,7 +13,6 @@ import com.example.auralocalai.data.work.Flashcards
 import com.example.auralocalai.data.work.DocxIO
 import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.data.work.WorkPrompts
-import com.example.auralocalai.data.translate.awaitResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -106,20 +105,20 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Text recognition on a photo of (handwritten or printed) notes. */
+    /** Text recognition on a photo of (handwritten or printed) notes; Latin or Cyrillic. */
     fun scanReport(context: android.content.Context, bitmap: android.graphics.Bitmap, llm: LlmViewModel) {
         viewModelScope.launch {
-            _state.update { it.copy(busy = str(R.string.translate_reading_photo)) }
-            val recognizer = com.google.mlkit.vision.text.TextRecognition.getClient(com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS)
+            val ocr = com.example.auralocalai.data.ocr.OcrEngine
+            val needsDownload = ocr.script(context) == ocr.Script.CYRILLIC && !ocr.isCyrillicReady(context)
+            _state.update { it.copy(busy = str(if (needsDownload) R.string.ocr_downloading_cyrillic else R.string.translate_reading_photo)) }
             try {
-                val text = recognizer.process(com.google.mlkit.vision.common.InputImage.fromBitmap(bitmap, 0))
-                    .awaitResult().text
+                val text = ocr.recognize(context, bitmap)
                 _state.update { it.copy(busy = null) }
                 if (text.isBlank()) _state.update { it.copy(message = str(R.string.translate_no_text_photo)) } else addReportText(text, llm)
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _state.update { it.copy(busy = null, message = str(R.string.ocr_cyrillic_missing)) }
             } catch (e: Exception) {
                 _state.update { it.copy(busy = null, message = str(R.string.ocr_failed, e.message ?: "")) }
-            } finally {
-                runCatching { recognizer.close() }
             }
         }
     }
@@ -136,7 +135,8 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
                     _state.update { it.copy(busy = str(R.string.medical_import_page, page, pages)) }
                 }
             }.getOrElse { e ->
-                _state.update { it.copy(busy = null, message = str(R.string.ocr_failed, e.message ?: "")) }
+                val msg = if (e is com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) str(R.string.ocr_cyrillic_missing) else str(R.string.ocr_failed, e.message ?: "")
+                _state.update { it.copy(busy = null, message = msg) }
                 return@launch
             }
             _state.update { it.copy(busy = null) }

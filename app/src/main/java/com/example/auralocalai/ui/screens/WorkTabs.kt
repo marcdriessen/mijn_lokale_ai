@@ -62,6 +62,7 @@ import com.example.auralocalai.data.work.DocxIO
 import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.WorkViewModel
+import com.example.auralocalai.ui.components.ScriptSelector
 
 @Composable
 private fun BusyBar(busy: String?) {
@@ -296,7 +297,8 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
                 Icon(Icons.Default.Description, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.report_import))
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        ScriptSelector()
+        Spacer(modifier = Modifier.height(4.dp))
         OutlinedTextField(
             value = state.reportNotes,
             onValueChange = { workViewModel.setReportNotes(it) },

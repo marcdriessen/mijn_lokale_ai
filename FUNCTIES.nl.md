@@ -277,6 +277,18 @@ brontaal wordt één keer voor het hele document herkend.
   delen vertaald (tot ca. 24.000 tekens).
 - **Opslaan als Word**: de vertaling wordt als .docx opgeslagen (met titel en doeltaal).
 - Als **anonimiseren** aan staat, worden persoonsgegevens in documenten en foto's eerst vervangen.
+
+### 2.5b-2 Bulgaars / Cyrillisch
+
+- **Tekstherkenning in foto's en gescande PDF's**: kies bij "Tekst in foto's" **Latijns** (Google ML Kit) of
+  **Cyrillisch (Bulgaars)** (Tesseract, met Bulgaarse + Engelse taaldata). Cyrillisch downloadt één keer ca. 13 MB
+  en werkt daarna offline. De keuze geldt overal (chat, Vertalen, Werk, bibliotheek) en staat ook in Instellingen.
+  Standaard Cyrillisch als de app in het Bulgaars staat.
+- **Bestanden**: Word, ODT, RTF, HTML en tekstbestanden in het Cyrillisch worden goed gelezen, ook oude bestanden in
+  Windows-1251-codering. Word-bestanden met Cyrillische tekst worden correct opgeslagen.
+- **Anonimiseren in het Bulgaars**: ЕГН (met controlecijfer), ЛНЧ/лична карта/паспорт-nummers, +359-telefoonnummers,
+  datums met Bulgaarse maandnamen, adressen (ул., бул., ж.к., бл., вх., ет., ап.) en namen na г-н, г-жа, д-р,
+  пациент(ът), клиент(ът) of met initialen (И. Петров).
 - Daarna eventueel met AI: samenvatten, eenvoudig (B1) of een e-mail maken.
 
 ### 2.5c Taalcoach

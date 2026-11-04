@@ -8,15 +8,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auralocalai.AppLocale
 import com.example.auralocalai.R
+import com.example.auralocalai.data.ocr.OcrEngine
 import com.example.auralocalai.data.translate.MlKitNewsTranslator
 import com.example.auralocalai.data.translate.PageTextExtractor
 import com.example.auralocalai.data.translate.TranslateLanguages
 import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.data.work.DocxIO
-import com.example.auralocalai.data.translate.awaitResult
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +32,7 @@ data class TranslateUiState(
     val targetLanguage: String = "nl",
     /** File name of an imported document (used for the Word file name). */
     val documentName: String? = null,
+    val script: OcrEngine.Script = OcrEngine.Script.LATIN,
     val busy: String? = null,
     val message: String? = null
 )
@@ -49,7 +47,7 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val translator = MlKitNewsTranslator()
     private val client = OkHttpClient.Builder().callTimeout(30, TimeUnit.SECONDS).build()
-    private val _state = MutableStateFlow(TranslateUiState(targetLanguage = defaultTarget(application)))
+    private val _state = MutableStateFlow(TranslateUiState(targetLanguage = defaultTarget(application), script = OcrEngine.script(application)))
     val state: StateFlow<TranslateUiState> = _state.asStateFlow()
 
     private fun defaultTarget(app: Application): String =
@@ -180,7 +178,8 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
                     _state.update { it.copy(busy = str(R.string.medical_import_page, page, pages)) }
                 }
             }.getOrElse { e ->
-                _state.update { it.copy(busy = null, message = str(R.string.ocr_failed, e.message ?: "")) }
+                val msg = if (e is OcrEngine.CyrillicDataMissing) str(R.string.ocr_cyrillic_missing) else str(R.string.ocr_failed, e.message ?: "")
+                _state.update { it.copy(busy = null, message = msg) }
                 return@launch
             }
             when (result) {
@@ -225,30 +224,37 @@ class TranslateViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** Text recognition on a photo, then translation. */
+    /** Text recognition on a photo (Latin or Cyrillic, see the script choice), then translation. */
     fun translateImage(context: Context, uri: Uri? = null, bitmap: Bitmap? = null) {
         viewModelScope.launch {
             _state.update { it.copy(busy = str(R.string.translate_reading_photo), output = "", sourceTitle = "", documentName = null) }
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             try {
-                val image = when {
-                    bitmap != null -> InputImage.fromBitmap(bitmap, 0)
-                    uri != null -> InputImage.fromFilePath(context, uri)
-                    else -> return@launch
+                val image = bitmap ?: uri?.let { OcrEngine.loadBitmap(context, it) } ?: run {
+                    _state.update { it.copy(busy = null, message = str(R.string.could_not_open_file)) }
+                    return@launch
                 }
-                val text = recognizer.process(image).awaitResult().text
+                if (_state.value.script == OcrEngine.Script.CYRILLIC && !OcrEngine.isCyrillicReady(context)) {
+                    _state.update { it.copy(busy = str(R.string.ocr_downloading_cyrillic)) }
+                }
+                val text = OcrEngine.recognize(context, image, _state.value.script)
                 if (text.isBlank()) {
                     _state.update { it.copy(busy = null, message = str(R.string.translate_no_text_photo)) }
                 } else {
                     _state.update { it.copy(input = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text) ?: text, busy = null) }
                     translate()
                 }
+            } catch (e: OcrEngine.CyrillicDataMissing) {
+                _state.update { it.copy(busy = null, message = str(R.string.ocr_cyrillic_missing)) }
             } catch (e: Exception) {
                 _state.update { it.copy(busy = null, message = str(R.string.ocr_failed, e.message ?: "")) }
-            } finally {
-                runCatching { recognizer.close() }
             }
         }
+    }
+
+    /** Script of the text in photos and scanned PDFs (Latin = ML Kit, Cyrillic = Tesseract). */
+    fun setScript(script: OcrEngine.Script) {
+        OcrEngine.setScript(getApplication(), script)
+        _state.update { it.copy(script = script) }
     }
 
     /** AI actions with the shared model on the translation (or the input when not translated yet). */

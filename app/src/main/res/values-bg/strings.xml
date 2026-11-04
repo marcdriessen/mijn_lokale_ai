@@ -647,7 +647,7 @@
     <string name="report_saved_docx">Word документът е запазен</string>
     <string name="report_save_failed">Запазването е неуспешно</string>
     <string name="translate_document">Превод на документ (PDF, Word, текст…)</string>
-    <string name="translate_document_hint">Документи: PDF, Word (.docx), ODT, RTF, HTML и текстови файлове. Разпознаването в снимки и сканирани PDF работи само за латиница (не за кирилица).</string>
+    <string name="translate_document_hint">Документи: PDF, Word (.docx), ODT, RTF, HTML и текстови файлове, също на кирилица. За снимки и сканирани PDF изберете писмото по-горе.</string>
     <string name="translate_progress">Превеждане… %1$d от %2$d</string>
     <string name="translate_with_ai">Превод с ИИ модел (по-добре, по-бавно)</string>
     <string name="translate_ai_progress">ИИ превежда… част %1$d от %2$d</string>
@@ -657,4 +657,11 @@
     <string name="translate_save_docx">Запази като Word</string>
     <string name="translate_file_base">Превод</string>
     <string name="translate_doc_subtitle">Превод (%1$s) – направен офлайн с Локален ИИ. Проверете преди употреба.</string>
+    <string name="ocr_script_label">Текст в снимки:</string>
+    <string name="ocr_script_latin">Латиница (NL, EN, DE, PL…)</string>
+    <string name="ocr_script_cyrillic">Кирилица (български)</string>
+    <string name="ocr_script_settings">Разпознаване на текст: писмо</string>
+    <string name="ocr_script_settings_desc">За снимки и сканирани PDF в чата, Превод, Работа и библиотеката. Кирилицата изисква еднократно изтегляне от около 13 MB, след това работи офлайн.</string>
+    <string name="ocr_downloading_cyrillic">Изтегляне на разпознаване на кирилица (еднократно, около 13 MB)…</string>
+    <string name="ocr_cyrillic_missing">Разпознаването на кирилица не можа да бъде изтеглено. Свържете се веднъж с интернет и опитайте отново.</string>
 </resources>

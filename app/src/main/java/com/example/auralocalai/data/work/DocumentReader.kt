@@ -7,10 +7,7 @@ import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.example.auralocalai.data.translate.awaitResult
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.example.auralocalai.data.ocr.OcrEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -53,11 +50,10 @@ object DocumentReader {
         }
     }.getOrNull() ?: uri.lastPathSegment
 
-    /** PdfRenderer draws each page; ML Kit reads the text on the phone (works for scanned and digital PDFs). */
+    /** PdfRenderer draws each page; OcrEngine reads the text on the phone (Latin or Cyrillic; scanned and digital PDFs). */
     private suspend fun ocrPdf(context: Context, uri: Uri, maxPages: Int, onPage: (Int, Int) -> Unit): String {
         val descriptor = withContext(Dispatchers.IO) { context.contentResolver.openFileDescriptor(uri, "r") } ?: return ""
         val renderer = PdfRenderer(descriptor)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         val builder = StringBuilder()
         try {
             val pages = minOf(renderer.pageCount, maxPages)
@@ -73,13 +69,12 @@ object DocumentReader {
                     }
                 }
                 try {
-                    builder.append(recognizer.process(InputImage.fromBitmap(bitmap, 0)).awaitResult().text).append("\n\n")
+                    builder.append(OcrEngine.recognize(context, bitmap)).append("\n\n")
                 } finally {
                     bitmap.recycle()
                 }
             }
         } finally {
-            runCatching { recognizer.close() }
             runCatching { renderer.close() }
             runCatching { descriptor.close() }
         }

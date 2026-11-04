@@ -51,4 +51,17 @@ class DocumentTextTest {
         assertEquals("Cliënt", DocumentText.decode(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "Cliënt".toByteArray()))
         assertTrue(DocumentText.extract("a\r\nb".toByteArray(), DocumentText.Kind.TEXT) == "a\nb")
     }
+
+    @Test
+    fun readsBulgarianCyrillic() {
+        val bg = "Пациентът спи лошо.\nПлан: разговор утре."
+        assertEquals(bg, DocumentText.decode(bg.toByteArray(charset("windows-1251"))))
+        assertEquals(bg, DocumentText.decode(bg.toByteArray()))
+        val rtf = "{\\rtf1\\ansi\\ansicpg1251 \\'cf\\'eb\\'e0\\'ed\\par \\u1055?\\u1083?\\u1072?\\u1085?}"
+        assertEquals("План\nПлан", DocumentText.extract(rtf.toByteArray(), DocumentText.Kind.RTF))
+        val odt = zip("content.xml" to "<text:p>Клиентът е спокоен.</text:p>")
+        assertEquals("Клиентът е спокоен.", DocumentText.extract(odt, DocumentText.Kind.ODT))
+        val docx = DocxIO.write("Доклад", null, "С – Субективно:\nСпи лошо.")
+        assertTrue(DocumentText.extract(docx, DocumentText.Kind.DOCX)!!.contains("Спи лошо."))
+    }
 }

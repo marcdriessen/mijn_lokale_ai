@@ -132,5 +132,7 @@ dependencies {
   // Offline translation of news headlines (ML Kit Translate + Language ID)
   implementation("com.google.mlkit:translate:17.0.3")
   implementation("com.google.mlkit:language-id:17.0.6")
+  // Offline OCR for Cyrillic (Bulgarian); language data is downloaded once on first use.
+  implementation("cz.adaptech.tesseract4android:tesseract4android-openmp:4.9.0")
   implementation("io.coil-kt:coil-compose:2.6.0")
 }

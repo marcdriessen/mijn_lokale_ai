@@ -7,6 +7,8 @@ package com.example.auralocalai.data.privacy
  * Replaced: BSN (with 11-check), dates, phone numbers, e-mail, postcodes, street + number, IBAN,
  * client/patient/file numbers and names after a salutation or role, names with initials, and any
  * extra names given (for example names found by the local model).
+ * Bulgarian (Cyrillic) texts are covered too: ЕГН (with check digit), +359 phone numbers, dates with
+ * Bulgarian month names, addresses (ул., бул., ж.к., бл., ап.) and names after г-н, г-жа, пациент, клиент.
  */
 object Anonymizer {
 
@@ -21,6 +23,7 @@ object Anonymizer {
     const val ADDRESS = "[ADRES]"
     const val IBAN = "[IBAN]"
     const val NUMBER = "[NUMMER]"
+    const val EGN = "[EGN]"
 
     private val PARTICLES = "(?:van der |van den |van de |van |de |der |den |ter |ten |te |op den |in 't |'t )"
     private val CAP = "[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ'-]+"
@@ -45,6 +48,40 @@ object Anonymizer {
         "(?i:\\b(?:dhr|mevr|mw|mr|mrs|ms|meneer|mevrouw|de heer|cli[eë]nt|pati[eë]nt|cli[eë]nte|bewoner|deelnemer|naam)\\b\\.?:?)\\s+(?:[A-Z]\\.\\s?)*$PARTICLES?$CAP_NAME(?:\\s$PARTICLES?$CAP_NAME)?"
     )
     private val INITIALS_RE = Regex("\\b(?:[A-Z]\\.\\s?){1,4}$PARTICLES?$CAP_NAME")
+
+    // --- Bulgarian / Cyrillic ---
+    private val NL = "(?<![\\p{L}\\d])"
+    private val NR = "(?![\\p{L}\\d])"
+    private val CYR_CAP = "[А-ЯЁІЇЄҐ][а-яёіїєґ'’-]+"
+    private val CYR_NAME = "$CYR_CAP(?:-$CYR_CAP)?"
+    private val CYR_ID_FIELD_RE = Regex(
+        "(?iu)${NL}(ЕГН|ЛНЧ|лична карта|л\\.к\\.|номер на лична карта|паспорт|пациент\\s*№|клиент\\s*№|досие\\s*№|ИЗ\\s*№|история на заболяването\\s*№)\\s*[:#№]?\\s*[A-Za-zА-Яа-я0-9.\\- ]{0,20}\\d"
+    )
+    private val EGN_CANDIDATE_RE = Regex("(?<!\\d)\\d{10}(?!\\d)")
+    private val BG_PHONE_RE = Regex("(?<![\\d+])(?:\\+359|00359)[\\s-]?\\(?0?\\)?[\\s-]?[2-9](?:[\\s-]?\\d){6,9}(?!\\d)")
+    private val BG_MONTHS = "януари|февруари|март|април|май|юни|юли|август|септември|октомври|ноември|декември"
+    private val BG_DATE_RE = Regex("(?iu)$NL\\d{1,2}\\s+(?:$BG_MONTHS)\\s+\\d{4}(?:\\s?г\\.?)?$NR|$NL\\d{1,2}\\.\\d{1,2}\\.\\d{2,4}\\s?г\\.")
+    private val BG_ADDRESS_RE = Regex(
+        "(?u)$NL(?:ул\\.|улица|бул\\.|булевард|ж\\.\\s?к\\.|жк|кв\\.|пл\\.)\\s*[„\"«]?(?:$CYR_CAP|\\d{1,3}-?\\p{L}*)(?:\\s(?:$CYR_CAP|[А-Я]\\.))*[“\"»]?(?:\\s*(?:№\\s*)?\\d{1,4}[А-Яа-яA-Za-z]?)?" +
+            "(?:,?\\s*(?:бл|вх|ет|ап)\\.\\s*[0-9А-Яа-яA-Za-z]{1,4})*"
+    )
+    private val BG_BLOCK_RE = Regex("(?u)$NL(?:бл|вх|ет|ап)\\.\\s*[0-9А-Яа-яA-Za-z]{1,4}$NR")
+    private val CYR_SALUTATION_PREFIX = "(?iu:(?:г-н|г-жа|г-ца|господин|госпожа|госпожица|пациент(?:ът|ка|ката)?|клиент(?:ът|ка|ката)?|име|имена|д-р)\\.?:?)"
+    private val CYR_SALUTATION_RE = Regex("$NL$CYR_SALUTATION_PREFIX\\s+(?:[А-Я]\\.\\s?)*$CYR_NAME(?:\\s$CYR_NAME){0,2}")
+    private val CYR_INITIALS_RE = Regex("$NL(?:[А-Я]\\.\\s?){1,3}$CYR_NAME")
+
+    /** Check digit of the Bulgarian personal number (ЕГН), including a valid date of birth. */
+    fun isValidEgn(digits: String): Boolean {
+        if (digits.length != 10 || digits.any { !it.isDigit() }) return false
+        val month = digits.substring(2, 4).toInt()
+        val day = digits.substring(4, 6).toInt()
+        if (month !in 1..12 && month !in 21..32 && month !in 41..52) return false
+        if (day !in 1..31) return false
+        val weights = intArrayOf(2, 4, 8, 5, 10, 9, 7, 3, 6)
+        val sum = (0 until 9).sumOf { weights[it] * (digits[it] - '0') }
+        val check = (sum % 11).let { if (it == 10) 0 else it }
+        return check == digits[9] - '0'
+    }
 
     /** 11-check (elfproef) for Dutch BSN numbers. */
     fun isValidBsn(digits: String): Boolean {
@@ -74,6 +111,18 @@ object Anonymizer {
 
         replace(EMAIL_RE, EMAIL)
         replace(IBAN_RE, IBAN)
+        text = CYR_ID_FIELD_RE.replace(text) { m ->
+            count++
+            m.groupValues[1] + ": " + (if (m.groupValues[1].equals("ЕГН", true)) EGN else NUMBER)
+        }
+        text = EGN_CANDIDATE_RE.replace(text) { m ->
+            if (isValidEgn(m.value)) {
+                count++
+                EGN
+            } else m.value
+        }
+        replace(BG_PHONE_RE, PHONE)
+        replace(BG_DATE_RE, DATE)
         // Labelled identifiers keep their label.
         text = ID_FIELD_RE.replace(text) { m ->
             count++
@@ -92,6 +141,14 @@ object Anonymizer {
         replace(STREET_RE, ADDRESS)
         replace(SALUTATION_RE, NAME, keepPrefix = true)
         replace(INITIALS_RE, NAME)
+        replace(BG_ADDRESS_RE, ADDRESS)
+        replace(BG_BLOCK_RE, ADDRESS)
+        text = CYR_SALUTATION_RE.replace(text) { m ->
+            count++
+            val prefix = Regex("^$CYR_SALUTATION_PREFIX\\s+").find(m.value)?.value ?: ""
+            prefix + NAME
+        }
+        replace(CYR_INITIALS_RE, NAME)
 
         // Names found elsewhere (e.g. by the local model), whole words only, longest first.
         extraNames.map { it.trim() }

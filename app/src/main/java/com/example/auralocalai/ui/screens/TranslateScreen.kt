@@ -58,6 +58,7 @@ import com.example.auralocalai.ui.AiAction
 import com.example.auralocalai.ui.LlmViewModel
 import com.example.auralocalai.ui.TranslateViewModel
 import com.example.auralocalai.ui.components.AppHeader
+import com.example.auralocalai.ui.components.ScriptSelector
 
 @Composable
 fun TranslateScreen(
@@ -162,6 +163,7 @@ fun TranslateScreen(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.translate_document))
             }
+            ScriptSelector(selected = state.script, onSelect = { translateViewModel.setScript(it) })
             Text(stringResource(R.string.translate_document_hint), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(12.dp))
 

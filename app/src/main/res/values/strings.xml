@@ -648,7 +648,7 @@
     <string name="report_saved_docx">Word document saved</string>
     <string name="report_save_failed">Saving failed</string>
     <string name="translate_document">Translate document (PDF, Word, text…)</string>
-    <string name="translate_document_hint">Documents: PDF, Word (.docx), ODT, RTF, HTML and text files. Text recognition for photos and scanned PDFs works for Latin script only (not Cyrillic).</string>
+    <string name="translate_document_hint">Documents: PDF, Word (.docx), ODT, RTF, HTML and text files, also in Cyrillic. For photos and scanned PDFs, choose the script above.</string>
     <string name="translate_progress">Translating… %1$d of %2$d</string>
     <string name="translate_with_ai">Translate with AI model (better, slower)</string>
     <string name="translate_ai_progress">AI is translating… part %1$d of %2$d</string>
@@ -658,4 +658,11 @@
     <string name="translate_save_docx">Save as Word</string>
     <string name="translate_file_base">Translation</string>
     <string name="translate_doc_subtitle">Translation (%1$s) – made offline with Local AI. Check before use.</string>
+    <string name="ocr_script_label">Text in photos:</string>
+    <string name="ocr_script_latin">Latin (NL, EN, DE, PL…)</string>
+    <string name="ocr_script_cyrillic">Cyrillic (Bulgarian)</string>
+    <string name="ocr_script_settings">Text recognition: script</string>
+    <string name="ocr_script_settings_desc">For photos and scanned PDFs in chat, Translate, Work and the library. Cyrillic needs a one-time download of about 13 MB, then it works offline.</string>
+    <string name="ocr_downloading_cyrillic">Downloading Cyrillic text recognition (once, about 13 MB)…</string>
+    <string name="ocr_cyrillic_missing">Cyrillic text recognition could not be downloaded. Connect to the internet once and try again.</string>
 </resources>

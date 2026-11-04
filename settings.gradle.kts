@@ -22,6 +22,11 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        // Tesseract4Android (offline text recognition for Cyrillic / Bulgarian).
+        maven {
+            url = uri("https://jitpack.io")
+            content { includeGroup("cz.adaptech.tesseract4android") }
+        }
     }
 }
 

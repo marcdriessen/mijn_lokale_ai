@@ -135,6 +135,10 @@ fun SettingsScreen(
                             com.example.auralocalai.AppSecurity.setAnonymizeEnabled(context, it)
                         })
                     }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(stringResource(R.string.ocr_script_settings), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.ocr_script_settings_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    com.example.auralocalai.ui.components.ScriptSelector()
                 }
             }
 

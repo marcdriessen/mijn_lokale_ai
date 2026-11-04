@@ -1326,30 +1326,28 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             try {
-                val image = InputImage.fromFilePath(context, uri)
-                val task = recognizer.process(image)
-                val visionText = task.awaitTask()
-                
-                _uiState.update { 
+                val bitmap = com.example.auralocalai.data.ocr.OcrEngine.loadBitmap(context, uri)
+                    ?: throw IllegalStateException(str(R.string.could_not_open_file))
+                val text = try {
+                    com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
+                } finally {
+                    bitmap.recycle()
+                }
+                _uiState.update {
                     it.copy(
-                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), visionText.text),
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
                         isAttachmentProcessing = false
                     )
                 }
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _uiState.update { it.copy(attachmentError = str(R.string.ocr_cyrillic_missing), isAttachmentProcessing = false) }
             } catch (e: Exception) {
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         attachmentError = str(R.string.ocr_failed, e.localizedMessage ?: ""),
                         isAttachmentProcessing = false
                     )
-                }
-            } finally {
-                try {
-                    recognizer.close()
-                } catch (ce: Exception) {
-                    Log.w("LlmViewModel", "Error closing image recognizer: ${ce.message}")
                 }
             }
         }
@@ -1418,91 +1416,27 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (ext.equals("pdf", ignoreCase = true)) {
-                    val pfd = context.contentResolver.openFileDescriptor(uri, "r")
-                    if (pfd == null) {
-                        _uiState.update { 
-                            it.copy(
-                                attachmentError = str(R.string.could_not_open_file),
-                                isAttachmentProcessing = false
-                            )
-                        }
+                // PDF (first pages, text recognition), Word, ODT, RTF, HTML or text; Cyrillic included.
+                val maxTextChars = 24_000
+                val text = when (val result = com.example.auralocalai.data.work.DocumentReader.read(context, uri, maxPdfPages = 3)) {
+                    is com.example.auralocalai.data.work.DocumentReader.Result.Text ->
+                        if (result.text.length > maxTextChars) {
+                            result.text.take(maxTextChars) + "\n\n[Attachment truncated to first $maxTextChars characters for context & memory safety]"
+                        } else result.text
+                    com.example.auralocalai.data.work.DocumentReader.Result.OldWordFormat -> {
+                        _uiState.update { it.copy(attachmentError = str(R.string.report_doc_unsupported), isAttachmentProcessing = false) }
                         return@launch
                     }
-                    val pdfRenderer = PdfRenderer(pfd)
-                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                    try {
-                        val pageCount = pdfRenderer.pageCount
-                        val combinedText = StringBuilder()
-                        val maxPages = minOf(pageCount, 3)
-
-                        for (i in 0 until maxPages) {
-                            val page = pdfRenderer.openPage(i)
-                            try {
-                                val width = page.width / 2
-                                val height = page.height / 2
-                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                                try {
-                                    val canvas = Canvas(bitmap)
-                                    canvas.drawColor(Color.WHITE)
-                                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-
-                                    val image = InputImage.fromBitmap(bitmap, 0)
-                                    val visionText = recognizer.process(image).awaitTask()
-                                    combinedText.append(visionText.text).append("\n")
-                                } finally {
-                                    bitmap.recycle()
-                                }
-                            } finally {
-                                page.close()
-                            }
-                        }
-
-                        _uiState.update { 
-                            it.copy(
-                                extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), combinedText.toString()),
-                                isAttachmentProcessing = false
-                            )
-                        }
-                    } finally {
-                        try {
-                            recognizer.close()
-                        } catch (ce: Exception) {
-                            Log.w("LlmViewModel", "Error closing PDF recognizer: ${ce.message}")
-                        }
-                        try {
-                            pdfRenderer.close()
-                        } catch (pe: Exception) {
-                            Log.w("LlmViewModel", "Error closing PdfRenderer: ${pe.message}")
-                        }
-                        try {
-                            pfd.close()
-                        } catch (fe: Exception) {
-                            Log.w("LlmViewModel", "Error closing pfd: ${fe.message}")
-                        }
-                    }
-                } else {
-                    val maxTextChars = 24_000
-                    val text = context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val reader = stream.bufferedReader()
-                        val buffer = CharArray(maxTextChars)
-                        val numRead = reader.read(buffer, 0, maxTextChars)
-                        if (numRead > 0) {
-                            val fileContent = String(buffer, 0, numRead)
-                            if (reader.read() != -1) {
-                                "$fileContent\n\n[Attachment truncated to first $maxTextChars characters for context & memory safety]"
-                            } else {
-                                fileContent
-                            }
-                        } else ""
-                    }
-                    _uiState.update { 
-                        it.copy(
-                            extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
-                            isAttachmentProcessing = false
-                        )
-                    }
+                    com.example.auralocalai.data.work.DocumentReader.Result.Empty -> ""
                 }
+                _uiState.update {
+                    it.copy(
+                        extractedOcrText = com.example.auralocalai.AppSecurity.maybeAnonymize(getApplication(), text),
+                        isAttachmentProcessing = false
+                    )
+                }
+            } catch (e: com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) {
+                _uiState.update { it.copy(attachmentError = str(R.string.ocr_cyrillic_missing), isAttachmentProcessing = false) }
             } catch (e: Exception) {
                 val errorMsg = when {
                     e.message?.contains("dynamite", ignoreCase = true) == true ||

@@ -50,8 +50,23 @@ object DocumentText {
                 .onUnmappableCharacter(CodingErrorAction.REPORT)
                 .decode(ByteBuffer.wrap(bytes, start, bytes.size - start)).toString()
         } catch (_: CharacterCodingException) {
-            String(bytes, Charset.forName("windows-1252"))
+            String(bytes, legacyCharset(bytes))
         }
+    }
+
+    /**
+     * Old single-byte files: Bulgarian (Windows-1251) text consists mostly of bytes above 127,
+     * Dutch/English (Windows-1252) text only has a few (é, ë, ï).
+     */
+    fun legacyCharset(bytes: ByteArray): Charset {
+        var high = 0
+        var asciiLetters = 0
+        for (b in bytes) {
+            val v = b.toInt() and 0xFF
+            if (v >= 0xC0) high++ else if (v in 0x41..0x5A || v in 0x61..0x7A) asciiLetters++
+        }
+        val total = high + asciiLetters
+        return if (total > 0 && high.toDouble() / total > 0.3) Charset.forName("windows-1251") else Charset.forName("windows-1252")
     }
 
     fun odtXmlToText(xml: String): String {
@@ -90,6 +105,7 @@ object DocumentText {
         // Stack of "skip this group" flags.
         val skip = ArrayDeque<Boolean>().apply { addLast(false) }
         var unicodeSkip = 1
+        var codePage: Charset = Charset.forName("windows-1252")
         var pendingSkip = 0
         var i = 0
         val n = rtf.length
@@ -109,7 +125,7 @@ object DocumentText {
                             val hex = rtf.substring(i + 1, minOf(i + 3, n))
                             i += 3
                             if (pendingSkip > 0) { pendingSkip--; continue }
-                            hex.toIntOrNull(16)?.let { if (!skip.last()) out.append(String(byteArrayOf(it.toByte()), Charset.forName("windows-1252"))) }
+                            hex.toIntOrNull(16)?.let { if (!skip.last()) out.append(String(byteArrayOf(it.toByte()), codePage)) }
                         }
                         d == '~' -> { if (!skip.last()) out.append(' '); i++ }
                         d == '\n' || d == '\r' -> { if (!skip.last()) out.append('\n'); i++ }
@@ -122,6 +138,10 @@ object DocumentText {
                             val num = rtf.substring(numStart, i).toIntOrNull()
                             if (i < n && rtf[i] == ' ') i++
                             if (word in skipDestinations) { skip.removeLast(); skip.addLast(true); continue }
+                            if (word == "ansicpg" && num != null) {
+                                codePage = runCatching { Charset.forName("windows-$num") }.getOrDefault(codePage)
+                                continue
+                            }
                             if (skip.last()) continue
                             when (word) {
                                 "par", "line", "sect", "page" -> out.append('\n')

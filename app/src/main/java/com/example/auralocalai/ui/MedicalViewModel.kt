@@ -265,7 +265,12 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     _state.update { it.copy(library = updated, message = str(R.string.medical_import_done, name, passages.size)) }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(message = str(R.string.medical_import_failed, e.message ?: "")) }
+                _state.update {
+                    it.copy(
+                        message = if (e is com.example.auralocalai.data.ocr.OcrEngine.CyrillicDataMissing) str(R.string.ocr_cyrillic_missing)
+                        else str(R.string.medical_import_failed, e.message ?: "")
+                    )
+                }
             } finally {
                 _state.update { it.copy(importing = null) }
             }
@@ -285,7 +290,6 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun ocrPdf(context: Context, uri: Uri): String {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return ""
         val renderer = PdfRenderer(descriptor)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         val builder = StringBuilder()
         try {
             val pages = minOf(renderer.pageCount, MAX_PDF_PAGES)
@@ -297,11 +301,7 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     try {
                         Canvas(bitmap).drawColor(Color.WHITE)
                         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        val result = suspendCancellableCoroutine { cont ->
-                            recognizer.process(InputImage.fromBitmap(bitmap, 0))
-                                .addOnSuccessListener { cont.resume(it.text) }
-                                .addOnFailureListener { cont.resumeWithException(it) }
-                        }
+                        val result = com.example.auralocalai.data.ocr.OcrEngine.recognize(context, bitmap)
                         builder.append(result).append("\n\n")
                     } finally {
                         bitmap.recycle()
@@ -311,7 +311,6 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         } finally {
-            try { recognizer.close() } catch (_: Exception) {}
             try { renderer.close() } catch (_: Exception) {}
             try { descriptor.close() } catch (_: Exception) {}
         }

@@ -647,7 +647,7 @@
     <string name="report_saved_docx">Word-document opgeslagen</string>
     <string name="report_save_failed">Opslaan mislukt</string>
     <string name="translate_document">Document vertalen (PDF, Word, tekst…)</string>
-    <string name="translate_document_hint">Documenten: PDF, Word (.docx), ODT, RTF, HTML en tekstbestanden. Tekstherkenning in foto’s en gescande PDF’s werkt alleen voor het Latijnse schrift (niet Cyrillisch).</string>
+    <string name="translate_document_hint">Documenten: PDF, Word (.docx), ODT, RTF, HTML en tekstbestanden, ook in het Cyrillisch. Kies hierboven het schrift voor foto’s en gescande PDF’s.</string>
     <string name="translate_progress">Vertalen… %1$d van %2$d</string>
     <string name="translate_with_ai">Vertalen met AI-model (beter, trager)</string>
     <string name="translate_ai_progress">AI vertaalt… deel %1$d van %2$d</string>
@@ -657,4 +657,11 @@
     <string name="translate_save_docx">Opslaan als Word</string>
     <string name="translate_file_base">Vertaling</string>
     <string name="translate_doc_subtitle">Vertaling (%1$s) – offline gemaakt met Lokale AI. Controleer vóór gebruik.</string>
+    <string name="ocr_script_label">Tekst in foto’s:</string>
+    <string name="ocr_script_latin">Latijns (NL, EN, DE, PL…)</string>
+    <string name="ocr_script_cyrillic">Cyrillisch (Bulgaars)</string>
+    <string name="ocr_script_settings">Tekstherkenning: schrift</string>
+    <string name="ocr_script_settings_desc">Voor foto’s en gescande PDF’s in chat, Vertalen, Werk en de bibliotheek. Cyrillisch vraagt één keer een download van ongeveer 13 MB en werkt daarna offline.</string>
+    <string name="ocr_downloading_cyrillic">Cyrillische tekstherkenning downloaden (eenmalig, ca. 13 MB)…</string>
+    <string name="ocr_cyrillic_missing">Cyrillische tekstherkenning kon niet worden gedownload. Maak één keer verbinding met internet en probeer opnieuw.</string>
 </resources>
