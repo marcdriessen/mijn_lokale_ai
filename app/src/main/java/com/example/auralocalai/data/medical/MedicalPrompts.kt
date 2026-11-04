@@ -15,14 +15,18 @@ object MedicalPrompts {
             "(4) Never state medication doses, dosing schedules, titration steps or maximum doses; " +
             "for doses, refer to the Farmacotherapeutisch Kompas. " +
             "(5) Do not make a diagnosis or treatment decision for an individual patient. " +
-            "(6) Be concise and structured."
+            "(6) Be concise and structured. " +
+            "(7) Weigh the evidence: a guideline or systematic review counts more than a single study, a study more than " +
+            "a news report, and a forum or personal experience is not evidence. For a study, mention when the source text " +
+            "states it: design (e.g. RCT, cohort, review), population, number of participants, main result and limitations."
 
     /** User prompt with numbered sources, trimmed to [charBudget] so it fits the context window. */
     fun answerPrompt(question: String, sources: List<MedicalSource>, languageName: String, charBudget: Int): String {
         val header = "Question: $question\n\nSources:\n"
         val footer = "\nAnswer the question in $languageName using only these sources. " +
             "Start with a direct answer in 1-2 sentences, then up to 5 bullet points (\"• \") with the key points, " +
-            "each with its source number. End with one line on what the sources do not cover, if relevant."
+            "each with its source number. For studies, add in brackets the design and number of participants when the " +
+            "source states them, e.g. (RCT, n=240). End with one line on what the sources do not cover, if relevant."
         val builder = StringBuilder(header)
         val available = charBudget - header.length - footer.length
         val perSource = if (sources.isEmpty()) 0 else (available / sources.size).coerceIn(250, 1_200)

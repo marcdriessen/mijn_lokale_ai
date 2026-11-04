@@ -85,6 +85,18 @@ class BriefingGenerator(
             // Full article text (temporary, only for the model) and a picture when the feed had none.
             // Text from the feed itself (content:encoded) is used first; otherwise the article page is read.
             onProgress(Progress(Stage.IMAGES))
+            // Google News links: find the real publisher address first (so the article can be read).
+            articles = coroutineScope {
+                articles.map { a ->
+                    async {
+                        if (!GoogleNewsResolver.isGoogleNews(a.item.link)) a
+                        else {
+                            val real = runCatching { GoogleNewsResolver.resolve(a.item.link) }.getOrNull()
+                            if (real != null) a.copy(item = a.item.copy(link = real, publisherDomain = Paywall.domainOf(real))) else a
+                        }
+                    }
+                }.awaitAll()
+            }
             val pages = coroutineScope {
                 articles.map { article ->
                     async {
@@ -185,6 +197,7 @@ class BriefingGenerator(
 
         val keywords = topics.flatMap { it.allKeywords }.distinctBy { it.lowercase() }
         val results = fetcher.fetchAll(config.sources, keywords)
+        withContext(Dispatchers.IO) { runCatching { repository.saveSourceResults(results) } }
         val errors = results.filter { it.error != null }.associate { it.source.id to (it.error ?: "") }
         if (errors.isNotEmpty()) onSourceErrors(errors)
         val items = results.flatMap { it.items }

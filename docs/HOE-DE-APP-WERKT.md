@@ -160,6 +160,20 @@ In **privacymodus** gebeurt er niets via internet.
 - Ground News heeft geen open koppeling. De knop kopieert de kop en opent de Ground News-app, waar
   de gebruiker de kop in de zoekbalk plakt om de berichtgeving te vergelijken.
 
+### 4.6b Extra's (november 2026)
+
+- **Google Nieuws-links** worden omgezet naar de echte link van de uitgever (oude links: uit de
+  base64-code; nieuwe: via dezelfde aanvraag die de Google Nieuws-website doet). Daardoor kan ook van
+  deze berichten de volledige tekst gelezen worden.
+- **Status per bron**: laatst opgehaald, aantal berichten, fout en laatst gelukt (Bronnen-scherm).
+  Een feed telt pas als werkend als hij antwoordt én bruikbare berichten levert.
+- **Nieuw wetenschappelijk onderzoek** per profiel (aan/uit): Europe PMC (inclusief PubMed), Engelse
+  trefwoorden van de onderwerpen, laatste 30 dagen, als categorie "Wetenschap".
+- **Bewaren in bibliotheek**: een artikel kan op verzoek (volledige tekst, anders de samenvatting)
+  in de bibliotheek van de Vraagbaak worden gezet.
+- **Vergelijk bronnen** geeft per bewering een status: ondersteund, deels ondersteund,
+  tegenstrijdig, één bron, onvoldoende informatie, weerlegd.
+
 ### 4.7 Richtlijnen bewaken
 
 Via Nieuws → menu → **Richtlijnen bewaken** volgt de app openbare pagina's (bijv. GGZ Standaarden,
@@ -212,6 +226,17 @@ Er zijn drie zoekdiensten:
 
 De resultaten worden als genummerde context aan het model gegeven, met de opdracht om de bronnen te
 noemen. In privacymodus staat webzoeken altijd uit.
+
+### 5.4 Gedeelde kennislaag en AI-zoekdiensten
+
+- De Vraagbaak doorzoekt naast de bibliotheek ook de opgeslagen nieuwsbriefings (offline).
+- Antwoorden wegen bewijs (richtlijn/review > studie > nieuws; forum is geen bewijs) en noemen bij
+  studies de opzet en het aantal deelnemers als de bron dat vermeldt.
+- **Zoekdiensten**: naast Gratis, Brave en Serper ook **Gemini + Google Search** (API-sleutel van
+  Google AI Studio; Google Search via de API vraagt een betaalaccount, met een maandelijks gratis
+  aantal) en **OpenAI webzoeken** (API-sleutel van platform.openai.com, betalen per gebruik; een
+  ChatGPT-abonnement geeft geen API-toegang). De AI zoekt zelf en geeft een samenvatting plus de
+  geciteerde pagina's als bronnen. Elke dienst heeft een eigen versleutelde sleutel en instelbaar model.
 
 ## 6. Waar een andere zoekmethode kan aansluiten
 

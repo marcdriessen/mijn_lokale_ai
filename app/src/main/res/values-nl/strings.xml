@@ -897,4 +897,15 @@
     <string name="provider_gemini_help">Maak een sleutel op aistudio.google.com → Get API key. Zoeken met Google via de API vraagt dat betalen aan staat in Google Cloud; Google geeft per maand een aantal zoekopdrachten gratis. Alleen je zoekvraag wordt verstuurd, nooit cliëntgegevens.</string>
     <string name="provider_openai_help">Maak een sleutel op platform.openai.com → API keys en zet tegoed op het account. Een ChatGPT-abonnement geeft geen API-gebruik. Alleen je zoekvraag wordt verstuurd, nooit cliëntgegevens.</string>
     <string name="provider_ai_model">Model (leeg = aanbevolen)</string>
+    <string name="source_status_ok">✓ %1$d berichten · %2$s</string>
+    <string name="source_status_error">✗ %1$s · laatst gelukt: %2$s</string>
+    <string name="source_status_never">nooit</string>
+    <string name="medical_origin_news">Je nieuws</string>
+    <string name="briefing_research_fetching">Nieuw onderzoek zoeken…</string>
+    <string name="briefing_include_research">Nieuw wetenschappelijk onderzoek</string>
+    <string name="briefing_include_research_desc">Toon ook nieuwe studies over deze onderwerpen (Europe PMC, inclusief PubMed, laatste 30 dagen)</string>
+    <string name="briefing_save_to_library">Bewaren in bibliotheek (voor de Vraagbaak)</string>
+    <string name="briefing_saving_article">Artikel bewaren…</string>
+    <string name="briefing_saved_full">Hele artikel bewaard in de bibliotheek</string>
+    <string name="briefing_saved_summary">Het artikel kon niet worden gelezen; de samenvatting is bewaard in de bibliotheek</string>
 </resources>

@@ -129,7 +129,9 @@ data class BriefingProfile(
     val startDateMillis: Long = 0L,
     val notify: Boolean = true,
     /** Language the model writes the briefing in ("nl", "en", "bg"), or "" for the app language. */
-    val language: String = ""
+    val language: String = "",
+    /** Also look for new scientific studies (Europe PMC, includes PubMed) on the topics. */
+    val includeResearch: Boolean = false
 ) {
     val mode: SourceMode get() = runCatching { SourceMode.valueOf(sourceMode) }.getOrDefault(SourceMode.RSS)
     val schedule: BriefingFrequency get() = runCatching { BriefingFrequency.valueOf(frequency) }.getOrDefault(BriefingFrequency.DAILY)
@@ -148,6 +150,30 @@ data class BriefingConfig(
     /** Version of the built-in source list, used to add new free sources to older configurations. */
     val sourcesVersion: Int = 0
 )
+
+/**
+ * Result of the last fetch of one source. A feed counts as working only when it answered AND
+ * gave usable items (an empty or broken feed is reported).
+ */
+@Serializable
+data class SourceStatus(
+    val lastChecked: Long = 0L,
+    val lastSuccess: Long = 0L,
+    val itemCount: Int = 0,
+    val error: String = ""
+) {
+    companion object {
+        fun update(previous: SourceStatus?, now: Long, items: Int, error: String?): SourceStatus {
+            val ok = error == null && items > 0
+            return SourceStatus(
+                lastChecked = now,
+                lastSuccess = if (ok) now else previous?.lastSuccess ?: 0L,
+                itemCount = items,
+                error = error ?: if (items == 0) "no items" else ""
+            )
+        }
+    }
+}
 
 /** News fetched in the background (or earlier), reused when it is still recent. */
 @Serializable
@@ -284,7 +310,8 @@ object DefaultBriefing {
         sourceMode = SourceMode.RSS.name,
         webDomains = listOf("ggznieuws.nl", "skipr.nl", "zorgvisie.nl", "nos.nl", "trimbos.nl", "nu.nl"),
         maxArticles = 6,
-        language = "nl"
+        language = "nl",
+        includeResearch = true
     )
 
     val worldProfile: BriefingProfile = BriefingProfile(

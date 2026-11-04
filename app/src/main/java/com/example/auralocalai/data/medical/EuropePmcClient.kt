@@ -25,7 +25,9 @@ data class EuropePmcArticle(
     val year: String,
     val isOpenAccess: Boolean,
     val publicationTypes: List<String>,
-    val fullTextUrl: String
+    val fullTextUrl: String,
+    /** First publication date (yyyy-MM-dd), when known. */
+    val publishedDate: String = ""
 ) {
     /** Link to the article page (Europe PMC shows the abstract and, for open access, the full text). */
     val url: String
@@ -92,7 +94,8 @@ object EuropePmcParser {
                 year = s("pubYear").ifBlank { s("firstPublicationDate").take(4) },
                 isOpenAccess = s("isOpenAccess") == "Y",
                 publicationTypes = types,
-                fullTextUrl = fullText
+                fullTextUrl = fullText,
+                publishedDate = s("firstPublicationDate")
             )
         }
     }

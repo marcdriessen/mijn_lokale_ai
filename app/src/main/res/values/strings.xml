@@ -898,4 +898,15 @@
     <string name="provider_gemini_help">Get a key at aistudio.google.com → Get API key. Google Search via the API needs billing switched on in Google Cloud; Google gives a monthly number of searches free. Only your search question is sent, never patient data.</string>
     <string name="provider_openai_help">Get a key at platform.openai.com → API keys and add credit. A ChatGPT subscription does not include API use. Only your search question is sent, never patient data.</string>
     <string name="provider_ai_model">Model (empty = recommended)</string>
+    <string name="source_status_ok">✓ %1$d items · %2$s</string>
+    <string name="source_status_error">✗ %1$s · last success: %2$s</string>
+    <string name="source_status_never">never</string>
+    <string name="medical_origin_news">Your news</string>
+    <string name="briefing_research_fetching">Looking for new studies…</string>
+    <string name="briefing_include_research">New scientific research</string>
+    <string name="briefing_include_research_desc">Also show new studies on these topics (Europe PMC, includes PubMed, last 30 days)</string>
+    <string name="briefing_save_to_library">Save in library (for the Q&amp;A)</string>
+    <string name="briefing_saving_article">Saving article…</string>
+    <string name="briefing_saved_full">Full article saved in the library</string>
+    <string name="briefing_saved_summary">The article could not be read; the summary was saved in the library</string>
 </resources>

@@ -48,6 +48,7 @@ data class BriefingUiState(
     val message: String? = null,
     val sourceErrors: Map<String, String> = emptyMap(),
     val sourceTestResults: Map<String, String> = emptyMap(),
+    val sourceStatus: Map<String, com.example.auralocalai.data.briefing.SourceStatus> = emptyMap(),
     val translatingTopicId: String? = null,
     val weeklyDigest: String? = null,
     val digestBusy: Boolean = false
@@ -244,12 +245,48 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         config.copy(sources = config.sources + DefaultBriefing.config.sources.filterNot { it.id in existing })
     }
 
+    /**
+     * Saves an article permanently in the library of the Q&A (on request only): the full text when it
+     * can be read, otherwise the summary. Public news, so no anonymisation is needed.
+     */
+    fun saveArticleToLibrary(article: com.example.auralocalai.data.briefing.BriefingArticle) {
+        viewModelScope.launch {
+            _state.update { it.copy(message = str(R.string.briefing_saving_article)) }
+            val text = withContext(Dispatchers.IO) {
+                runCatching { fetcher.fetchArticle(article.item.link, maxChars = 30_000)?.text }.getOrNull()
+                    ?.takeIf { com.example.auralocalai.data.briefing.ArticleContent.isUsable(it) }
+            }
+            val title = article.title.ifBlank { article.item.title }
+            val body = text ?: listOf(title, article.summary, article.relevance, article.item.link).filter { it.isNotBlank() }.joinToString("\n\n")
+            withContext(Dispatchers.IO) {
+                val repo = com.example.auralocalai.data.medical.MedicalRepository(getApplication<android.app.Application>().filesDir)
+                val name = "$title (${article.item.sourceName})"
+                val doc = com.example.auralocalai.data.medical.LibraryDocument(
+                    "doc_" + System.currentTimeMillis(), name, System.currentTimeMillis(),
+                    com.example.auralocalai.data.medical.PassageIndex.chunk(body)
+                )
+                repo.saveLibrary(repo.loadLibrary().filterNot { it.name == name } + doc)
+            }
+            _state.update { it.copy(message = str(if (text != null) R.string.briefing_saved_full else R.string.briefing_saved_summary)) }
+        }
+    }
+
+    /** Reloads the stored fetch status of all sources (for the Sources screen). */
+    fun refreshSourceStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val status = repository.loadSourceStatus()
+            _state.update { it.copy(sourceStatus = status) }
+        }
+    }
+
     fun testSource(id: String) {
         val source = _state.value.config.sources.firstOrNull { it.id == id } ?: return
         _state.update { it.copy(sourceTestResults = it.sourceTestResults + (id to str(R.string.briefing_testing))) }
         viewModelScope.launch {
             val keywords = _state.value.selectedProfile?.topics?.filter { it.enabled }?.flatMap { it.allKeywords }?.take(2).orEmpty()
             val result = fetcher.fetchSource(source, keywords.ifEmpty { listOf("news") })
+            withContext(Dispatchers.IO) { repository.saveSourceResults(listOf(result)) }
+            refreshSourceStatus()
             val error = result.error
             val text = if (error != null) str(R.string.briefing_test_failed, error) else str(R.string.briefing_test_ok, result.items.size)
             _state.update { it.copy(sourceTestResults = it.sourceTestResults + (id to text)) }
@@ -300,6 +337,10 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 val languageCode = BriefingGenerator.languageFor(profile, AppLocale.effectiveLanguage(getApplication()))
                 val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"
                 val webItems = if (profile.mode != SourceMode.RSS) searchWeb(profile, profile.topics.filter { it.enabled }, llm, languageCode) else emptyList()
+                val researchItems = if (profile.includeResearch) {
+                    _state.update { it.copy(progress = str(R.string.briefing_research_fetching)) }
+                    com.example.auralocalai.data.briefing.ResearchFeed.fetch(profile.topics)
+                } else emptyList()
                 val generator = BriefingGenerator(repository, fetcher, translator) { doi -> com.example.auralocalai.data.medical.StudyLookup.lookup(doi) }
                 val model = if (llm.isModelReady) BriefingGenerator.ModelCall { system, prompt -> llm.runOneShotPrompt(system, prompt) } else null
                 val briefing = generator.build(
@@ -308,7 +349,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                     languageCode = languageCode,
                     languageName = languageName,
                     forceRefresh = forceRefresh,
-                    extraItems = webItems,
+                    extraItems = webItems + researchItems,
                     model = model,
                     onProgress = { p -> _state.update { it.copy(progress = progressText(p)) } },
                     onSourceErrors = { errors -> _state.update { it.copy(sourceErrors = it.sourceErrors + errors) } }

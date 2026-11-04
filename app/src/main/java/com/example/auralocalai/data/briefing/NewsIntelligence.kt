@@ -95,11 +95,23 @@ object NewsIntelligence {
             .take(max)
             .toList()
 
-    /** Prompt to compare several reports of one event: agreed facts, extra details, contradictions, unverified claims. */
+    /** Status labels per claim (as in the integration plan). */
+    val CLAIM_LABELS = listOf(
+        "[SUPPORTED]" to "reported consistently by two or more independent sources",
+        "[PARTLY SUPPORTED]" to "confirmed in part, details differ",
+        "[CONFLICTING]" to "sources contradict each other",
+        "[SINGLE SOURCE]" to "reported by only one source, not verified",
+        "[INSUFFICIENT]" to "too little information in the texts to judge",
+        "[REFUTED]" to "contradicted by the other sources"
+    )
+
+    /** Prompt to compare several reports of one event, with a status label per claim. */
     fun comparePrompt(languageName: String, reports: List<NewsItem>): String = buildString {
-        append("Compare these news reports about the same event. Write in ").append(languageName).append(" with four short headings:\n")
-        append("1. Facts reported by several sources\n2. Extra details per source\n3. Contradictions between sources\n4. Claims reported by only one source (not verified)\n")
-        append("Use only the texts below and name the source for each point. Do not add facts.\n\n")
+        append("Compare these news reports about the same event. Write in ").append(languageName).append(".\n")
+        append("List the main claims. Give each claim exactly one status label and the sources [numbers] that report it:\n")
+        CLAIM_LABELS.forEach { (label, meaning) -> append("- ").append(label).append(": ").append(meaning).append('\n') }
+        append("Then add a short section 'Extra details per source'.\n")
+        append("Use only the texts below. Do not add facts. Reprints of the same text are not independent confirmation.\n\n")
         reports.forEachIndexed { i, r ->
             append("[").append(i + 1).append("] ").append(r.sourceName).append(": ").append(r.title).append('\n')
             if (r.description.isNotBlank()) append(r.description.take(600)).append('\n')

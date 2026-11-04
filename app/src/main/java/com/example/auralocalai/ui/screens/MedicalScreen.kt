@@ -423,6 +423,7 @@ private fun SourceRow(index: Int, source: MedicalSource) {
     val kindLabel = when (source.kind) {
         SourceKind.PUBMED.name -> "PubMed"
         SourceKind.LIBRARY.name -> stringResource(R.string.medical_origin_library)
+        SourceKind.NEWS.name -> stringResource(R.string.medical_origin_news)
         else -> stringResource(R.string.medical_origin_web)
     }
     Surface(

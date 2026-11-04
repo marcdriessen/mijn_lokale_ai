@@ -556,6 +556,7 @@ fun BriefingScreen(
                 detailArticle = null
                 onOpenChat()
             },
+            onSaveToLibrary = { briefingViewModel.saveArticleToLibrary(article) },
             onCompare = {
                 val languageName = com.example.auralocalai.AppLocale.languageNameForModel(briefingLanguage) ?: "Dutch"
                 llmViewModel.startNewChatWith(
@@ -1160,6 +1161,7 @@ private fun ArticleDetailDialog(
     canAskMore: Boolean,
     onAskMore: () -> Unit,
     onCompare: () -> Unit,
+    onSaveToLibrary: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1299,6 +1301,10 @@ private fun ArticleDetailDialog(
                             Text(stringResource(R.string.briefing_ground_news))
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(onClick = onSaveToLibrary, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.briefing_save_to_library))
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
@@ -1326,6 +1332,7 @@ private fun ProfileEditorDialog(
     var minute by remember(profile.id) { mutableStateOf(profile.minute) }
     var startDate by remember(profile.id) { mutableStateOf(profile.startDateMillis) }
     var notify by remember(profile.id) { mutableStateOf(profile.notify) }
+    var includeResearch by remember(profile.id) { mutableStateOf(profile.includeResearch) }
     var mode by remember(profile.id) { mutableStateOf(profile.mode) }
     var domains by remember(profile.id) { mutableStateOf(profile.webDomains.joinToString(", ")) }
     var maxArticles by remember(profile.id) { mutableStateOf(profile.maxArticles) }
@@ -1350,6 +1357,7 @@ private fun ProfileEditorDialog(
         minute = minute,
         startDateMillis = startDate,
         notify = notify,
+        includeResearch = includeResearch,
         sourceMode = mode.name,
         webDomains = TopicMatcher.parseKeywordList(domains, max = 30).map {
             it.lowercase().removePrefix("https://").removePrefix("http://").removePrefix("www.").substringBefore('/')
@@ -1506,6 +1514,13 @@ private fun ProfileEditorDialog(
                             Text(stringResource(R.string.briefing_notifications), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                             Switch(checked = notify, onCheckedChange = { notify = it })
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.briefing_include_research), style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.briefing_include_research_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = includeResearch, onCheckedChange = { includeResearch = it })
+                        }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 8.dp))
                         Text(stringResource(R.string.briefing_news_from), style = MaterialTheme.typography.bodyMedium)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
@@ -1661,6 +1676,7 @@ private fun EditorSectionLabel(text: String) {
 @Composable
 private fun SourcesDialog(briefingViewModel: BriefingViewModel, onDismiss: () -> Unit) {
     val state by briefingViewModel.state.collectAsState()
+    LaunchedEffect(Unit) { briefingViewModel.refreshSourceStatus() }
     var newSourceName by remember { mutableStateOf("") }
     var newSourceUrl by remember { mutableStateOf("") }
     AlertDialog(
@@ -1691,6 +1707,19 @@ private fun SourcesDialog(briefingViewModel: BriefingViewModel, onDismiss: () ->
                                     modifier = Modifier.clickable { briefingViewModel.cycleSourceCategory(source.id) }
                                 )
                                 Text(source.url, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                state.sourceStatus[source.id]?.let { st ->
+                                    val ok = st.error.isBlank()
+                                    Text(
+                                        if (ok) stringResource(R.string.source_status_ok, st.itemCount, relativeTime(st.lastChecked) ?: "")
+                                        else stringResource(
+                                            R.string.source_status_error,
+                                            st.error.take(60),
+                                            if (st.lastSuccess > 0) (relativeTime(st.lastSuccess) ?: "") else stringResource(R.string.source_status_never)
+                                        ),
+                                        fontSize = 10.sp,
+                                        color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                             TextButton(onClick = { briefingViewModel.testSource(source.id) }) { Text(stringResource(R.string.briefing_test), fontSize = 12.sp) }
                             IconButton(onClick = { briefingViewModel.deleteSource(source.id) }) {

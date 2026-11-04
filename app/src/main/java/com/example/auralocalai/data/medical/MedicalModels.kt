@@ -35,7 +35,7 @@ data class LibraryDocument(
     val passages: List<String>
 )
 
-enum class SourceKind { PUBMED, WEB, LIBRARY }
+enum class SourceKind { PUBMED, WEB, LIBRARY, NEWS }
 
 /** One numbered source shown under an answer and given to the model. */
 @Serializable

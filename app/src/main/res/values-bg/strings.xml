@@ -897,4 +897,15 @@
     <string name="provider_gemini_help">Ключ от aistudio.google.com → Get API key. Търсенето с Google чрез API изисква включено плащане в Google Cloud; част от търсенията са безплатни всеки месец.</string>
     <string name="provider_openai_help">Ключ от platform.openai.com → API keys и добавете кредит. Абонаментът за ChatGPT не включва API.</string>
     <string name="provider_ai_model">Модел (празно = препоръчан)</string>
+    <string name="source_status_ok">✓ %1$d новини · %2$s</string>
+    <string name="source_status_error">✗ %1$s · последен успех: %2$s</string>
+    <string name="source_status_never">никога</string>
+    <string name="medical_origin_news">Вашите новини</string>
+    <string name="briefing_research_fetching">Търсене на нови изследвания…</string>
+    <string name="briefing_include_research">Ново научно изследване</string>
+    <string name="briefing_include_research_desc">Показвай и нови изследвания по темите (Europe PMC, вкл. PubMed, последните 30 дни)</string>
+    <string name="briefing_save_to_library">Запази в библиотеката</string>
+    <string name="briefing_saving_article">Запазване на статията…</string>
+    <string name="briefing_saved_full">Цялата статия е запазена</string>
+    <string name="briefing_saved_summary">Статията не можа да се прочете; резюмето е запазено</string>
 </resources>

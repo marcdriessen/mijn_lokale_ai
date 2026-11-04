@@ -155,6 +155,30 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
+                // 1b. Shared knowledge layer: the news briefings stored on the phone (offline, no extra download).
+                if (config.useLibrary) {
+                    val newsDocs = withContext(Dispatchers.IO) {
+                        com.example.auralocalai.data.briefing.BriefingRepository(getApplication<android.app.Application>().filesDir)
+                            .loadHistory().flatMap { it.articles }
+                            .distinctBy { it.item.link }
+                            .map { a ->
+                                LibraryDocument(
+                                    a.item.link,
+                                    "${a.title.ifBlank { a.item.title }} (${a.item.sourceName})",
+                                    a.item.publishedMillis ?: 0L,
+                                    listOf(listOf(a.title.ifBlank { a.item.title }, a.summary, a.relevance).filter { it.isNotBlank() }.joinToString(". "))
+                                )
+                            }
+                    }
+                    if (newsDocs.isNotEmpty()) {
+                        val hits = withContext(Dispatchers.Default) { PassageIndex.search(newsDocs, clean, limit = 2) }
+                        hits.forEach { hit ->
+                            val doc = newsDocs.firstOrNull { it.name == hit.documentName }
+                            sources += MedicalSource(SourceKind.NEWS.name, hit.documentName, doc?.id.orEmpty(), hit.passage, str(R.string.medical_origin_news))
+                        }
+                    }
+                }
+
                 // 2. Trusted websites via Brave (site-restricted), within the monthly limit
                 if (config.useSites) {
                     val domains = config.sites.filter { it.enabled }.map { it.domain }
@@ -213,7 +237,8 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
                             .take(3)
                             .forEach { article ->
                                 val origin = listOfNotNull(
-                                    "Europe PMC", article.journal.ifBlank { null }, article.year.ifBlank { null },
+                                    "Europe PMC", article.publicationTypes.firstOrNull { it.isNotBlank() && !it.equals("research-article", true) && !it.equals("Journal Article", true) },
+                                    article.journal.ifBlank { null }, article.year.ifBlank { null },
                                     if (article.isOpenAccess) "open access" else null
                                 ).joinToString(" · ")
                                 sources += MedicalSource(SourceKind.PUBMED.name, article.title, article.url, article.abstract.ifBlank { article.title }, origin)

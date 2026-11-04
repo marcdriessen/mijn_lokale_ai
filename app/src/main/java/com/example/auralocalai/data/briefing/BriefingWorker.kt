@@ -75,6 +75,7 @@ class BriefingWorker(
                 languageCode = languageCode,
                 languageName = languageName,
                 forceRefresh = true,
+                extraItems = if (profile.includeResearch) runCatching { ResearchFeed.fetch(profile.topics) }.getOrDefault(emptyList()) else emptyList(),
                 model = if (modelLoaded) BriefingGenerator.ModelCall { system, prompt -> model.run(system, prompt) } else null,
                 modelDeadline = started + MODEL_TIME_BUDGET_MS
             )
