@@ -10,11 +10,16 @@ object Paywall {
         // Netherlands / Belgium
         "nrc.nl", "volkskrant.nl", "fd.nl", "trouw.nl", "parool.nl", "telegraaf.nl", "ad.nl", "destentor.nl", "tubantia.nl",
         "bndestem.nl", "pzc.nl", "ed.nl", "gelderlander.nl", "bd.nl", "limburger.nl", "lc.nl", "dvhn.nl", "standaard.be", "tijd.be",
-        "ftm.nl", "mt.nl",
+        "ftm.nl", "mt.nl", "rd.nl", "nd.nl", "groene.nl", "vn.nl", "ewmagazine.nl", "hpdetijd.nl", "noordhollandsdagblad.nl",
+        "haarlemsdagblad.nl", "leidschdagblad.nl", "gooieneemlander.nl", "ijmuidercourant.nl", "frieschdagblad.nl",
+        "demorgen.be", "nieuwsblad.be", "gva.be", "hbvl.be",
+        // Dutch care trade press (checked 4 Nov 2026: most articles for subscribers only)
+        "zorgvisie.nl", "zorgwelzijn.nl",
         // International
         "nytimes.com", "wsj.com", "ft.com", "bloomberg.com", "economist.com", "washingtonpost.com", "thetimes.co.uk",
         "telegraph.co.uk", "theatlantic.com", "newyorker.com", "barrons.com", "handelsblatt.com", "faz.net", "sueddeutsche.de",
         "lemonde.fr", "lefigaro.fr", "nzz.ch", "politico.eu", "statnews.com", "thelancet.com", "nejm.org", "bmj.com",
+        "reuters.com", "foreignaffairs.com", "foreignpolicy.com", "theinformation.com", "lesechos.fr", "theaustralian.com.au",
         // Bulgaria (Dnevnik and Capital: full articles for subscribers only)
         "capital.bg", "dnevnik.bg"
     )

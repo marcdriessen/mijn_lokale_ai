@@ -271,7 +271,7 @@ object DefaultBriefing {
 
     val sourcesV6: List<NewsSource> = listOf(
         NewsSource("nursing_nl", "Nursing", "https://www.nursing.nl/feed/", category = SourceCategory.PROFESSIONAL),
-        NewsSource("zorgwelzijn", "ZorgWelzijn", "https://www.zorgwelzijn.nl/feed/", category = SourceCategory.PROFESSIONAL),
+        NewsSource("zorgwelzijn", "ZorgWelzijn", "https://www.zorgwelzijn.nl/feed/", enabled = false, category = SourceCategory.PROFESSIONAL),
         NewsSource("clinica_bg", "Clinica.bg", "https://clinica.bg/rss/news.xml", category = SourceCategory.PROFESSIONAL),
         NewsSource("zdrave_net", "Zdrave.net", "https://www.zdrave.net/news.xml", category = SourceCategory.PROFESSIONAL),
         NewsSource("sega", "Сега", "https://www.segabg.com/rss"),
@@ -284,7 +284,7 @@ object DefaultBriefing {
     val DESCRIPTIONS: Map<String, Pair<String, String>> = mapOf(
         "dw" to ("Deutsche Welle, Duitse publieke omroep, wereldnieuws" to "en"),
         "aljazeera" to ("Al Jazeera, internationaal nieuws vanuit het Midden-Oosten" to "en"),
-        "reuters" to ("Reuters, internationaal persbureau (via Google Nieuws)" to "en"),
+        "reuters" to ("Reuters, internationaal persbureau; blokkeert de app en vraagt een account" to "en"),
         "apnews" to ("Associated Press, Amerikaans persbureau (via Google Nieuws)" to "en"),
         "bbc_world" to ("BBC, Britse publieke omroep, wereldnieuws" to "en"),
         "guardian_world" to ("The Guardian, Britse krant, wereldnieuws" to "en"),
@@ -295,10 +295,10 @@ object DefaultBriefing {
         "nu_gezondheid" to ("NU.nl, gezondheidsnieuws" to "nl"),
         "ggznieuws" to ("GGZ Nieuws, vakblad voor de ggz" to "nl"),
         "skipr" to ("Skipr, nieuws over zorgbeleid en -bestuur (deels betaald)" to "nl"),
-        "zorgvisie" to ("Zorgvisie, nieuws over zorgmanagement (deels betaald)" to "nl"),
+        "zorgvisie" to ("Zorgvisie, nieuws over zorgmanagement; betaalmuur, alleen bruikbaar als je in de app-browser inlogt" to "nl"),
         "trimbos_news" to ("Trimbos-instituut, kenniscentrum voor ggz, alcohol en drugs" to "nl"),
-        "nursing_nl" to ("Nursing, vakblad voor verpleegkundigen" to "nl"),
-        "zorgwelzijn" to ("ZorgWelzijn, vakblad voor zorg en welzijn" to "nl"),
+        "nursing_nl" to ("Nursing, vakblad voor verpleegkundigen; een deel vraagt een gratis account (inloggen via de app-browser)" to "nl"),
+        "zorgwelzijn" to ("ZorgWelzijn, vakblad voor zorg en welzijn; betaalmuur, alleen bruikbaar als je in de app-browser inlogt" to "nl"),
         "igj" to ("Inspectie Gezondheidszorg en Jeugd, nieuws van de toezichthouder" to "nl"),
         "igj_toezicht" to ("IGJ, nieuwe toezichtdocumenten en rapporten" to "nl"),
         "gn_nispa" to ("NISPA, Nederlands Instituut voor Seksualiteit, Psychiatrie en Verslaving" to "nl"),
@@ -348,12 +348,12 @@ object DefaultBriefing {
     const val SOURCES_VERSION = 7
 
     /** Sources version 7: turned off because their articles are behind a paywall. */
-    val paywalledV7 = setOf("dnevnik")
+    val paywalledV7 = setOf("dnevnik", "zorgvisie", "zorgwelzijn", "reuters")
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
         NewsSource("aljazeera", "Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
-        NewsSource("reuters", "Reuters (via Google News)", googleNewsSite("reuters.com")),
+        NewsSource("reuters", "Reuters (via Google News)", googleNewsSite("reuters.com"), enabled = false),
         NewsSource("apnews", "AP News (via Google News)", googleNewsSite("apnews.com")),
         NewsSource(
             "gnews_search_en",
@@ -392,7 +392,7 @@ object DefaultBriefing {
         NewsSource("nos", "NOS", "https://feeds.nos.nl/nosnieuwsalgemeen"),
         NewsSource("ggznieuws", "GGZ Nieuws (via Google News)", googleNewsNl("ggznieuws.nl")),
         NewsSource("skipr", "Skipr (via Google News)", googleNewsNl("skipr.nl")),
-        NewsSource("zorgvisie", "Zorgvisie (via Google News)", googleNewsNl("zorgvisie.nl")),
+        NewsSource("zorgvisie", "Zorgvisie (via Google News)", googleNewsNl("zorgvisie.nl"), enabled = false),
         NewsSource("trimbos_news", "Trimbos (via Google News)", googleNewsNl("trimbos.nl")),
         NewsSource(
             "gnews_search_nl",
@@ -460,7 +460,12 @@ object DefaultBriefing {
             val updated = (if (result.sourcesVersion < 6) {
                 result.sources.map { s -> updatesV6[s.id]?.let { (n, u) -> s.copy(name = n, url = u) } ?: s }
             } else result.sources).map { s ->
-                if (result.sourcesVersion < 7 && s.id in paywalledV7) s.copy(enabled = false, description = "") else s
+                when {
+                    result.sourcesVersion >= 7 -> s
+                    s.id in paywalledV7 -> s.copy(enabled = false, description = "")
+                    s.id == "nursing_nl" -> s.copy(description = "")
+                    else -> s
+                }
             }
             result = result.copy(
                 sources = (updated + added.filterNot { it.id in existingIds }).map { describe(it) },

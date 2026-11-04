@@ -1093,7 +1093,7 @@ private fun PersonalizeSheet(
 private fun LoginSitesDialog(onOpen: (String) -> Unit, onDismiss: () -> Unit) {
     var custom by remember { mutableStateOf("") }
     var refresh by remember { mutableStateOf(0) }
-    val sites = remember { listOf("nrc.nl", "volkskrant.nl", "fd.nl", "trouw.nl", "telegraaf.nl", "ad.nl", "skipr.nl", "zorgvisie.nl", "ground.news", "nytimes.com", "ft.com", "capital.bg") }
+    val sites = remember { listOf("nrc.nl", "volkskrant.nl", "fd.nl", "trouw.nl", "telegraaf.nl", "ad.nl", "skipr.nl", "zorgvisie.nl", "zorgwelzijn.nl", "nursing.nl", "dnevnik.bg", "ground.news", "nytimes.com", "ft.com", "capital.bg") }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.logins_title)) },

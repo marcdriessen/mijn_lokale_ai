@@ -127,11 +127,9 @@ class BriefingGenerator(
                             )
                             Triple(replaced, altPage, false)
                         } else {
-                            // A paywall found on the page itself (site not in the list) and no free source
-                            // with the same news: leave the article out, unless the user is logged in there.
-                            if (page?.access == ArticleContent.Access.PAYWALL && config.skipPaywalled &&
-                                !loggedIn(Paywall.domainOf(article.item.link)) && !loggedIn(article.item.publisherDomain)
-                            ) return@async null
+                            // A paywall on the page itself and no free source with the same news: leave the
+                            // article out. Login cookies were already sent, so the reader cannot open it either.
+                            if (page?.access == ArticleContent.Access.PAYWALL && config.skipPaywalled) return@async null
                             val blocked = page?.access == ArticleContent.Access.PAYWALL || page?.access == ArticleContent.Access.BLOCKED
                             Triple(article, NewsFetcher.ArticlePage(article.item.imageUrl ?: page?.imageUrl, ""), blocked)
                         }

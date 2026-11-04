@@ -60,4 +60,33 @@ class PaywallTest {
         val html = "<html><body><p>Кратко въведение.</p><div>Тази статия е достъпна само за абонати. Стани абонат</div></body></html>"
         assertEquals(ArticleContent.Access.PAYWALL, ArticleContent.access(html, "Кратко въведение."))
     }
+
+    @Test
+    fun consentCookiesAreNotALogin() {
+        assertFalse(WebLogins.looksLoggedIn(null))
+        assertFalse(WebLogins.looksLoggedIn("euconsent-v2=abc; _ga=GA1.2; __cf_bm=x; cf_clearance=y; didomi_token=z"))
+        assertTrue(WebLogins.looksLoggedIn("_ga=1; wordpress_logged_in_abc=user"))
+        assertTrue(WebLogins.looksLoggedIn("PHPSESSID=1; subscriber_token=2"))
+    }
+
+    @Test
+    fun checkedTradePressIsPaywalled() {
+        assertTrue(Paywall.isPaywalled(NewsItem("t", "https://www.zorgvisie.nl/x/", "Zorgvisie")))
+        assertTrue(Paywall.isPaywalled(NewsItem("t", "https://www.zorgwelzijn.nl/x/", "ZorgWelzijn")))
+        assertFalse(Paywall.isPaywalled(NewsItem("t", "https://www.skipr.nl/nieuws/x/", "Skipr")))
+        val v6 = BriefingConfig(
+            sources = listOf(NewsSource("zorgvisie", "Zorgvisie", "https://www.zorgvisie.nl/feed/"), NewsSource("skipr", "Skipr", "https://www.skipr.nl/feed/")),
+            profiles = listOf(DefaultBriefing.careProfile),
+            sourcesVersion = 6
+        )
+        val migrated = DefaultBriefing.migrate(v6)
+        assertFalse(migrated.sources.first { it.id == "zorgvisie" }.enabled)
+        assertTrue(migrated.sources.first { it.id == "skipr" }.enabled)
+    }
+
+    @Test
+    fun registrationWallIsRecognised() {
+        val html = "<html><body><p>Korte inleiding.</p><div class=\"premium-content-paywall-container\">Registreren</div></body></html>"
+        assertEquals(ArticleContent.Access.PAYWALL, ArticleContent.access(html, "Korte inleiding."))
+    }
 }
