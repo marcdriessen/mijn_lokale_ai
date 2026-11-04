@@ -22,6 +22,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.example.auralocalai.AppLocale
+import com.example.auralocalai.AppSecurity
 import com.example.auralocalai.MainActivity
 import com.example.auralocalai.R
 import java.util.Calendar
@@ -50,6 +51,7 @@ class BriefingWorker(
             if (day == Calendar.SATURDAY || day == Calendar.SUNDAY) return Result.success()
         }
         if (profile.topics.none { it.enabled }) return Result.success()
+        if (AppSecurity.isPrivacyMode(applicationContext)) return Result.success()
 
         val started = System.currentTimeMillis()
         // Keep the job alive longer than the normal 10 minutes when Android allows it.

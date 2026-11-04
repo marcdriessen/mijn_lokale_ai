@@ -115,7 +115,8 @@ fun MedicalScreen(
         topBar = {
             com.example.auralocalai.ui.components.AppHeader(
                 title = stringResource(R.string.medical_title_short),
-                subtitle = stringResource(R.string.medical_subtitle)
+                subtitle = stringResource(R.string.medical_subtitle),
+                onBack = onBack
             ) {
                 com.example.auralocalai.ui.components.CircleIconButton(Icons.Default.LibraryBooks, stringResource(R.string.medical_library)) { showLibrary = true }
                 com.example.auralocalai.ui.components.CircleIconButton(Icons.Default.History, stringResource(R.string.medical_history)) { showHistory = true }

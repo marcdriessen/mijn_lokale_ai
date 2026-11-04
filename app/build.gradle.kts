@@ -115,6 +115,9 @@ dependencies {
   implementation("androidx.compose.material:material-icons-core")
   implementation("androidx.compose.material:material-icons-extended")
 
+  // Biometric app lock (fingerprint / device PIN)
+  implementation("androidx.biometric:biometric:1.1.0")
+
   // WorkManager for the optional daily news download (daily briefing)
   implementation("androidx.work:work-runtime-ktx:2.9.1")
 

@@ -75,7 +75,8 @@ fun SettingsScreen(
         topBar = {
             com.example.auralocalai.ui.components.AppHeader(
                 title = stringResource(R.string.settings_title),
-                subtitle = stringResource(R.string.app_name)
+                subtitle = stringResource(R.string.app_name),
+                onBack = onBack
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -89,6 +90,42 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Privacy & security
+            var lockEnabled by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isLockEnabled(context)) }
+            var privacyMode by remember { mutableStateOf(com.example.auralocalai.AppSecurity.isPrivacyMode(context)) }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.security_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.security_lock), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.security_lock_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = lockEnabled, onCheckedChange = {
+                            lockEnabled = it
+                            com.example.auralocalai.AppSecurity.setLockEnabled(context, it)
+                        })
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.security_privacy), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.security_privacy_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = privacyMode, onCheckedChange = {
+                            privacyMode = it
+                            com.example.auralocalai.AppSecurity.setPrivacyMode(context, it)
+                        })
+                    }
+                }
+            }
+
             // Title Card with Info
             Card(
                 modifier = Modifier.fillMaxWidth(),

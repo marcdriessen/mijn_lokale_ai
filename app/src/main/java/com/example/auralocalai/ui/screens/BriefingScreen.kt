@@ -186,7 +186,8 @@ fun BriefingScreen(
         topBar = {
             AppHeader(
                 title = stringResource(R.string.nav_news),
-                subtitle = SimpleDateFormat("EEEE d MMMM", locale).format(Date()).replaceFirstChar { it.titlecase(locale) }
+                subtitle = SimpleDateFormat("EEEE d MMMM", locale).format(Date()).replaceFirstChar { it.titlecase(locale) },
+                onBack = onBack
             ) {
                 if (profile != null) {
                     CircleIconButton(Icons.Default.Tune, stringResource(R.string.briefing_edit_profile)) { editingProfileId = profile.id }

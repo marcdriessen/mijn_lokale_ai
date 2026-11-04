@@ -134,8 +134,10 @@ class MedicalViewModel(application: Application) : AndroidViewModel(application)
         val clean = question.trim()
         if (clean.isEmpty() || _state.value.isRunning) return
         runJob = viewModelScope.launch {
-            val config = _state.value.config
+            val privacy = com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())
+            val config = _state.value.config.let { if (privacy) it.copy(useSites = false, usePubMed = false) else it }
             val notes = mutableListOf<String>()
+            if (privacy) notes += str(R.string.privacy_only_library)
             val sources = mutableListOf<MedicalSource>()
             val languageCode = AppLocale.effectiveLanguage(getApplication())
             val languageName = AppLocale.languageNameForModel(languageCode) ?: "English"

@@ -102,7 +102,8 @@ fun ModelManagerScreen(
         topBar = {
             com.example.auralocalai.ui.components.AppHeader(
                 title = stringResource(R.string.model_manager_title),
-                subtitle = stringResource(R.string.header_models_subtitle)
+                subtitle = stringResource(R.string.header_models_subtitle),
+                onBack = onBack
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

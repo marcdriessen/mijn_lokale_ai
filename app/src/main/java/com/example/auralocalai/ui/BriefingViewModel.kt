@@ -259,6 +259,10 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun generate(llm: LlmViewModel, forceRefresh: Boolean = false) {
         if (_state.value.isRunning) return
         val profile = _state.value.selectedProfile ?: return
+        if (com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())) {
+            _state.update { it.copy(message = str(R.string.privacy_blocked)) }
+            return
+        }
         runJob = viewModelScope.launch {
             if (profile.topics.none { it.enabled }) {
                 _state.update { it.copy(message = str(R.string.briefing_no_topics)) }

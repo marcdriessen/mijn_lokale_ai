@@ -1614,7 +1614,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 (contextCapacity * 3 / 4).coerceAtLeast(600)
             )
 
-            val effectiveMode = _uiState.value.chatSearchOverride ?: _uiState.value.webSearchMode
+            val effectiveMode = if (com.example.auralocalai.AppSecurity.isPrivacyMode(getApplication())) WebSearchMode.OFF
+                else _uiState.value.chatSearchOverride ?: _uiState.value.webSearchMode
             if (_uiState.value.chatSearchOverride != null) {
                 _uiState.update { it.copy(chatSearchOverride = null) }
             }

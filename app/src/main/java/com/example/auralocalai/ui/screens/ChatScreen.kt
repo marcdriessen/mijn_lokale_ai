@@ -29,6 +29,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Delete
@@ -95,7 +98,8 @@ fun ChatScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToBriefing: () -> Unit = {},
-    onNavigateToMedical: () -> Unit = {}
+    onNavigateToMedical: () -> Unit = {},
+    onHome: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -548,6 +552,17 @@ fun ChatScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        IconButton(
+                            onClick = onHome,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = stringResource(R.string.home_dashboard),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         if (uiState.messages.isNotEmpty()) {
                             IconButton(
                                 onClick = {
@@ -720,6 +735,38 @@ fun ChatScreen(
                     }
                 }
 
+                // Shortcuts: put an instruction in front of the typed text (or start a new one).
+                if (!uiState.isGenerating) {
+                    val shortcuts = listOf(
+                        stringResource(R.string.shortcut_summarize) to stringResource(R.string.shortcut_summarize_prompt),
+                        stringResource(R.string.shortcut_translate_nl) to stringResource(R.string.shortcut_translate_nl_prompt),
+                        stringResource(R.string.shortcut_simplify) to stringResource(R.string.shortcut_simplify_prompt),
+                        stringResource(R.string.shortcut_email) to stringResource(R.string.shortcut_email_prompt),
+                        stringResource(R.string.shortcut_bulgarian) to stringResource(R.string.shortcut_bulgarian_prompt)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        shortcuts.forEach { (label, prompt) ->
+                            AssistChip(
+                                onClick = {
+                                    if (textInput.isBlank()) {
+                                        textInput = "$prompt\n\n"
+                                    } else {
+                                        viewModel.sendMessage("$prompt\n\n$textInput")
+                                        textInput = ""
+                                    }
+                                },
+                                label = { Text(label, fontSize = 12.sp) },
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        }
+                    }
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
