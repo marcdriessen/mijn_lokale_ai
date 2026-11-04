@@ -195,7 +195,26 @@ object DefaultBriefing {
         NewsSource("busfreaks", "Busfreaks (forum)", "https://www.busfreaks.de/forum/thread-list-rss-feed/", enabled = false, category = SourceCategory.FORUM)
     )
 
-    const val SOURCES_VERSION = 4
+    private fun gnBg(site: String) = "https://news.google.com/rss/search?q=site%3A$site+when%3A1d&hl=bg&gl=BG&ceid=BG:bg"
+
+    /**
+     * Added in sources version 5: the remaining sources of the integration plan. Sites without a
+     * confirmed own feed (BNR, BNT, NOVA, Mediapool, 24 Chasa, Darik, V&VN) go via Google News.
+     */
+    val sourcesV5: List<NewsSource> = listOf(
+        NewsSource("bta_free", "БТА – свободни новини", "https://www.bta.bg/bg/rss/free"),
+        NewsSource("gn_bnr", "БНР (via Google News)", gnBg("bnr.bg")),
+        NewsSource("gn_bnt", "БНТ (via Google News)", gnBg("bntnews.bg")),
+        NewsSource("gn_nova", "NOVA (via Google News)", gnBg("nova.bg")),
+        NewsSource("gn_mediapool", "Медиапул (via Google News)", gnBg("mediapool.bg")),
+        NewsSource("gn_24chasa", "24 часа (via Google News)", gnBg("24chasa.bg")),
+        NewsSource("gn_darik", "Дарик (via Google News)", gnBg("dariknews.bg")),
+        NewsSource("gn_venvn", "V&VN (via Google Nieuws)", "https://news.google.com/rss/search?q=site%3Avenvn.nl+when%3A30d&hl=nl&gl=NL&ceid=NL:nl", category = SourceCategory.PROFESSIONAL),
+        NewsSource("gn_nl_top", "Google Nieuws Nederland (algemeen)", "https://news.google.com/rss?hl=nl&gl=NL&ceid=NL:nl", enabled = false),
+        NewsSource("xda_news", "XDA News", "https://www.xda-developers.com/feed/news/", enabled = false, category = SourceCategory.TECH)
+    )
+
+    const val SOURCES_VERSION = 5
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
@@ -279,7 +298,7 @@ object DefaultBriefing {
 
     val config: BriefingConfig = BriefingConfig(
         topics = topics,
-        sources = sources + freeSources + dutchSources + sourcesV3 + sourcesV4,
+        sources = sources + freeSources + dutchSources + sourcesV3 + sourcesV4 + sourcesV5,
         profiles = listOf(careProfile, worldProfile),
         sourcesVersion = SOURCES_VERSION
     )
@@ -298,7 +317,8 @@ object DefaultBriefing {
         if (result.sourcesVersion < SOURCES_VERSION) {
             val existingIds = result.sources.map { it.id }.toSet()
             val added = (if (result.sourcesVersion < 2) freeSources else emptyList()) +
-                (if (result.sourcesVersion < 3) sourcesV3 else emptyList()) + sourcesV4
+                (if (result.sourcesVersion < 3) sourcesV3 else emptyList()) +
+                (if (result.sourcesVersion < 4) sourcesV4 else emptyList()) + sourcesV5
             result = result.copy(
                 sources = result.sources + added.filterNot { it.id in existingIds },
                 sourcesVersion = SOURCES_VERSION
