@@ -82,6 +82,8 @@ import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.ui.graphics.graphicsLayer
 import com.example.auralocalai.data.SearchContextBuilder
 import com.example.auralocalai.data.WebSearchMode
+import androidx.compose.ui.res.stringResource
+import com.example.auralocalai.R
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -109,7 +111,7 @@ fun ChatScreen(
     val speechIntent = remember {
         Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault().toString())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, context.resources.configuration.locales[0].toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
         }
@@ -142,16 +144,16 @@ fun ChatScreen(
             override fun onError(error: Int) {
                 isListening = false
                 val errorMsg = when (error) {
-                    SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-                    SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-                    SpeechRecognizer.ERROR_NETWORK -> "Network error"
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-                    SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer busy"
-                    SpeechRecognizer.ERROR_SERVER -> "Server error"
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-                    else -> "Voice recognition error"
+                    SpeechRecognizer.ERROR_AUDIO -> context.getString(R.string.speech_error_audio)
+                    SpeechRecognizer.ERROR_CLIENT -> context.getString(R.string.speech_error_client)
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> context.getString(R.string.speech_error_permissions)
+                    SpeechRecognizer.ERROR_NETWORK -> context.getString(R.string.speech_error_network)
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> context.getString(R.string.speech_error_network_timeout)
+                    SpeechRecognizer.ERROR_NO_MATCH -> context.getString(R.string.speech_error_no_match)
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> context.getString(R.string.speech_error_busy)
+                    SpeechRecognizer.ERROR_SERVER -> context.getString(R.string.speech_error_server)
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> context.getString(R.string.speech_error_timeout)
+                    else -> context.getString(R.string.speech_error_generic)
                 }
                 if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
                     Toast.makeText(context, errorMsg, Toast.LENGTH_SHORT).show()
@@ -186,14 +188,14 @@ fun ChatScreen(
                 try {
                     speechPromptLauncher.launch(speechIntent)
                 } catch (dialogEx: Exception) {
-                    Toast.makeText(context, "Voice input unavailable: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.voice_input_unavailable, e.localizedMessage ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
             try {
                 speechPromptLauncher.launch(speechIntent)
             } catch (e: Exception) {
-                Toast.makeText(context, "Speech recognition is not available on this device", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.speech_not_available), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -204,7 +206,7 @@ fun ChatScreen(
             if (isGranted) {
                 startListeningInternal()
             } else {
-                Toast.makeText(context, "Audio recording permission is required for voice input.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.mic_permission_required), Toast.LENGTH_SHORT).show()
             }
         }
     )
@@ -270,12 +272,12 @@ fun ChatScreen(
     if (showRenameDialog != null) {
         AlertDialog(
             onDismissRequest = { showRenameDialog = null },
-            title = { Text("Rename Chat") },
+            title = { Text(stringResource(R.string.rename_chat)) },
             text = {
                 OutlinedTextField(
                     value = renameTitleInput,
                     onValueChange = { renameTitleInput = it },
-                    label = { Text("Chat Title") },
+                    label = { Text(stringResource(R.string.chat_title)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -290,12 +292,12 @@ fun ChatScreen(
                         showRenameDialog = null
                     }
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -304,8 +306,8 @@ fun ChatScreen(
     if (sessionToDelete != null) {
         AlertDialog(
             onDismissRequest = { sessionToDelete = null },
-            title = { Text("Delete Chat") },
-            text = { Text("Are you sure you want to delete '${sessionToDelete?.title}'? This action cannot be undone.") },
+            title = { Text(stringResource(R.string.delete_chat)) },
+            text = { Text(stringResource(R.string.delete_chat_confirm, sessionToDelete?.title ?: "")) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -314,12 +316,12 @@ fun ChatScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { sessionToDelete = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -343,13 +345,13 @@ fun ChatScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Conversations",
+                            text = stringResource(R.string.conversations),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         IconButton(onClick = { coroutineScope.launch { drawerState.close() } }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close Drawer")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_drawer))
                         }
                     }
 
@@ -365,7 +367,7 @@ fun ChatScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("New Chat", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.new_chat), fontWeight = FontWeight.SemiBold)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -410,7 +412,7 @@ fun ChatScreen(
                                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
                                         Text(
-                                            text = "${session.messageCount} messages",
+                                            text = context.resources.getQuantityString(R.plurals.chat_message_count, session.messageCount, session.messageCount),
                                             fontSize = 11.sp,
                                             color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -426,7 +428,7 @@ fun ChatScreen(
                                         ) {
                                             Icon(
                                                 Icons.Default.Edit,
-                                                contentDescription = "Rename",
+                                                contentDescription = stringResource(R.string.rename),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -437,7 +439,7 @@ fun ChatScreen(
                                         ) {
                                             Icon(
                                                 Icons.Default.Delete,
-                                                contentDescription = "Delete",
+                                                contentDescription = stringResource(R.string.delete),
                                                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -465,7 +467,7 @@ fun ChatScreen(
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                         ) {
-                            Text("Models", fontSize = 12.sp)
+                            Text(stringResource(R.string.models), fontSize = 12.sp)
                         }
                         OutlinedButton(
                             onClick = {
@@ -476,7 +478,7 @@ fun ChatScreen(
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                         ) {
-                            Text("Settings", fontSize = 12.sp)
+                            Text(stringResource(R.string.settings), fontSize = 12.sp)
                         }
                     }
                 }
@@ -504,7 +506,7 @@ fun ChatScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Menu,
-                            contentDescription = "Open Chat Drawer",
+                            contentDescription = stringResource(R.string.open_chat_drawer),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -533,9 +535,9 @@ fun ChatScreen(
                                 } else ""
                                 Pair(Color(0xFF22C55E), "$baseName$backendTag")
                             }
-                            ModelState.Loading -> Pair(Color(0xFFEAB308), "Loading Model...")
-                            is ModelState.Error -> Pair(MaterialTheme.colorScheme.error, "Engine Error")
-                            ModelState.Unloaded -> Pair(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), "No model (Offline)")
+                            ModelState.Loading -> Pair(Color(0xFFEAB308), stringResource(R.string.loading_model))
+                            is ModelState.Error -> Pair(MaterialTheme.colorScheme.error, stringResource(R.string.engine_error))
+                            ModelState.Unloaded -> Pair(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), stringResource(R.string.no_model_offline))
                         }
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -573,7 +575,7 @@ fun ChatScreen(
                             IconButton(
                                 onClick = {
                                     val formattedChat = uiState.messages.joinToString("\n\n") { msg ->
-                                        val role = if (msg.isUser) "User" else "AI"
+                                        val role = if (msg.isUser) context.getString(R.string.share_role_user) else "AI"
                                         "[$role]: ${msg.content}"
                                     }
                                     val sendIntent: Intent = Intent().apply {
@@ -581,14 +583,14 @@ fun ChatScreen(
                                         putExtra(Intent.EXTRA_TEXT, formattedChat)
                                         type = "text/plain"
                                     }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Share Chat History")
+                                    val shareIntent = Intent.createChooser(sendIntent, context.getString(R.string.share_chat_history))
                                     context.startActivity(shareIntent)
                                 },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
-                                    contentDescription = "Share Chat",
+                                    contentDescription = stringResource(R.string.share_chat),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -599,7 +601,7 @@ fun ChatScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Clear Chat",
+                                    contentDescription = stringResource(R.string.clear_chat),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -611,7 +613,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Dns,
-                                contentDescription = "Model Catalog",
+                                contentDescription = stringResource(R.string.model_catalog),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -622,7 +624,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
-                                contentDescription = "App Settings",
+                                contentDescription = stringResource(R.string.app_settings),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -754,7 +756,7 @@ fun ChatScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Searching web for \"${uiState.activeSearchQuery ?: ""}\"…",
+                                text = stringResource(R.string.searching_web_for, uiState.activeSearchQuery ?: ""),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -799,21 +801,21 @@ fun ChatScreen(
                                     if (uiState.selectedImageUri != null) {
                                         AsyncImage(
                                             model = uiState.selectedImageUri,
-                                            contentDescription = "Image preview",
+                                            contentDescription = stringResource(R.string.image_preview),
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                         )
                                     } else if (uiState.selectedVideoUri != null) {
                                         Icon(
                                             imageVector = Icons.Default.PlayCircle,
-                                            contentDescription = "Video preview",
+                                            contentDescription = stringResource(R.string.video_preview),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(32.dp)
                                         )
                                     } else if (uiState.selectedFileUri != null) {
                                         Icon(
                                             imageVector = Icons.Default.Description,
-                                            contentDescription = "File preview",
+                                            contentDescription = stringResource(R.string.file_preview),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(32.dp)
                                         )
@@ -824,9 +826,9 @@ fun ChatScreen(
                                 
                                 Column(modifier = Modifier.weight(1f)) {
                                     val label = when {
-                                        uiState.selectedImageUri != null -> "Image Attachment"
-                                        uiState.selectedVideoUri != null -> uiState.selectedFileName ?: "Video"
-                                        else -> uiState.selectedFileName ?: "Document"
+                                        uiState.selectedImageUri != null -> stringResource(R.string.image_attachment)
+                                        uiState.selectedVideoUri != null -> uiState.selectedFileName ?: stringResource(R.string.video)
+                                        else -> uiState.selectedFileName ?: stringResource(R.string.document)
                                     }
                                     Text(
                                         text = label,
@@ -844,28 +846,28 @@ fun ChatScreen(
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = "Processing attachment...",
+                                                text = stringResource(R.string.processing_attachment),
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                     } else if (uiState.attachmentError != null) {
                                         Text(
-                                            text = uiState.attachmentError ?: "Error",
+                                            text = uiState.attachmentError ?: stringResource(R.string.error),
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.error,
                                             fontWeight = FontWeight.Medium
                                         )
                                     } else if (uiState.extractedOcrText != null) {
                                         Text(
-                                            text = "Extracted ${uiState.extractedOcrText?.length ?: 0} characters",
+                                            text = stringResource(R.string.extracted_chars, uiState.extractedOcrText?.length ?: 0),
                                             fontSize = 11.sp,
                                             color = Color(0xFF16A34A),
                                             fontWeight = FontWeight.Medium
                                         )
                                     } else {
                                         Text(
-                                            text = "Ready to send",
+                                            text = stringResource(R.string.ready_to_send),
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -880,7 +882,7 @@ fun ChatScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Remove attachment",
+                                        contentDescription = stringResource(R.string.remove_attachment),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -908,7 +910,7 @@ fun ChatScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Add,
-                                        contentDescription = "Attach Content",
+                                        contentDescription = stringResource(R.string.attach_content),
                                         tint = if (!hasAttachment) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -928,7 +930,7 @@ fun ChatScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Mic,
-                                            contentDescription = if (isListening) "Stop Listening" else "Voice Input",
+                                            contentDescription = if (isListening) stringResource(R.string.stop_listening) else stringResource(R.string.voice_input),
                                             tint = if (isListening) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -943,9 +945,9 @@ fun ChatScreen(
                                     WebSearchMode.ALWAYS -> Color(0xFF16A34A)
                                 }
                                 val searchModeLabel = when (effectiveSearchMode) {
-                                    WebSearchMode.OFF -> "Web Search: Off"
-                                    WebSearchMode.AUTO -> "Web Search: Auto"
-                                    WebSearchMode.ALWAYS -> "Web Search: Always"
+                                    WebSearchMode.OFF -> stringResource(R.string.web_search_off)
+                                    WebSearchMode.AUTO -> stringResource(R.string.web_search_auto)
+                                    WebSearchMode.ALWAYS -> stringResource(R.string.web_search_always)
                                 }
 
                                 IconButton(
@@ -991,7 +993,7 @@ fun ChatScreen(
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (textInput.isEmpty()) {
                                             Text(
-                                                text = "Ask Local LLM/AI...",
+                                                text = stringResource(R.string.input_hint),
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                                 fontSize = 15.sp
                                             )
@@ -1015,7 +1017,7 @@ fun ChatScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Stop Generation",
+                                        contentDescription = stringResource(R.string.stop_generation),
                                         tint = Color.White,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -1041,7 +1043,7 @@ fun ChatScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.Send,
-                                        contentDescription = "Send Message",
+                                        contentDescription = stringResource(R.string.send_message),
                                         tint = if (canSend) {
                                             Color.White
                                         } else {
@@ -1075,7 +1077,7 @@ fun ChatScreen(
                         )
                     ) {
                         Text(
-                            text = "Download or Load local LLM to start Chatting",
+                            text = stringResource(R.string.download_or_load_to_chat),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
@@ -1100,7 +1102,7 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Add to Conversation",
+                        text = stringResource(R.string.add_to_conversation),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1133,8 +1135,8 @@ fun ChatScreen(
                                 Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Attach Image", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                Text("Visual question answering or OCR text extraction", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.attach_image), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.attach_image_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -1165,8 +1167,8 @@ fun ChatScreen(
                                 Icon(Icons.Default.PlayCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Attach Video", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                Text("Sample keyframes for video understanding", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.attach_video), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.attach_video_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -1197,8 +1199,8 @@ fun ChatScreen(
                                 Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Attach Document", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                Text("Extract text from PDF, TXT, or markdown files", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.attach_document), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.attach_document_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -1221,14 +1223,14 @@ fun ChatScreen(
                 },
                 title = {
                     Text(
-                        text = "Web Search Privacy Disclosure",
+                        text = stringResource(R.string.search_disclosure_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )
                 },
                 text = {
                     Text(
-                        text = "Aura Local AI runs models privately on-device. When Web Search is enabled, queries and pasted URLs are sent over the internet to third-party search providers (DuckDuckGo, Wikipedia, Brave, or Serper) to retrieve fresh context.\n\nNever search confidential or personally identifying information.",
+                        text = stringResource(R.string.search_disclosure_body),
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1242,14 +1244,14 @@ fun ChatScreen(
                             showSearchDisclosureDialog = false
                         }
                     ) {
-                        Text("Enable Search")
+                        Text(stringResource(R.string.enable_search))
                     }
                 },
                 dismissButton = {
                     TextButton(
                         onClick = { showSearchDisclosureDialog = false }
                     ) {
-                        Text("Keep Offline")
+                        Text(stringResource(R.string.keep_offline))
                     }
                 }
             )
@@ -1386,7 +1388,7 @@ fun ChatBubble(
                 if (message.imageUri != null) {
                     AsyncImage(
                         model = message.imageUri,
-                        contentDescription = "Image attachment",
+                        contentDescription = stringResource(R.string.image_attachment_desc),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
@@ -1422,21 +1424,21 @@ fun ChatBubble(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayCircle,
-                                contentDescription = "Play Video",
+                                contentDescription = stringResource(R.string.play_video),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = message.fileName ?: "Attached Video",
+                                    text = message.fileName ?: stringResource(R.string.attached_video),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1
                                 )
                                 Text(
-                                    text = "Tap to play",
+                                    text = stringResource(R.string.tap_to_play),
                                     fontSize = 10.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1472,21 +1474,21 @@ fun ChatBubble(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Description,
-                                contentDescription = "Open File",
+                                contentDescription = stringResource(R.string.open_file),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = message.fileName ?: "Document",
+                                    text = message.fileName ?: stringResource(R.string.document),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1
                                 )
                                 Text(
-                                    text = "${message.fileType?.uppercase() ?: "Document"} • Tap to open",
+                                    text = stringResource(R.string.file_tap_to_open, message.fileType?.uppercase() ?: stringResource(R.string.document)),
                                     fontSize = 10.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1512,9 +1514,9 @@ fun ChatBubble(
                     val isThinkExpanded = isUserExpanded ?: isThinkingLive
 
                     val headerText = when {
-                        isThinkingLive -> "Thinking in progress…"
-                        isThinkingStopped -> "Thinking (stopped)"
-                        else -> "Thinking Process"
+                        isThinkingLive -> stringResource(R.string.thinking_live)
+                        isThinkingStopped -> stringResource(R.string.thinking_stopped)
+                        else -> stringResource(R.string.thinking_process)
                     }
 
                     val headerColor = when {
@@ -1555,7 +1557,7 @@ fun ChatBubble(
                                 )
                                 Icon(
                                     imageVector = if (isThinkExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Toggle thought process",
+                                    contentDescription = stringResource(R.string.toggle_thought_process),
                                     tint = headerColor,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1621,7 +1623,7 @@ fun ChatBubble(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "Sources (${sources.size})",
+                                        text = stringResource(R.string.sources_count, sources.size),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.primary
@@ -1629,7 +1631,7 @@ fun ChatBubble(
                                 }
                                 Icon(
                                     imageVector = if (isSourcesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Toggle sources",
+                                    contentDescription = stringResource(R.string.toggle_sources),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1639,7 +1641,7 @@ fun ChatBubble(
                                 if (!message.searchQuery.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "External Query Sent: \"${message.searchQuery}\"",
+                                        text = stringResource(R.string.external_query_sent, message.searchQuery ?: ""),
                                         fontSize = 11.sp,
                                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1727,13 +1729,13 @@ fun ChatBubble(
                         IconButton(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(parsed.mainContent))
-                                Toast.makeText(bubbleContext, "Copied response to clipboard", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(bubbleContext, bubbleContext.getString(R.string.copied_response), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy message",
+                                contentDescription = stringResource(R.string.copy_message),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(14.dp)
                             )
@@ -1759,14 +1761,14 @@ fun ChatBubble(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Extracted Text (OCR)",
+                                    text = stringResource(R.string.extracted_text_ocr),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Icon(
                                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Toggle extracted text",
+                                    contentDescription = stringResource(R.string.toggle_extracted_text),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1883,7 +1885,7 @@ fun EmptyStateOnboarding(
         ) {
             Icon(
                 imageVector = Icons.Default.AutoAwesome,
-                contentDescription = "Local LLM AI Engine",
+                contentDescription = stringResource(R.string.engine_logo_desc),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(34.dp)
             )
@@ -1892,7 +1894,7 @@ fun EmptyStateOnboarding(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "Welcome to Local LLM/AI",
+            text = stringResource(R.string.welcome_title),
             fontSize = 24.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.primary,
@@ -1901,7 +1903,7 @@ fun EmptyStateOnboarding(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Your 100% private, offline-first artificial intelligence running on native hardware.",
+            text = stringResource(R.string.welcome_body),
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1912,7 +1914,7 @@ fun EmptyStateOnboarding(
 
         if (modelState is ModelState.Loaded) {
             Text(
-                text = "Try a sample question:",
+                text = stringResource(R.string.try_sample),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -1920,9 +1922,9 @@ fun EmptyStateOnboarding(
             )
             Spacer(modifier = Modifier.height(10.dp))
             val sampleItems = listOf(
-                SamplePromptItem("Write a quick python code to sort a list.", "Coding", Icons.Default.Code),
-                SamplePromptItem("Explain dark matter in simple English sentences.", "Physics & Science", Icons.Default.Psychology),
-                SamplePromptItem("Give me 3 healthy breakfast ideas under 10 minutes.", "Lifestyle & Ideas", Icons.Default.Lightbulb)
+                SamplePromptItem(stringResource(R.string.sample_code), stringResource(R.string.sample_code_cat), Icons.Default.Code),
+                SamplePromptItem(stringResource(R.string.sample_science), stringResource(R.string.sample_science_cat), Icons.Default.Psychology),
+                SamplePromptItem(stringResource(R.string.sample_food), stringResource(R.string.sample_food_cat), Icons.Default.Lightbulb)
             )
             sampleItems.forEach { item ->
                 Card(
@@ -1999,13 +2001,13 @@ fun EmptyStateOnboarding(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Error,
-                        contentDescription = "Error",
+                        contentDescription = stringResource(R.string.error),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(36.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Local LLM Engine Error",
+                        text = stringResource(R.string.engine_error_title),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onErrorContainer
@@ -2026,7 +2028,7 @@ fun EmptyStateOnboarding(
                         modifier = Modifier.fillMaxWidth().height(44.dp)
                     ) {
                         Text(
-                            text = "Manage Models",
+                            text = stringResource(R.string.manage_models),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
@@ -2046,16 +2048,16 @@ fun EmptyStateOnboarding(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Local LLM Required",
+                        text = stringResource(R.string.model_required),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     val bodyMsg = if (localModels.isEmpty()) {
-                        "To start using local generation, you must download a highly-quantized 4-bit model task from the internet."
+                        stringResource(R.string.model_required_download)
                     } else {
-                        "You have model files available. Please select and load a model to begin."
+                        stringResource(R.string.model_required_load)
                     }
                     Text(
                         text = bodyMsg,
@@ -2072,7 +2074,7 @@ fun EmptyStateOnboarding(
                         modifier = Modifier.fillMaxWidth().height(44.dp)
                     ) {
                         Text(
-                            text = if (localModels.isEmpty()) "Go to Downloader" else "Select & Load Model",
+                            text = if (localModels.isEmpty()) stringResource(R.string.go_to_downloader) else stringResource(R.string.select_load_model),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )

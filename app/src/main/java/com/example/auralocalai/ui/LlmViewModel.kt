@@ -64,6 +64,8 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import androidx.annotation.StringRes
+import com.example.auralocalai.R
 
 @Immutable
 @Serializable
@@ -160,7 +162,8 @@ data class UiState(
     val detectedSupportsThinking: Boolean = false,
     val detectedSupportsVision: Boolean = false,
     val sessions: List<ChatSession> = emptyList(),
-    val currentSessionId: String? = null
+    val currentSessionId: String? = null,
+    val appLanguage: String = com.example.auralocalai.AppLocale.SYSTEM
 )
 
 class LlmViewModel(application: Application) : AndroidViewModel(application) {
@@ -346,7 +349,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 topK = initialTopK,
                 repetitionPenalty = initialRepetitionPenalty,
                 enableThinking = initialEnableThinking,
-                thinkingTokenBudget = initialThinkingBudget
+                thinkingTokenBudget = initialThinkingBudget,
+                appLanguage = com.example.auralocalai.AppLocale.getLanguage(application)
             ) 
         }
 
@@ -399,7 +403,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             val activeSession = if (sessionsList.isNotEmpty()) {
                 sessionsList.first()
             } else {
-                chatRepository.createSession(title = "New Chat")
+                chatRepository.createSession(title = str(R.string.new_chat))
             }
             val history = chatRepository.loadSessionMessages(activeSession.id)
             val allSessions = chatRepository.loadSessions()
@@ -557,7 +561,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                                 _uiState.update {
                                     it.copy(
                                         currentDownloadingModelId = modelId,
-                                        downloadState = DownloadState.Error("Failed to finalize downloaded model file.")
+                                        downloadState = DownloadState.Error(str(R.string.err_finalize_download))
                                     )
                                 }
                             }
@@ -632,12 +636,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 val testUrl = "https://huggingface.co/litert-community/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B_multi-prefill-seq_q8_ekv4096.litertlm"
                 val result = downloader.validateTokenAccess(testUrl, token)
                 if (result == "OK") {
-                    callback(true, "Token is valid!")
+                    callback(true, str(R.string.token_valid))
                 } else {
                     callback(false, result)
                 }
             } catch (e: Exception) {
-                callback(false, "Validation failed: ${e.localizedMessage}")
+                callback(false, str(R.string.token_validation_failed, e.localizedMessage ?: ""))
             }
         }
     }
@@ -653,6 +657,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         val prefs = getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         prefs.edit().putString("theme_preference", mode.name).apply()
         _uiState.update { it.copy(themeMode = mode) }
+    }
+
+    /** Saves the in-app language ("system", "en" or "nl"). The caller recreates the Activity to apply it. */
+    fun setAppLanguage(tag: String) {
+        com.example.auralocalai.AppLocale.setLanguage(getApplication(), tag)
+        _uiState.update { it.copy(appLanguage = com.example.auralocalai.AppLocale.getLanguage(getApplication())) }
     }
 
     fun saveSystemPrompt(prompt: String) {
@@ -858,56 +868,59 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        com.example.auralocalai.AppLocale.localized(getApplication<Application>()).getString(id, *args)
+
     private fun friendlyErrorMessage(raw: String?, isGeneration: Boolean = false): String {
         if (raw.isNullOrBlank()) {
-            return if (isGeneration) "Response generation encountered an error. Please try again."
-                   else "An unknown error occurred while loading the model. Please try again."
+            return if (isGeneration) str(R.string.err_generation_generic)
+                   else str(R.string.err_load_generic)
         }
 
         val lower = raw.lowercase()
         return when {
             // Conversation lifecycle
             lower.contains("conversation is not alive") || lower.contains("not alive") ->
-                "Conversation session was reset. Please try sending your message again."
+                str(R.string.err_conversation_reset)
 
             lower.contains("cancellationexception") || lower.contains("job was cancelled") ->
-                "Generation was stopped."
+                str(R.string.err_generation_stopped)
 
             // Out of memory / resource exhaustion
             lower.contains("resource_exhausted") || lower.contains("out of memory") ||
             lower.contains("oom") || lower.contains("insufficient memory") ->
-                "Not enough device/GPU memory to load this model. Try closing background apps or switching to a smaller model (e.g. Qwen 1.5B or DeepSeek 1.5B)."
+                str(R.string.err_oom)
 
             // File corruption or validation failure
             lower.contains("corrupted") || lower.contains("incomplete") ||
             lower.contains("not a valid model") || lower.contains("flatbuffer") ||
             lower.contains("tfl3") || lower.contains("zip archive") ->
-                "The model file appears to be incomplete or corrupted. Please delete it in Manage Models and re-download."
+                str(R.string.err_corrupted)
 
             // Model file missing
             lower.contains("does not exist") || lower.contains("no such file") ->
-                "Model file was not found on disk. Please download a model from the Models catalog."
+                str(R.string.err_not_found)
 
             // Emulator / architecture guard
             lower.contains("emulator") || lower.contains("x86") ->
-                "On-device LLM inference is not supported on emulators. Please use a physical ARM64 device."
+                str(R.string.err_emulator)
 
             // RAM insufficient for CPU path
             lower.contains("inference aborted") || (lower.contains("ram") && lower.contains("prevent")) ->
-                "This device does not have enough RAM to run this model safely. Try a smaller model."
+                str(R.string.err_ram)
 
             // GPU init failure or backend restriction
             lower.contains("backend restriction") || lower.contains("gpu_only") ->
-                "This model requires Vulkan GPU acceleration. Check your GPU backend settings."
+                str(R.string.err_gpu_required)
 
             // Specific NPU only failure
             lower.contains("npu backend was preferred") ->
-                "NPU acceleration was requested, but Qualcomm QNN runtime is not available for this model. Switch to Auto or GPU in Settings."
+                str(R.string.err_npu_unavailable)
 
             // Catch-all: return the original trimmed if too long
             else -> {
                 val trimmed = if (raw.length > 250) raw.take(250) + "…" else raw
-                if (isGeneration) "Generation error: $trimmed" else "Model loading failed: $trimmed"
+                if (isGeneration) str(R.string.err_generation_detail, trimmed) else str(R.string.err_load_detail, trimmed)
             }
         }
     }
@@ -968,7 +981,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun loadModel(fileName: String, modelId: String) {
         loadModelJob?.cancel()
         loadModelJob = viewModelScope.launch {
-            _uiState.update { it.copy(modelState = ModelState.Loading, loadingModelId = modelId, loadingStage = "Validating model file...") }
+            _uiState.update { it.copy(modelState = ModelState.Loading, loadingModelId = modelId, loadingStage = str(R.string.stage_validating)) }
             val matchingPreset = ModelPreset.presets.firstOrNull { it.id == modelId }
             val displayName = matchingPreset?.name ?: fileName
 
@@ -1094,7 +1107,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _uiState.update { 
                     it.copy(
-                        attachmentError = "OCR Failed: ${e.localizedMessage}",
+                        attachmentError = str(R.string.ocr_failed, e.localizedMessage ?: ""),
                         isAttachmentProcessing = false
                     )
                 }
@@ -1176,7 +1189,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     if (pfd == null) {
                         _uiState.update { 
                             it.copy(
-                                attachmentError = "Could not open file",
+                                attachmentError = str(R.string.could_not_open_file),
                                 isAttachmentProcessing = false
                             )
                         }
@@ -1261,8 +1274,8 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     e.message?.contains("dynamite", ignoreCase = true) == true ||
                     e.message?.contains("null object reference", ignoreCase = true) == true ||
                     e.message?.contains("Waiting for the text optional module", ignoreCase = true) == true ->
-                        "Text recognition model is initializing via Google Play Services. Please retry shortly."
-                    else -> "Failed to parse file: ${e.localizedMessage ?: "Unknown error"}"
+                        str(R.string.ocr_initializing)
+                    else -> str(R.string.parse_failed, e.localizedMessage ?: str(R.string.unknown_error))
                 }
                 _uiState.update { 
                     it.copy(
@@ -1332,13 +1345,13 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
 
         val messageText = if (content.isBlank()) {
             if (!ocrText.isNullOrBlank()) {
-                "Analyze attachment: $fileName"
+                str(R.string.msg_analyze_attachment, fileName ?: "")
             } else if (imageUri != null) {
-                "Sent image attachment"
+                str(R.string.msg_sent_image)
             } else if (videoUri != null) {
-                "Sent video attachment: $fileName"
+                str(R.string.msg_sent_video, fileName ?: "")
             } else {
-                "Sent file attachment: $fileName"
+                str(R.string.msg_sent_file, fileName ?: "")
             }
         } else {
             content
@@ -1367,7 +1380,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         // Dynamic auto-titling: Automatically title 'New Chat' sessions from the first meaningful prompt
         val currentActiveId = _uiState.value.currentSessionId
         val currentSession = _uiState.value.sessions.firstOrNull { it.id == currentActiveId }
-        if (currentSession != null && (currentSession.title == "New Chat" || currentSession.title.isBlank())) {
+        if (currentSession != null && (currentSession.title == "New Chat" || currentSession.title == str(R.string.new_chat) || currentSession.title.isBlank())) {
             val candidate = messageText.lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: "Chat"
             val cleanTitle = if (candidate.length > 28) candidate.take(28).trimEnd() + "..." else candidate
             renameSession(currentSession.id, cleanTitle)
@@ -1610,11 +1623,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Creates a new chat session, switches to it, and clears conversation state.
      */
-    fun createNewSession(title: String = "New Chat") {
+    fun createNewSession(title: String? = null) {
         inferenceJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
             val newSession = chatRepository.createSession(
-                title = title,
+                title = title ?: str(R.string.new_chat),
                 modelId = _uiState.value.activeModelId
             )
             val updatedSessions = chatRepository.loadSessions()
@@ -1793,7 +1806,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 if (!fileName.endsWith(".litertlm", ignoreCase = true) &&
                     !fileName.endsWith(".task", ignoreCase = true)) {
                     viewModelScope.launch(Dispatchers.Main) {
-                        callback(false, "Invalid file format. File must end with .litertlm or .task")
+                        callback(false, str(R.string.import_invalid_format))
                     }
                     return@launch
                 }
@@ -1808,18 +1821,18 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                 if (!isValidModelFile(destFile)) {
                     destFile.delete()
                     viewModelScope.launch(Dispatchers.Main) {
-                        callback(false, "Validation failed. The imported file is corrupted or not a valid LiteRT/MediaPipe model.")
+                        callback(false, str(R.string.import_validation_failed))
                     }
                     return@launch
                 }
 
                 viewModelScope.launch(Dispatchers.Main) {
                     refreshDownloadedModels()
-                    callback(true, "Successfully imported $fileName!")
+                    callback(true, str(R.string.import_success, fileName))
                 }
             } catch (e: Exception) {
                 viewModelScope.launch(Dispatchers.Main) {
-                    callback(false, "Failed to import model: ${e.localizedMessage}")
+                    callback(false, str(R.string.import_failed, e.localizedMessage ?: ""))
                 }
             }
         }

@@ -17,6 +17,10 @@ import com.example.auralocalai.ui.LlmViewModel
 class MainActivity : ComponentActivity() {
   private val llmViewModel: LlmViewModel by viewModels()
 
+  override fun attachBaseContext(newBase: android.content.Context) {
+    super.attachBaseContext(AppLocale.wrap(newBase))
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
