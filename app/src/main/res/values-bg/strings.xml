@@ -842,4 +842,9 @@
     <string name="coach_auto_speak">Четене на отговорите на глас</string>
     <string name="coach_auto_speak_on">Треньорът вече изговаря отговорите си</string>
     <string name="coach_auto_speak_off">Отговорите вече не се четат на глас</string>
+    <string name="briefing_for_you">За вас</string>
+    <string name="briefing_show_more">Покажи още</string>
+    <string name="briefing_show_less">Покажи по-малко</string>
+    <string name="briefing_listen">Слушай</string>
+    <string name="briefing_details">Подробности и източник</string>
 </resources>

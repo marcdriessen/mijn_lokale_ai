@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -181,6 +183,10 @@ fun BriefingScreen(
     val topics = allArticles.map { it.topicName }.distinct()
     val articles = if (selectedTab == null) allArticles else allArticles.filter { it.topicName == selectedTab }
     val shareTitle = stringResource(R.string.briefing_share)
+    val speaker = com.example.auralocalai.ui.components.rememberSpeaker()
+    val briefingLanguage = profile?.let {
+        com.example.auralocalai.data.briefing.BriefingGenerator.languageFor(it, com.example.auralocalai.AppLocale.effectiveLanguage(context))
+    } ?: com.example.auralocalai.AppLocale.effectiveLanguage(context)
     val relevanceLabel = stringResource(R.string.briefing_relevance_label)
 
     Scaffold(
@@ -382,25 +388,18 @@ fun BriefingScreen(
                 }
             }
 
-            // Topic links (like "IN FOCUS")
+            // Topic tabs like a news "Discover" page: "For you" + one tab per topic.
             if (topics.size > 1) {
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            stringResource(R.string.briefing_in_focus).uppercase(locale),
-                            style = MaterialTheme.typography.labelMedium,
-                            letterSpacing = 1.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        TopicLink(stringResource(R.string.briefing_tab_all), selectedTab == null) { selectedTab = null }
-                        topics.forEach { t -> TopicLink(t, selectedTab == t) { selectedTab = t } }
+                        PillTab(stringResource(R.string.briefing_for_you), selectedTab == null, scheduled = false) { selectedTab = null }
+                        topics.forEach { t -> PillTab(t, selectedTab == t, scheduled = false) { selectedTab = t } }
                     }
                 }
             }
@@ -415,18 +414,13 @@ fun BriefingScreen(
                     )
                 }
             } else {
-                val hero = articles.first()
-                val cards = articles.drop(1).take(3)
-                val timeline = articles.drop(4)
-
-                item(key = "hero_${briefing?.id}_${selectedTab}") {
-                    HeroOverlay(hero, isWriting = allArticles.indexOf(hero) == state.streamingArticleIndex) { detailArticle = hero }
-                }
-                itemsIndexed(cards, key = { i, _ -> "card_${briefing?.id}_${selectedTab}_$i" }) { _, article ->
-                    StoryCard(
+                itemsIndexed(articles, key = { i, _ -> "discover_${briefing?.id}_${selectedTab}_$i" }) { _, article ->
+                    DiscoverCard(
                         article = article,
                         isWriting = allArticles.indexOf(article) == state.streamingArticleIndex,
-                        onClick = { detailArticle = article },
+                        speaker = speaker,
+                        languageCode = briefingLanguage,
+                        onOpen = { detailArticle = article },
                         onShare = {
                             val send = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
@@ -435,22 +429,6 @@ fun BriefingScreen(
                             context.startActivity(Intent.createChooser(send, shareTitle))
                         }
                     )
-                }
-                if (timeline.isNotEmpty()) {
-                    item {
-                        Text(
-                            stringResource(R.string.briefing_just_in),
-                            style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 8.dp)
-                        )
-                    }
-                    itemsIndexed(timeline, key = { i, _ -> "tl_${briefing?.id}_${selectedTab}_$i" }) { i, article ->
-                        TimelineRow(
-                            article = article,
-                            isLast = i == timeline.lastIndex,
-                            onClick = { detailArticle = article }
-                        )
-                    }
                 }
                 if (state.sourceErrors.isNotEmpty()) {
                     item {
@@ -735,204 +713,122 @@ private fun TopicLabel(text: String) {
     )
 }
 
-/** Top story: large picture with the headline on a dark gradient, like a magazine cover. */
+/**
+ * News card in "Discover" style: wide picture, serif headline, two lines of summary with
+ * "Show more", and a bar with the time, Listen, Share and a menu.
+ */
 @Composable
-private fun HeroOverlay(article: BriefingArticle, isWriting: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .fillMaxWidth()
-            .height(280.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .clickable(onClick = onClick)
-    ) {
-        ArticleImage(
-            article = article,
-            modifier = Modifier.fillMaxSize(),
-            placeholderStyle = MaterialTheme.typography.headlineMedium
-        )
+private fun DiscoverCard(
+    article: BriefingArticle,
+    isWriting: Boolean,
+    speaker: com.example.auralocalai.ui.components.Speaker,
+    languageCode: String,
+    onOpen: () -> Unit,
+    onShare: () -> Unit
+) {
+    val context = LocalContext.current
+    var expanded by remember(article.item.link) { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    val headline = article.title.ifBlank { article.item.title }
+    val summary = article.summary.ifBlank { article.item.description }.trim()
+    val serif = androidx.compose.ui.text.font.FontFamily.Serif
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.35f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.85f)
-                    )
-                )
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(18.dp)
+                .fillMaxWidth()
+                .aspectRatio(16f / 10f)
+                .clip(RoundedCornerShape(22.dp))
+                .clickable(onClick = onOpen)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(6.dp), color = Color.White.copy(alpha = 0.92f)) {
-                    Text(
-                        article.topicName.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp,
-                        color = Color.Black,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-                if (isWriting) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
-                }
+            ArticleImage(article = article, modifier = Modifier.fillMaxSize(), placeholderStyle = MaterialTheme.typography.headlineSmall)
+            if (isWriting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.White
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = article.title.ifBlank { article.item.title },
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis
-            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = headline,
+            fontFamily = serif,
+            fontWeight = FontWeight.Bold,
+            fontSize = 23.sp,
+            lineHeight = 29.sp,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.clickable(onClick = onOpen)
+        )
+        if (summary.isNotBlank()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = listOfNotNull(article.item.sourceName, relativeTime(article.item.publishedMillis)).joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.8f)
+                text = summary,
+                fontFamily = serif,
+                fontSize = 17.sp,
+                lineHeight = 25.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (expanded && article.relevance.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = article.relevance,
+                    fontFamily = serif,
+                    fontSize = 16.sp,
+                    lineHeight = 23.sp,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = stringResource(if (expanded) R.string.briefing_show_less else R.string.briefing_show_more),
+                fontFamily = serif,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable { expanded = !expanded }.padding(vertical = 4.dp)
             )
         }
-    }
-}
-
-/** Card: topic and source on top, bold headline with a square picture, meta and a menu. */
-@Composable
-private fun StoryCard(article: BriefingArticle, isWriting: Boolean, onClick: () -> Unit, onShare: () -> Unit) {
-    val context = LocalContext.current
-    var menu by remember { mutableStateOf(false) }
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-    ) {
-        Column(modifier = Modifier.padding(start = 18.dp, end = 10.dp, top = 16.dp, bottom = 4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
-                Text(
-                    article.topicName,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (isWriting) CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    article.item.sourceName,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(end = 8.dp)) {
-                Text(
-                    text = article.title.ifBlank { article.item.title },
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                ArticleImage(
-                    article = article,
-                    modifier = Modifier
-                        .size(84.dp)
-                        .clip(RoundedCornerShape(14.dp)),
-                    placeholderStyle = MaterialTheme.typography.labelSmall
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.weight(1f)) { ArticleMeta(article) }
-                Box {
-                    IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.briefing_more))
-                    }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.briefing_read_at, article.item.sourceName)) }, onClick = {
-                            menu = false
-                            openUrl(context, article.item.link)
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.briefing_share)) }, onClick = {
-                            menu = false
-                            onShare()
-                        })
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** "Just in" list: a dotted time line, "26 min ago in Topic", headline and picture on the right. */
-@Composable
-private fun TimelineRow(article: BriefingArticle, isLast: Boolean, onClick: () -> Unit) {
-    val lineColor = MaterialTheme.colorScheme.outline
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(18.dp)
-                .fillMaxHeight()
-                .drawBehind {
-                    val x = size.width / 2
-                    drawLine(
-                        color = lineColor,
-                        start = Offset(x, if (isLast) 0f else 0f),
-                        end = Offset(x, if (isLast) 30.dp.toPx() else size.height),
-                        strokeWidth = 1.5.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 6f))
-                    )
-                    drawCircle(color = lineColor, radius = 4.dp.toPx(), center = Offset(x, 30.dp.toPx()))
-                }
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(vertical = 14.dp)
-        ) {
-            val time = relativeTime(article.item.publishedMillis)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = if (time != null) stringResource(R.string.briefing_time_in_topic, time, article.topicName) else article.topicName,
-                style = MaterialTheme.typography.labelMedium,
+                text = listOfNotNull(relativeTime(article.item.publishedMillis), article.item.sourceName).joinToString(" · "),
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = article.title.ifBlank { article.item.title },
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
+            TextButton(onClick = {
+                speaker.toggle(listOf(headline, summary, article.relevance).filter { it.isNotBlank() }.joinToString(". "), languageCode)
+            }) {
+                Icon(Icons.Default.Headphones, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(if (speaker.isSpeaking) R.string.dictation_stop else R.string.briefing_listen))
+            }
+            IconButton(onClick = onShare) {
+                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.briefing_share), modifier = Modifier.size(20.dp))
+            }
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.briefing_more))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.briefing_details)) }, onClick = {
+                        menu = false
+                        onOpen()
+                    })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.briefing_read_at, article.item.sourceName)) }, onClick = {
+                        menu = false
+                        openUrl(context, article.item.link)
+                    })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.briefing_ground_news)) }, onClick = {
+                        menu = false
+                        openGroundNews(context, article.item)
+                    })
+                }
+            }
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        ArticleImage(
-            article = article,
-            modifier = Modifier
-                .padding(vertical = 14.dp)
-                .size(width = 100.dp, height = 74.dp)
-                .clip(RoundedCornerShape(12.dp)),
-            placeholderStyle = MaterialTheme.typography.labelSmall
-        )
+        androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     }
 }
 

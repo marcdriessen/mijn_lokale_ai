@@ -843,4 +843,9 @@
     <string name="coach_auto_speak">Read replies aloud</string>
     <string name="coach_auto_speak_on">The coach now speaks its replies</string>
     <string name="coach_auto_speak_off">Replies are no longer read aloud</string>
+    <string name="briefing_for_you">For you</string>
+    <string name="briefing_show_more">Show more</string>
+    <string name="briefing_show_less">Show less</string>
+    <string name="briefing_listen">Listen</string>
+    <string name="briefing_details">Details and sources</string>
 </resources>

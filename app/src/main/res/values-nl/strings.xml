@@ -842,4 +842,9 @@
     <string name="coach_auto_speak">Antwoorden voorlezen</string>
     <string name="coach_auto_speak_on">De coach spreekt zijn antwoorden nu uit</string>
     <string name="coach_auto_speak_off">Antwoorden worden niet meer voorgelezen</string>
+    <string name="briefing_for_you">Voor jou</string>
+    <string name="briefing_show_more">Meer weergeven</string>
+    <string name="briefing_show_less">Minder weergeven</string>
+    <string name="briefing_listen">Luisteren</string>
+    <string name="briefing_details">Details en bron</string>
 </resources>
