@@ -109,6 +109,7 @@ import com.example.auralocalai.data.briefing.BriefingFrequency
 import com.example.auralocalai.data.briefing.BriefingProfile
 import com.example.auralocalai.data.briefing.BriefingScheduler
 import com.example.auralocalai.data.briefing.BriefingTopic
+import com.example.auralocalai.data.briefing.NewsItem
 import com.example.auralocalai.data.briefing.SourceMode
 import com.example.auralocalai.data.briefing.TopicMatcher
 import com.example.auralocalai.ui.BriefingViewModel
@@ -1043,10 +1044,7 @@ private fun ArticleDetailDialog(
                             Text(stringResource(R.string.briefing_ask_more))
                         }
                         OutlinedButton(
-                            onClick = {
-                                val query = URLEncoder.encode("site:ground.news ${article.title.ifBlank { item.title }}", "UTF-8")
-                                openUrl(context, "https://www.google.com/search?q=$query")
-                            },
+                            onClick = { openGroundNews(context, item) },
                             shape = RoundedCornerShape(24.dp),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -1422,6 +1420,15 @@ private fun SourcesDialog(briefingViewModel: BriefingViewModel, onDismiss: () ->
         title = { Text(stringResource(R.string.briefing_sources)) },
         text = {
             LazyColumn(modifier = Modifier.height(520.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.briefing_skip_paywall), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(stringResource(R.string.briefing_skip_paywall_desc), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = state.config.skipPaywalled, onCheckedChange = { briefingViewModel.setSkipPaywalled(it) })
+                    }
+                }
                 items(state.config.sources, key = { it.id }) { source ->
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1485,6 +1492,26 @@ private fun editionLabel(context: android.content.Context, millis: Long): String
         hour < 12 -> context.getString(R.string.briefing_edition_morning)
         hour < 18 -> context.getString(R.string.briefing_edition_afternoon)
         else -> context.getString(R.string.briefing_edition_evening)
+    }
+}
+
+/**
+ * Ground News has no public search link, so: copy the original headline (or the article link)
+ * and open the Ground News app when installed, otherwise its website. The user pastes it in the
+ * Ground News search bar, which then shows how different outlets covered the story.
+ */
+private fun openGroundNews(context: android.content.Context, item: NewsItem) {
+    val toCopy = if (item.link.contains("news.google.com") || item.link.isBlank()) item.title.substringBeforeLast(" - ").trim() else item.link
+    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Ground News", toCopy))
+    Toast.makeText(context, context.getString(R.string.briefing_ground_news_copied), Toast.LENGTH_LONG).show()
+    val pm = context.packageManager
+    val appIntent = listOf("com.checkitt", "com.groundnews", "com.ground.news", "news.ground.app")
+        .firstNotNullOfOrNull { pkg -> runCatching { pm.getLaunchIntentForPackage(pkg) }.getOrNull() }
+    try {
+        context.startActivity(appIntent ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://ground.news/")))
+    } catch (_: Exception) {
+        openUrl(context, "https://ground.news/")
     }
 }
 

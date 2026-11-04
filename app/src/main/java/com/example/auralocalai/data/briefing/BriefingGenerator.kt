@@ -49,6 +49,7 @@ class BriefingGenerator(
         val items = mutableListOf<NewsItem>()
         if (profile.mode != SourceMode.WEB) items += loadRssItems(config, topics, forceRefresh, onSourceErrors)
         items += extraItems
+        if (config.skipPaywalled) items.removeAll { Paywall.isPaywalled(it) }
 
         val selected = TopicMatcher.selectArticles(items, topics, profile.maxArticles.coerceIn(1, 15))
         val now = System.currentTimeMillis()

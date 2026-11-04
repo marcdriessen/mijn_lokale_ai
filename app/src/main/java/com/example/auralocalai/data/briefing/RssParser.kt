@@ -13,6 +13,8 @@ object RssParser {
     private val ITEM_REGEX = Regex("<(item|entry)\\b[^>]*>(.*?)</\\1>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     private val CDATA_REGEX = Regex("<!\\[CDATA\\[(.*?)]]>", RegexOption.DOT_MATCHES_ALL)
     private val TAG_REGEX = Regex("<[^>]+>")
+    /** Google News: <source url="https://www.example.com">Example</source> names the real publisher. */
+    private val SOURCE_URL_REGEX = Regex("<source\\b[^>]*url\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
     private val WHITESPACE_REGEX = Regex("\\s+")
     private val NUMERIC_ENTITY_REGEX = Regex("&#(x?[0-9a-fA-F]+);")
 
@@ -33,7 +35,8 @@ object RssParser {
                 sourceName = sourceName,
                 publishedMillis = dateText?.let { parseDate(cleanText(it)) },
                 description = description,
-                imageUrl = extractImage(body)
+                imageUrl = extractImage(body),
+                publisherDomain = SOURCE_URL_REGEX.find(body)?.groupValues?.get(1)?.let { Paywall.domainOf(it) }.orEmpty()
             )
         }.toList()
     }

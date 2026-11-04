@@ -43,7 +43,9 @@ data class NewsItem(
     val sourceName: String,
     val publishedMillis: Long? = null,
     val description: String = "",
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    /** Domain of the real publisher (Google News items link to news.google.com). */
+    val publisherDomain: String = ""
 )
 
 @Serializable
@@ -117,7 +119,11 @@ data class BriefingConfig(
     val profiles: List<BriefingProfile> = emptyList(),
     val autoUpdateEnabled: Boolean = false,
     val autoUpdateHour: Int = 8,
-    val maxItemsPerTopic: Int = 6
+    val maxItemsPerTopic: Int = 6,
+    /** Skip sites where most articles are behind a paywall. */
+    val skipPaywalled: Boolean = true,
+    /** Version of the built-in source list, used to add new free sources to older configurations. */
+    val sourcesVersion: Int = 0
 )
 
 /** News fetched in the background (or earlier), reused when it is still recent. */
@@ -131,6 +137,20 @@ object DefaultBriefing {
 
     private fun googleNewsSite(site: String): String =
         "https://news.google.com/rss/search?q=site:$site+when:1d&hl=en-US&gl=US&ceid=US:en"
+
+    /** Free news sites with their own feed (no Google News detour, no paywall). Added in sources version 2. */
+    val freeSources: List<NewsSource> = listOf(
+        NewsSource("bbc_world", "BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"),
+        NewsSource("guardian_world", "The Guardian (World)", "https://www.theguardian.com/world/rss"),
+        NewsSource("france24", "France 24", "https://www.france24.com/en/rss"),
+        NewsSource("nu_algemeen", "NU.nl", "https://www.nu.nl/rss/Algemeen"),
+        NewsSource("nu_gezondheid", "NU.nl Gezondheid", "https://www.nu.nl/rss/Gezondheid"),
+        NewsSource("nos_binnenland", "NOS Binnenland", "https://feeds.nos.nl/nosnieuwsbinnenland"),
+        NewsSource("dnevnik", "Дневник", "https://www.dnevnik.bg/rss/"),
+        NewsSource("novinite", "Novinite (Bulgaria, English)", "https://www.novinite.com/services/news_rdf.php")
+    )
+
+    const val SOURCES_VERSION = 2
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
@@ -214,18 +234,29 @@ object DefaultBriefing {
 
     val config: BriefingConfig = BriefingConfig(
         topics = topics,
-        sources = sources + dutchSources,
-        profiles = listOf(careProfile, worldProfile)
+        sources = sources + freeSources + dutchSources,
+        profiles = listOf(careProfile, worldProfile),
+        sourcesVersion = SOURCES_VERSION
     )
 
     /** Adds profiles and the Dutch sources to a configuration saved by an older version. */
     fun migrate(config: BriefingConfig): BriefingConfig {
-        if (config.profiles.isNotEmpty()) return config
-        val existingIds = config.sources.map { it.id }.toSet()
-        val world = worldProfile.copy(topics = config.topics.ifEmpty { topics })
-        return config.copy(
-            sources = config.sources + dutchSources.filterNot { it.id in existingIds },
-            profiles = listOf(careProfile, world)
-        )
+        var result = config
+        if (result.profiles.isEmpty()) {
+            val existingIds = result.sources.map { it.id }.toSet()
+            val world = worldProfile.copy(topics = result.topics.ifEmpty { topics })
+            result = result.copy(
+                sources = result.sources + dutchSources.filterNot { it.id in existingIds },
+                profiles = listOf(careProfile, world)
+            )
+        }
+        if (result.sourcesVersion < SOURCES_VERSION) {
+            val existingIds = result.sources.map { it.id }.toSet()
+            result = result.copy(
+                sources = result.sources + freeSources.filterNot { it.id in existingIds },
+                sourcesVersion = SOURCES_VERSION
+            )
+        }
+        return result
     }
 }

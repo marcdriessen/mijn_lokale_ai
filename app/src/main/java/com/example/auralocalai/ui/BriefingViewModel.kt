@@ -203,6 +203,8 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         config.copy(sources = config.sources.map { if (it.id == id) it.copy(enabled = !it.enabled) else it })
     }
 
+    fun setSkipPaywalled(skip: Boolean) = updateConfig { it.copy(skipPaywalled = skip) }
+
     fun deleteSource(id: String) = updateConfig { config -> config.copy(sources = config.sources.filterNot { it.id == id }) }
 
     fun addSource(name: String, url: String) {

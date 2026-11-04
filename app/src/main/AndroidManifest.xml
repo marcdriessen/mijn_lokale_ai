@@ -10,6 +10,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <queries>
+        <!-- Ground News app (opened from a news article). -->
+        <package android:name="com.checkitt" />
+        <package android:name="com.groundnews" />
+        <package android:name="com.ground.news" />
+        <package android:name="news.ground.app" />
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>

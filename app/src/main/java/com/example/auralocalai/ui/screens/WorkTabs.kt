@@ -164,7 +164,7 @@ fun PsychoEducationTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
     }
 }
 
-private data class ScaleItem(val label: Int, val values: List<Int>)
+private data class ScaleItem(val label: Int, val values: List<Int>, val key: String = "")
 private data class ScaleDef(val name: String, val items: List<ScaleItem>, val bands: List<ScoreBand>, val hint: Int)
 
 /** Offline score helper for CIWA-Ar, COWS and AUDIT (adds up; no advice on doses). */
@@ -175,21 +175,25 @@ fun ScalesTab() {
         listOf(
             ScaleDef(
                 "CIWA-Ar",
-                listOf(
-                    ScaleItem(R.string.ciwa_1, r7), ScaleItem(R.string.ciwa_2, r7), ScaleItem(R.string.ciwa_3, r7), ScaleItem(R.string.ciwa_4, r7),
-                    ScaleItem(R.string.ciwa_5, r7), ScaleItem(R.string.ciwa_6, r7), ScaleItem(R.string.ciwa_7, r7), ScaleItem(R.string.ciwa_8, r7),
-                    ScaleItem(R.string.ciwa_9, r7), ScaleItem(R.string.ciwa_10, (0..4).toList())
-                ),
+                (1..10).map { i ->
+                    ScaleItem(
+                        listOf(R.string.ciwa_1, R.string.ciwa_2, R.string.ciwa_3, R.string.ciwa_4, R.string.ciwa_5, R.string.ciwa_6, R.string.ciwa_7, R.string.ciwa_8, R.string.ciwa_9, R.string.ciwa_10)[i - 1],
+                        if (i == 10) (0..4).toList() else r7,
+                        "ciwa_$i"
+                    )
+                },
                 ScaleScoring.CIWA_BANDS,
                 R.string.scale_ciwa_hint
             ),
             ScaleDef(
                 "COWS",
                 listOf(
-                    ScaleItem(R.string.cows_1, listOf(0, 1, 2, 4)), ScaleItem(R.string.cows_2, listOf(0, 1, 2, 3, 4)), ScaleItem(R.string.cows_3, listOf(0, 1, 3, 5)),
-                    ScaleItem(R.string.cows_4, listOf(0, 1, 2, 5)), ScaleItem(R.string.cows_5, listOf(0, 1, 2, 4)), ScaleItem(R.string.cows_6, listOf(0, 1, 2, 4)),
-                    ScaleItem(R.string.cows_7, listOf(0, 1, 2, 3, 5)), ScaleItem(R.string.cows_8, listOf(0, 1, 2, 4)), ScaleItem(R.string.cows_9, listOf(0, 1, 2, 4)),
-                    ScaleItem(R.string.cows_10, listOf(0, 1, 2, 4)), ScaleItem(R.string.cows_11, listOf(0, 3, 5))
+                    ScaleItem(R.string.cows_1, listOf(0, 1, 2, 4), "cows_1"), ScaleItem(R.string.cows_2, listOf(0, 1, 2, 3, 4), "cows_2"),
+                    ScaleItem(R.string.cows_3, listOf(0, 1, 3, 5), "cows_3"), ScaleItem(R.string.cows_4, listOf(0, 1, 2, 5), "cows_4"),
+                    ScaleItem(R.string.cows_5, listOf(0, 1, 2, 4), "cows_5"), ScaleItem(R.string.cows_6, listOf(0, 1, 2, 4), "cows_6"),
+                    ScaleItem(R.string.cows_7, listOf(0, 1, 2, 3, 5), "cows_7"), ScaleItem(R.string.cows_8, listOf(0, 1, 2, 4), "cows_8"),
+                    ScaleItem(R.string.cows_9, listOf(0, 1, 2, 4), "cows_9"), ScaleItem(R.string.cows_10, listOf(0, 1, 2, 4), "cows_10"),
+                    ScaleItem(R.string.cows_11, listOf(0, 3, 5), "cows_11")
                 ),
                 ScaleScoring.COWS_BANDS,
                 R.string.scale_cows_hint
@@ -199,7 +203,8 @@ fun ScalesTab() {
                 (0 until 10).map { i ->
                     ScaleItem(
                         listOf(R.string.audit_1, R.string.audit_2, R.string.audit_3, R.string.audit_4, R.string.audit_5, R.string.audit_6, R.string.audit_7, R.string.audit_8, R.string.audit_9, R.string.audit_10)[i],
-                        if (i >= 8) listOf(0, 2, 4) else (0..4).toList()
+                        if (i >= 8) listOf(0, 2, 4) else (0..4).toList(),
+                        when (i) { 0 -> "audit_q1"; 1 -> "audit_q2"; 8, 9 -> "audit_yn"; else -> "audit_freq" }
                     )
                 },
                 ScaleScoring.AUDIT_BANDS,
@@ -219,10 +224,55 @@ fun ScalesTab() {
         }
         Text(stringResource(scale.hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp))
         scale.items.forEachIndexed { index, item ->
-            Text(stringResource(item.label), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
+            val anchors = ScaleAnchors.ANCHORS[item.key].orEmpty()
+            val how = ScaleAnchors.HOW[item.key]
+            var expanded by remember(selected, index) { mutableStateOf(false) }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                Text(stringResource(item.label), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                if (anchors.isNotEmpty()) {
+                    TextButton(onClick = { expanded = !expanded }) {
+                        Text(stringResource(if (expanded) R.string.scale_hide_help else R.string.scale_show_help), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
             Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 item.values.forEach { v ->
                     FilterChip(selected = values[index] == v, onClick = { values[index] = v }, label = { Text(v.toString()) })
+                }
+            }
+            if (anchors.isNotEmpty()) {
+                // Short description of the chosen score, always visible.
+                val chosen = anchors.firstOrNull { it.first == values[index] }
+                Text(
+                    if (chosen != null) "${chosen.first} – ${stringResource(chosen.second)}" else "${values[index]} – ${stringResource(R.string.scale_between)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (expanded) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        how?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic) }
+                        anchors.forEach { (v, res) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable { values[index] = v }.padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text(
+                                    v.toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (values[index] == v) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.width(24.dp)
+                                )
+                                Text(stringResource(res), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
                 }
             }
         }
