@@ -54,9 +54,9 @@ class BriefingGenerator(
         if (profile.mode != SourceMode.WEB) items += loadRssItems(config, topics, forceRefresh, onSourceErrors)
         items += extraItems
         // Paid sites are skipped, unless the user logged in to that site in the app's browser.
+        val loginCache = HashMap<String, Boolean>()
+        fun loggedIn(domain: String) = domain.isNotBlank() && loginCache.getOrPut(domain) { WebLogins.hasLogin(domain) }
         if (config.skipPaywalled) {
-            val loginCache = HashMap<String, Boolean>()
-            fun loggedIn(domain: String) = domain.isNotBlank() && loginCache.getOrPut(domain) { WebLogins.hasLogin(domain) }
             items.removeAll { Paywall.isPaywalled(it) && !loggedIn(Paywall.domainOf(it.link)) && !loggedIn(it.publisherDomain) }
         }
 
@@ -127,11 +127,16 @@ class BriefingGenerator(
                             )
                             Triple(replaced, altPage, false)
                         } else {
+                            // A paywall found on the page itself (site not in the list) and no free source
+                            // with the same news: leave the article out, unless the user is logged in there.
+                            if (page?.access == ArticleContent.Access.PAYWALL && config.skipPaywalled &&
+                                !loggedIn(Paywall.domainOf(article.item.link)) && !loggedIn(article.item.publisherDomain)
+                            ) return@async null
                             val blocked = page?.access == ArticleContent.Access.PAYWALL || page?.access == ArticleContent.Access.BLOCKED
                             Triple(article, NewsFetcher.ArticlePage(article.item.imageUrl ?: page?.imageUrl, ""), blocked)
                         }
                     }
-                }.awaitAll()
+                }.awaitAll().filterNotNull()
             }
             val pages = readResults.map { it.second }
             val fullTexts = pages.map { it.text }

@@ -15,8 +15,8 @@ object Paywall {
         "nytimes.com", "wsj.com", "ft.com", "bloomberg.com", "economist.com", "washingtonpost.com", "thetimes.co.uk",
         "telegraph.co.uk", "theatlantic.com", "newyorker.com", "barrons.com", "handelsblatt.com", "faz.net", "sueddeutsche.de",
         "lemonde.fr", "lefigaro.fr", "nzz.ch", "politico.eu", "statnews.com", "thelancet.com", "nejm.org", "bmj.com",
-        // Bulgaria
-        "capital.bg"
+        // Bulgaria (Dnevnik and Capital: full articles for subscribers only)
+        "capital.bg", "dnevnik.bg"
     )
 
     /** Domain of a URL without "www." (empty when it cannot be read). */

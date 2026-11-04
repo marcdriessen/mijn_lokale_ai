@@ -207,7 +207,7 @@ object DefaultBriefing {
         NewsSource("nu_algemeen", "NU.nl", "https://www.nu.nl/rss/Algemeen"),
         NewsSource("nu_gezondheid", "NU.nl Gezondheid", "https://www.nu.nl/rss/Gezondheid"),
         NewsSource("nos_binnenland", "NOS Binnenland", "https://feeds.nos.nl/nosnieuwsbinnenland"),
-        NewsSource("dnevnik", "Дневник", "https://www.dnevnik.bg/rss/"),
+        NewsSource("dnevnik", "Дневник", "https://www.dnevnik.bg/rss/", enabled = false),
         NewsSource("novinite", "Novinite (Bulgaria, English)", "https://www.novinite.com/services/news_rdf.php")
     )
 
@@ -305,7 +305,7 @@ object DefaultBriefing {
         "gn_ggzstandaarden" to ("GGZ Standaarden, zorgstandaarden voor de ggz" to "nl"),
         "gn_venvn" to ("V&VN, beroepsvereniging van verpleegkundigen" to "nl"),
         "gn_nl_top" to ("Google Nieuws, belangrijkste Nederlandse nieuws" to "nl"),
-        "dnevnik" to ("Dnevnik (Дневник), Bulgaarse krant, nieuws en economie" to "bg"),
+        "dnevnik" to ("Dnevnik (Дневник), Bulgaarse krant; betaalmuur, alleen bruikbaar als je in de app-browser inlogt" to "bg"),
         "novinite" to ("Novinite, Engelstalig nieuws over Bulgarije" to "en"),
         "bta_bg" to ("BTA, Bulgaars staatspersbureau, binnenlands nieuws" to "bg"),
         "bta_free" to ("BTA, Bulgaars staatspersbureau, vrij nieuws" to "bg"),
@@ -345,7 +345,10 @@ object DefaultBriefing {
         )
     }
 
-    const val SOURCES_VERSION = 6
+    const val SOURCES_VERSION = 7
+
+    /** Sources version 7: turned off because their articles are behind a paywall. */
+    val paywalledV7 = setOf("dnevnik")
 
     val sources: List<NewsSource> = listOf(
         NewsSource("dw", "DW", "https://rss.dw.com/rdf/rss-en-all"),
@@ -454,9 +457,11 @@ object DefaultBriefing {
                 (if (result.sourcesVersion < 3) sourcesV3 else emptyList()) +
                 (if (result.sourcesVersion < 4) sourcesV4 else emptyList()) +
                 (if (result.sourcesVersion < 5) sourcesV5 else emptyList()) + sourcesV6
-            val updated = if (result.sourcesVersion < 6) {
+            val updated = (if (result.sourcesVersion < 6) {
                 result.sources.map { s -> updatesV6[s.id]?.let { (n, u) -> s.copy(name = n, url = u) } ?: s }
-            } else result.sources
+            } else result.sources).map { s ->
+                if (result.sourcesVersion < 7 && s.id in paywalledV7) s.copy(enabled = false, description = "") else s
+            }
             result = result.copy(
                 sources = (updated + added.filterNot { it.id in existingIds }).map { describe(it) },
                 sourcesVersion = SOURCES_VERSION

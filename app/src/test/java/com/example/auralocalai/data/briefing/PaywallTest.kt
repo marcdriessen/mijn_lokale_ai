@@ -38,4 +38,26 @@ class PaywallTest {
         val removed = migrated.copy(sources = migrated.sources.filterNot { it.id == "bbc_world" })
         assertFalse(DefaultBriefing.migrate(removed).sources.any { it.id == "bbc_world" })
     }
+
+    @Test
+    fun dnevnikIsPaywalledAndTurnedOff() {
+        assertTrue(Paywall.isPaywalled(NewsItem("t", "https://www.dnevnik.bg/bulgaria/2026/11/04/1_x/", "Дневник")))
+        val v6 = BriefingConfig(
+            sources = listOf(NewsSource("dnevnik", "Дневник", "https://www.dnevnik.bg/rss/", enabled = true)),
+            profiles = listOf(DefaultBriefing.careProfile),
+            sourcesVersion = 6
+        )
+        val migrated = DefaultBriefing.migrate(v6)
+        assertFalse(migrated.sources.first { it.id == "dnevnik" }.enabled)
+        assertFalse(DefaultBriefing.config.sources.first { it.id == "dnevnik" }.enabled)
+        // A source switched on again by the user stays on.
+        val again = migrated.copy(sources = migrated.sources.map { if (it.id == "dnevnik") it.copy(enabled = true) else it })
+        assertTrue(DefaultBriefing.migrate(again).sources.first { it.id == "dnevnik" }.enabled)
+    }
+
+    @Test
+    fun bulgarianPaywallTextIsRecognised() {
+        val html = "<html><body><p>Кратко въведение.</p><div>Тази статия е достъпна само за абонати. Стани абонат</div></body></html>"
+        assertEquals(ArticleContent.Access.PAYWALL, ArticleContent.access(html, "Кратко въведение."))
+    }
 }
