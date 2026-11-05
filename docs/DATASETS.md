@@ -81,5 +81,7 @@ Uit de UMCU-sets is een offline kennisbank gemaakt voor de Vraagbaak:
   Flashcards, WikiDoc, WikiDoc patiëntinformatie, MedQA symptomen en MediQA.
 - In de app: Vraagbaak → bibliotheek-icoon → **Kennisbank** → Downloaden (of Bestand importeren). Daarna staat de
   knop "Kennisbank" aan en komen treffers als bron [n] in het antwoord.
+- Leerkaarten: Werk → Leerkaarten → "Uit de kennisbank": onderwerp kiezen of willekeurige mix; per stapel
+  een quiz met 4 antwoordmogelijkheden.
 - Trefwoorden aanpassen = de lijsten `VERSLAVING` en `PSYCHIATRIE` in het script; na een push bouwt de workflow
   automatisch een nieuwe versie.

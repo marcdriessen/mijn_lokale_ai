@@ -29,7 +29,7 @@
 
 - Kennisbank GGZ & verslaving (offline, ±286.000 vraag/antwoord-paren uit UMCU-datasets) voor de Vraagbaak:
   `tools/maak_kennisbank.py`, workflow `kennisbank.yml` → release `kennisbank`, app-code `data/medical/KnowledgeBase.kt`.
-  Zie `docs/DATASETS.md`.
+  Leerkaarten en quiz uit de kennisbank (Werk → Leerkaarten). Zie `docs/DATASETS.md`.
 
 ## Open punten
 - Testronde door de gebruiker. Checklist:
@@ -40,6 +40,6 @@
   - taalcoach;
   - nieuws om 08:00;
   - vraagbaak.
-- Kennisbank testen op de telefoon (downloaden, vragen stellen). Later eventueel: leerkaarten/quiz uit de kennisbank.
+- Kennisbank testen op de telefoon: downloaden, vragen stellen in de Vraagbaak, leerkaarten en quiz (Werk → Leerkaarten).
 - Eigen scorelijsten (naast CIWA, COWS en AUDIT).
 - Eventueel: "Dataset importeren" met kolomkeuze, voor de Vraagbaak (vraag/antwoord), de Taalcoach (NL/BG-zinsparen) en leerkaarten. Geschikte Hugging Face-sets staan in `docs/DATASETS.md`.

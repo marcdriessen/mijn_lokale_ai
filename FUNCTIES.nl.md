@@ -239,7 +239,7 @@ B1/A2-niveau in NL/BG/EN), **Meetinstrumenten** (offline optellen voor CIWA-Ar, 
 indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen of een document inlezen: PDF (tekstherkenning op de telefoon,
 max. 20 pagina's), Word (.docx), OpenDocument (.odt), RTF, HTML of tekstbestand (.txt, .md, .csv) →
 automatisch geanonimiseerd → SOEP, SBAR of SOAP → desgewenst opslaan als Word-document; oude .doc-bestanden eerst
-in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
+in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit de kennisbank per onderwerp of als willekeurige mix, zonder model; of uit je bibliotheek of eigen tekst; met per set een **quiz** met 4 antwoordmogelijkheden waarvan de uitslag meetelt in het herhaalschema; oefenen met een
 Leitner-schema).
 
 ### 2.5a Vraagbaak GGZ & verslaving

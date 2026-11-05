@@ -191,11 +191,13 @@ class KnowledgeBase(baseDir: File) {
         }
         // 1) all terms; 2) all terms but one (so one rare word does not dominate);
         // 3) drop the most common terms one by one; 4) any of the rarest terms.
-        collect(KnowledgeQuery.matchAll(useful), 300)
+        val wanted = maxOf(60, limit * 3)
+        val perQuery = maxOf(300, limit * 6)
+        collect(KnowledgeQuery.matchAll(useful), perQuery)
         if (useful.size > 1) useful.forEach { left -> collect(KnowledgeQuery.matchAll(useful - left), 200) }
         var subset = useful
-        while (subset.isNotEmpty() && candidates.size < 60) {
-            collect(KnowledgeQuery.matchAll(subset), 400)
+        while (subset.isNotEmpty() && candidates.size < wanted) {
+            collect(KnowledgeQuery.matchAll(subset), perQuery)
             if (subset.size == 1) break
             subset = subset.dropLast(1)
         }
@@ -251,6 +253,21 @@ class KnowledgeBase(baseDir: File) {
         } finally {
             temp.delete()
         }
+    }
+
+    /** [count] random entries (for a mixed study deck). */
+    fun random(count: Int, random: kotlin.random.Random = kotlin.random.Random.Default): List<Entry> {
+        val database = open() ?: return emptyList()
+        val maxId = database.rawQuery("SELECT max(docid) FROM kennis", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
+        if (maxId <= 0L) return emptyList()
+        val ids = generateSequence { random.nextLong(1, maxId + 1) }.take(count * 2).distinct().joinToString(",")
+        return database.rawQuery(
+            "SELECT vraag, antwoord, titel, bron, specialisme, url, jaar FROM kennis WHERE docid IN ($ids)", null
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) add(Entry(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6)))
+            }
+        }.shuffled(random).take(count)
     }
 
     @Synchronized
