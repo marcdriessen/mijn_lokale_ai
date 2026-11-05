@@ -5,7 +5,7 @@
 **Werkwijze:**
 - Antwoord in eenvoudig Nederlands.
 - Werk op branch `claude/optimistic-ramanujan-11epu5`.
-- De pull request naar main is marcdriessen/mijn_lokale_ai#5. De gebruiker merget zelf.
+- De pull request naar main is marcdriessen/mijn_lokale_ai#6 (#5 is gemerged). De gebruiker merget zelf.
 - CI publiceert `LokaleAI.apk` in de release `laatste-versie`.
 - Uitleg over hoe de app werkt: `docs/HOE-DE-APP-WERKT.md`.
 
