@@ -36,6 +36,8 @@ data class WorkUiState(
     val reportOutput: String = "",
     val decks: List<FlashcardDeck> = emptyList(),
     val library: List<LibraryDocument> = emptyList(),
+    /** Number of entries in the offline knowledge base; 0 when not installed. */
+    val knowledgeCount: Int = 0,
     val busy: String? = null,
     val message: String? = null
 )
@@ -45,6 +47,7 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
 
     private val decksFile = File(File(application.filesDir, "work").apply { mkdirs() }, "flashcards.json")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val knowledgeBase = com.example.auralocalai.data.medical.KnowledgeBase(application.filesDir)
     private val _state = MutableStateFlow(WorkUiState())
     val state: StateFlow<WorkUiState> = _state.asStateFlow()
 
@@ -227,6 +230,49 @@ class WorkViewModel(application: Application) : AndroidViewModel(application) {
                 _state.update { it.copy(busy = null, message = str(R.string.work_cards_done, cards.size)) }
             }
         }
+    }
+
+    /**
+     * Makes a deck from the offline knowledge base on [topic] (no model needed). An empty topic gives a
+     * random mix. The card source is the article title and year.
+     */
+    fun createKnowledgeDeck(topic: String, count: Int) {
+        if (_state.value.busy != null) return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = str(R.string.work_cards_making)) }
+            val entries = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (topic.isBlank()) knowledgeBase.random(count) else knowledgeBase.search(topic, limit = count)
+                }.getOrDefault(emptyList())
+            }
+            val cards = entries.map { e ->
+                Flashcard(
+                    e.question.trim(),
+                    e.answer.trim(),
+                    source = listOf(e.title, e.year).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { e.source }
+                )
+            }.distinctBy { it.question.lowercase() }
+            if (cards.isEmpty()) {
+                _state.update { it.copy(busy = null, message = str(R.string.cards_knowledge_none, topic)) }
+            } else {
+                val name = topic.trim().replaceFirstChar { it.uppercase() }.ifBlank { str(R.string.cards_knowledge_mix) }
+                val deck = FlashcardDeck("deck_" + System.currentTimeMillis(), str(R.string.cards_knowledge_deck_name, name), System.currentTimeMillis(), cards)
+                saveDecks(listOf(deck) + _state.value.decks)
+                _state.update { it.copy(busy = null, message = str(R.string.work_cards_done, cards.size)) }
+            }
+        }
+    }
+
+    fun refreshKnowledge() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val count = if (knowledgeBase.isInstalled) knowledgeBase.info()?.count ?: 0 else 0
+            _state.update { it.copy(knowledgeCount = count) }
+        }
+    }
+
+    override fun onCleared() {
+        knowledgeBase.close()
+        super.onCleared()
     }
 
     fun deleteDeck(id: String) = saveDecks(_state.value.decks.filterNot { it.id == id })

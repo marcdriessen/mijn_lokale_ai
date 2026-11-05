@@ -18,7 +18,9 @@ object MedicalPrompts {
             "(6) Be concise and structured. " +
             "(7) Weigh the evidence: a guideline or systematic review counts more than a single study, a study more than " +
             "a news report, and a forum or personal experience is not evidence. For a study, mention when the source text " +
-            "states it: design (e.g. RCT, cohort, review), population, number of participants, main result and limitations."
+            "states it: design (e.g. RCT, cohort, review), population, number of participants, main result and limitations. " +
+            "(8) Sources marked 'Kennisbank' are machine-translated question-and-answer summaries of research articles or " +
+            "textbooks; treat them as background knowledge, not as a Dutch guideline, and mention when Dutch practice may differ."
 
     /** User prompt with numbered sources, trimmed to [charBudget] so it fits the context window. */
     fun answerPrompt(question: String, sources: List<MedicalSource>, languageName: String, charBudget: Int): String {

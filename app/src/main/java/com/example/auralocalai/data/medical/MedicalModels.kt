@@ -16,6 +16,8 @@ data class MedicalConfig(
     val usePubMed: Boolean = true,
     val useSites: Boolean = true,
     val useLibrary: Boolean = true,
+    /** Offline knowledge base (GGZ & verslaving, downloaded once). */
+    val useKnowledgeBase: Boolean = true,
     /** The app stops using Brave for the Q&A after this many searches in a calendar month. */
     val monthlyBraveLimit: Int = 1000
 )
@@ -35,7 +37,7 @@ data class LibraryDocument(
     val passages: List<String>
 )
 
-enum class SourceKind { PUBMED, WEB, LIBRARY, NEWS }
+enum class SourceKind { PUBMED, WEB, LIBRARY, NEWS, KNOWLEDGE }
 
 /** One numbered source shown under an answer and given to the model. */
 @Serializable

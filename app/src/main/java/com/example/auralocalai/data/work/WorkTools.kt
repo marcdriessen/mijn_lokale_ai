@@ -36,7 +36,9 @@ data class Flashcard(
     val answer: String,
     /** Leitner box 1..5: higher = known better, shown less often. */
     val box: Int = 1,
-    val dueAt: Long = 0L
+    val dueAt: Long = 0L,
+    /** Where the card comes from (e.g. article title and year from the knowledge base); empty for own cards. */
+    val source: String = ""
 )
 
 @Serializable
@@ -86,6 +88,55 @@ object Flashcards {
 
     fun dueCards(deck: FlashcardDeck, now: Long): List<Int> =
         deck.cards.indices.filter { deck.cards[it].dueAt <= now }
+}
+
+/** One multiple-choice question: [options] holds the correct answer at [correct]. */
+data class QuizQuestion(val cardIndex: Int, val question: String, val options: List<String>, val correct: Int)
+
+/**
+ * Multiple-choice quiz from a flashcard deck, without a model: the wrong options are answers of other
+ * cards in the same deck (same topic), so they look plausible.
+ */
+object Quiz {
+
+    const val OPTIONS = 4
+
+    /** Short version of an answer for an option: first sentence(s), at most [max] characters. */
+    fun shorten(answer: String, max: Int = 220): String {
+        val clean = answer.replace(Regex("\\s+"), " ").trim()
+        if (clean.length <= max) return clean
+        val sentences = clean.split(Regex("(?<=[.!?])\\s+"))
+        val builder = StringBuilder()
+        for (sentence in sentences) {
+            if (builder.isNotEmpty() && builder.length + sentence.length + 1 > max) break
+            if (builder.isNotEmpty()) builder.append(' ')
+            builder.append(sentence)
+        }
+        val text = builder.toString()
+        return if (text.length <= max) text else text.take(max - 1).trimEnd() + "…"
+    }
+
+    /** Builds up to [count] questions; needs at least [OPTIONS] cards with different answers. */
+    fun build(cards: List<Flashcard>, count: Int, random: kotlin.random.Random = kotlin.random.Random.Default): List<QuizQuestion> {
+        val usable = cards.indices.filter { cards[it].question.isNotBlank() && cards[it].answer.isNotBlank() }
+        if (usable.distinctBy { shorten(cards[it].answer).lowercase() }.size < OPTIONS) return emptyList()
+        // Cards that are due or less well known first, then the rest.
+        val order = usable.shuffled(random).sortedBy { cards[it].box }
+        return order.take(count).mapNotNull { index ->
+            val right = shorten(cards[index].answer)
+            val wrong = usable.asSequence()
+                .filter { it != index }
+                .shuffled(random)
+                .map { shorten(cards[it].answer) }
+                .filter { it.lowercase() != right.lowercase() }
+                .distinctBy { it.lowercase() }
+                .take(OPTIONS - 1)
+                .toList()
+            if (wrong.size < OPTIONS - 1) return@mapNotNull null
+            val options = (wrong + right).shuffled(random)
+            QuizQuestion(index, cards[index].question, options, options.indexOf(right))
+        }
+    }
 }
 
 object WorkPrompts {

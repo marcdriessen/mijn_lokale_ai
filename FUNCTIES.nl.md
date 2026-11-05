@@ -239,7 +239,7 @@ B1/A2-niveau in NL/BG/EN), **Meetinstrumenten** (offline optellen voor CIWA-Ar, 
 indeling; geen advies over doseringen), **Rapportage** (dicteren, scannen of een document inlezen: PDF (tekstherkenning op de telefoon,
 max. 20 pagina's), Word (.docx), OpenDocument (.odt), RTF, HTML of tekstbestand (.txt, .md, .csv) →
 automatisch geanonimiseerd → SOEP, SBAR of SOAP → desgewenst opslaan als Word-document; oude .doc-bestanden eerst
-in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit je bibliotheek of eigen tekst, oefenen met een
+in Word als .docx opslaan; ook de bestandsnaam wordt geanonimiseerd) en **Leerkaarten** (uit de kennisbank per onderwerp of als willekeurige mix, zonder model; of uit je bibliotheek of eigen tekst; met per set een **quiz** met 4 antwoordmogelijkheden waarvan de uitslag meetelt in het herhaalschema; oefenen met een
 Leitner-schema).
 
 ### 2.5a Vraagbaak GGZ & verslaving
@@ -250,6 +250,10 @@ Bereikbaar via de knop in de zijlade. Bedoeld voor verpleegkundigen en artsen in
 - Je stelt een vraag en kiest waar gezocht wordt (knoppen):
   - **Mijn bibliotheek**: eigen PDF-, Word- (.docx), ODT-, RTF-, HTML-, TXT- of Markdown-bestanden (bibliotheek-icoon). PDF's worden met OCR gelezen
     (max. 40 pagina's) en in tekstdelen opgeknipt; zoeken gebeurt offline op de telefoon;
+  - **Kennisbank GGZ & verslaving** (offline): ±286.000 Nederlandse vraag/antwoord-paren over psychiatrie en
+    verslaving uit UMCU-datasets (MIRIAD, Medical Flashcards, WikiDoc, MedQA), machinaal vertaald. Eén keer
+    downloaden of importeren via het bibliotheek-icoon; daarna zoekt de app offline (SQLite-zoekindex) en geeft de
+    beste 4 treffers met artikeltitel en link als bron aan het model. Zie `docs/DATASETS.md`;
   - **Vertrouwde sites** via Brave (één zoekopdracht per vraag, beperkt tot de ingestelde sites): GGZ Standaarden,
     Akwa GGZ, Trimbos, NISPA, Farmacotherapeutisch Kompas, Richtlijnendatabase, NHG en Vilans. Sites zijn aan/uit te
     zetten en toe te voegen. Werkt alleen als Brave bij Instellingen als zoekdienst met API-sleutel is ingesteld;

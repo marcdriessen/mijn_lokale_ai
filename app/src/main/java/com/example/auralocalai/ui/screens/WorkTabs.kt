@@ -58,6 +58,8 @@ import com.example.auralocalai.R
 import com.example.auralocalai.data.work.ScaleScoring
 import com.example.auralocalai.data.work.ScoreBand
 import com.example.auralocalai.data.work.Flashcards
+import com.example.auralocalai.data.work.Quiz
+import androidx.compose.foundation.layout.heightIn
 import com.example.auralocalai.data.work.DocxIO
 import com.example.auralocalai.data.work.DocumentReader
 import com.example.auralocalai.ui.LlmViewModel
@@ -392,21 +394,42 @@ fun ReportTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
     }
 }
 
-/** Flashcards made from library documents or pasted text, studied with a simple Leitner schedule. */
+/** Quick topics for decks from the knowledge base (the knowledge base is in Dutch). */
+private val KNOWLEDGE_TOPICS = listOf(
+    "alcoholontwenning", "delier", "Korsakov", "methadon", "buprenorfine", "opioïden", "benzodiazepines", "GHB",
+    "cannabis", "cocaïne", "amfetamine", "craving", "terugval", "motiverende gespreksvoering", "psychose",
+    "depressie", "suïcidaliteit", "ADHD", "PTSS", "persoonlijkheidsstoornis", "lithium", "clozapine"
+)
+
+/**
+ * Flashcards made from the knowledge base, library documents or pasted text, studied with a simple
+ * Leitner schedule, plus a multiple-choice quiz per deck.
+ */
 @Composable
 fun FlashcardsTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
     val state by workViewModel.state.collectAsState()
     WorkMessages(workViewModel)
     var studyingDeckId by remember { mutableStateOf<String?>(null) }
+    var quizDeckId by remember { mutableStateOf<String?>(null) }
     var pasted by remember { mutableStateOf("") }
     var deckName by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) { workViewModel.reloadLibrary() }
+    var topic by remember { mutableStateOf("") }
+    var cardCount by remember { mutableStateOf(20) }
+    LaunchedEffect(Unit) {
+        workViewModel.reloadLibrary()
+        workViewModel.refreshKnowledge()
+    }
+
+    state.decks.firstOrNull { it.id == quizDeckId }?.let { quizDeck ->
+        QuizView(quizDeck, workViewModel) { quizDeckId = null }
+        return
+    }
 
     val deck = state.decks.firstOrNull { it.id == studyingDeckId }
     if (deck != null) {
         val due = Flashcards.dueCards(deck, System.currentTimeMillis())
         var revealed by remember(deck.id, due.firstOrNull()) { mutableStateOf(false) }
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(deck.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 TextButton(onClick = { studyingDeckId = null }) { Text(stringResource(R.string.dismiss)) }
@@ -416,18 +439,30 @@ fun FlashcardsTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
             val index = due.firstOrNull()
             if (index == null) {
                 Text(stringResource(R.string.cards_all_done), style = MaterialTheme.typography.bodyLarge)
+                if (deck.cards.size >= Quiz.OPTIONS) {
+                    Button(onClick = { studyingDeckId = null; quizDeckId = deck.id }, modifier = Modifier.padding(top = 12.dp)) {
+                        Text(stringResource(R.string.quiz_start))
+                    }
+                }
             } else {
                 val card = deck.cards[index]
                 Surface(
                     shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth().height(260.dp).clickable { revealed = true }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 260.dp).clickable { revealed = true }
                 ) {
                     Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.Center) {
                         Text(card.question, style = MaterialTheme.typography.titleLarge)
                         Spacer(modifier = Modifier.height(16.dp))
-                        if (revealed) Text(card.answer, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
-                        else Text(stringResource(R.string.cards_tap_reveal), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (revealed) {
+                            Text(card.answer, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                            if (card.source.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(stringResource(R.string.cards_source, card.source), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        } else {
+                            Text(stringResource(R.string.cards_tap_reveal), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 if (revealed) {
@@ -451,15 +486,59 @@ fun FlashcardsTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { studyingDeckId = d.id }
             ) {
-                Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(d.name, style = MaterialTheme.typography.titleMedium)
                         Text(stringResource(R.string.cards_due, due, d.cards.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (d.cards.size >= Quiz.OPTIONS) {
+                        TextButton(onClick = { quizDeckId = d.id }) { Text(stringResource(R.string.quiz_start)) }
                     }
                     IconButton(onClick = { workViewModel.deleteDeck(d.id) }) { Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error) }
                 }
             }
         }
+
+        // From the offline knowledge base: no model needed.
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.cards_knowledge_title), style = MaterialTheme.typography.titleMedium)
+        if (state.knowledgeCount == 0) {
+            Text(stringResource(R.string.cards_knowledge_missing), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text(stringResource(R.string.cards_knowledge_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = topic,
+                onValueChange = { topic = it },
+                label = { Text(stringResource(R.string.cards_knowledge_topic)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+            )
+            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                KNOWLEDGE_TOPICS.forEach { t ->
+                    AssistChip(onClick = { topic = t }, label = { Text(t) })
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(10, 20, 50).forEach { n ->
+                    FilterChip(selected = cardCount == n, onClick = { cardCount = n }, label = { Text(stringResource(R.string.cards_knowledge_count, n)) })
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { workViewModel.createKnowledgeDeck(topic, cardCount) },
+                    enabled = topic.isNotBlank() && state.busy == null,
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.cards_knowledge_make)) }
+                OutlinedButton(
+                    onClick = { workViewModel.createKnowledgeDeck("", cardCount) },
+                    enabled = state.busy == null,
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.cards_knowledge_random)) }
+            }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
         Text(stringResource(R.string.cards_new), style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(value = deckName, onValueChange = { deckName = it }, label = { Text(stringResource(R.string.cards_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -485,5 +564,90 @@ fun FlashcardsTab(workViewModel: WorkViewModel, llm: LlmViewModel) {
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         ) { Text(stringResource(R.string.cards_make)) }
         BusyBar(state.busy)
+    }
+}
+
+/** Multiple-choice quiz over one deck; each answer also counts as a Leitner review of that card. */
+@Composable
+private fun QuizView(deck: com.example.auralocalai.data.work.FlashcardDeck, workViewModel: WorkViewModel, onClose: () -> Unit) {
+    var round by remember { mutableStateOf(0) }
+    val questions = remember(deck.id, round) { Quiz.build(deck.cards, count = 10) }
+    var position by remember(deck.id, round) { mutableStateOf(0) }
+    var chosen by remember(deck.id, round) { mutableStateOf<Int?>(null) }
+    var score by remember(deck.id, round) { mutableStateOf(0) }
+    var showFull by remember(deck.id, round, position) { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.quiz_title, deck.name), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = onClose) { Text(stringResource(R.string.dismiss)) }
+        }
+        if (questions.isEmpty()) {
+            Text(stringResource(R.string.quiz_too_few), style = MaterialTheme.typography.bodyLarge)
+            return@Column
+        }
+        if (position >= questions.size) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(stringResource(R.string.quiz_done, score, questions.size), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 16.dp)) {
+                Button(onClick = { round++ }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.quiz_again)) }
+                OutlinedButton(onClick = onClose, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.dismiss)) }
+            }
+            return@Column
+        }
+        val q = questions[position]
+        Text(stringResource(R.string.quiz_intro), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            stringResource(R.string.quiz_progress, position + 1, questions.size, score),
+            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(q.question, style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(12.dp))
+        q.options.forEachIndexed { i, option ->
+            val answered = chosen != null
+            val color = when {
+                answered && i == q.correct -> MaterialTheme.colorScheme.primaryContainer
+                answered && i == chosen -> MaterialTheme.colorScheme.errorContainer
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            }
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = color,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(enabled = !answered) {
+                    chosen = i
+                    val right = i == q.correct
+                    if (right) score++
+                    workViewModel.review(deck.id, q.cardIndex, known = right)
+                }
+            ) {
+                Row(modifier = Modifier.padding(14.dp)) {
+                    Text("${'A' + i}", fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+                    Text(option, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        chosen?.let { c ->
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                stringResource(if (c == q.correct) R.string.quiz_correct else R.string.quiz_wrong),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                color = if (c == q.correct) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            )
+            val card = deck.cards.getOrNull(q.cardIndex)
+            if (card != null) {
+                TextButton(onClick = { showFull = !showFull }) { Text(stringResource(R.string.quiz_full_answer)) }
+                if (showFull) {
+                    Text(card.answer, style = MaterialTheme.typography.bodyMedium)
+                    if (card.source.isNotBlank()) {
+                        Text(stringResource(R.string.cards_source, card.source), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                    }
+                }
+            }
+            Button(onClick = { position++; chosen = null }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                Text(stringResource(R.string.quiz_next))
+            }
+        }
     }
 }

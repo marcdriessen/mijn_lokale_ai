@@ -1,0 +1,55 @@
+name: Kennisbank bouwen
+
+# Bouwt de offline kennisbank (GGZ & verslaving) uit de UMCU-datasets op Hugging Face en zet
+# kennisbank.sqlite.gz op de release "kennisbank". De app downloadt hem vanaf:
+# https://github.com/<owner>/<repo>/releases/download/kennisbank/kennisbank.sqlite.gz
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - tools/maak_kennisbank.py
+      - .github/workflows/kennisbank.yml
+
+concurrency:
+  group: kennisbank
+  cancel-in-progress: true
+
+jobs:
+  bouw:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Afhankelijkheden
+        run: pip install pyarrow
+
+      - name: Kennisbank bouwen (streamt ±5 GB van Hugging Face)
+        run: python3 tools/maak_kennisbank.py --uit kennisbank.sqlite | tee bouwverslag.txt
+
+      - name: Inpakken
+        run: |
+          gzip -6 -k kennisbank.sqlite
+          ls -la kennisbank.sqlite kennisbank.sqlite.gz
+
+      - name: Publiceren op release "kennisbank"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES="Offline kennisbank GGZ & verslaving voor de Vraagbaak. Gebouwd uit commit ${GITHUB_SHA::7} op $(date -u '+%Y-%m-%d'). Machinaal vertaalde UMCU-datasets (Hugging Face); geen klinisch advies.
+
+          \`\`\`
+          $(cat bouwverslag.txt)
+          \`\`\`"
+          if gh release view kennisbank >/dev/null 2>&1; then
+            gh release edit kennisbank --notes "$NOTES"
+          else
+            gh release create kennisbank --title "Kennisbank GGZ & verslaving" --notes "$NOTES" --prerelease --target "$GITHUB_SHA"
+          fi
+          gh release upload kennisbank kennisbank.sqlite.gz --clobber

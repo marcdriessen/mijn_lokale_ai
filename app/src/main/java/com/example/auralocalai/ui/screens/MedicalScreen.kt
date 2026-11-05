@@ -219,6 +219,21 @@ fun MedicalScreen(
                             onClick = { medicalViewModel.setUseLibrary(!state.config.useLibrary) },
                             label = { Text(stringResource(R.string.medical_use_library, state.library.size), fontSize = 12.sp) }
                         )
+                        val knowledge = state.knowledge
+                        FilterChip(
+                            selected = knowledge != null && state.config.useKnowledgeBase,
+                            onClick = {
+                                if (knowledge == null) showLibrary = true
+                                else medicalViewModel.setUseKnowledgeBase(!state.config.useKnowledgeBase)
+                            },
+                            label = {
+                                Text(
+                                    if (knowledge == null) stringResource(R.string.knowledge_chip_missing)
+                                    else stringResource(R.string.knowledge_chip, java.text.NumberFormat.getIntegerInstance().format(knowledge.count)),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        )
                         FilterChip(
                             selected = state.config.useSites,
                             onClick = { medicalViewModel.setUseSites(!state.config.useSites) },
@@ -424,6 +439,7 @@ private fun SourceRow(index: Int, source: MedicalSource) {
         SourceKind.PUBMED.name -> "PubMed"
         SourceKind.LIBRARY.name -> stringResource(R.string.medical_origin_library)
         SourceKind.NEWS.name -> stringResource(R.string.medical_origin_news)
+        SourceKind.KNOWLEDGE.name -> stringResource(R.string.knowledge_origin)
         else -> stringResource(R.string.medical_origin_web)
     }
     Surface(
@@ -540,11 +556,22 @@ private fun MedicalLibraryDialog(medicalViewModel: MedicalViewModel, onDismiss: 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) medicalViewModel.importDocument(uri, context)
     }
+    val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) medicalViewModel.importKnowledgeBase(uri, context)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.medical_library)) },
         text = {
             Column {
+                KnowledgeBaseSection(
+                    state = state,
+                    onDownload = { medicalViewModel.downloadKnowledgeBase() },
+                    onImport = { knowledgePicker.launch("*/*") },
+                    onCancel = { medicalViewModel.cancelKnowledgeBase() },
+                    onDelete = { medicalViewModel.deleteKnowledgeBase() }
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
                 Text(stringResource(R.string.medical_library_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 state.importing?.let {
@@ -581,6 +608,68 @@ private fun MedicalLibraryDialog(medicalViewModel: MedicalViewModel, onDismiss: 
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) } }
     )
+}
+
+@Composable
+private fun KnowledgeBaseSection(
+    state: com.example.auralocalai.ui.MedicalUiState,
+    onDownload: () -> Unit,
+    onImport: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    Column {
+        Text(stringResource(R.string.knowledge_title), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.knowledge_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.knowledge_disclaimer), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(6.dp))
+        val info = state.knowledge
+        val progress = state.knowledgeProgress
+        when {
+            progress != null -> {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(progress, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.knowledge_cancel)) }
+                }
+                Text(stringResource(R.string.knowledge_wifi_hint), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            info != null -> {
+                Text(
+                    stringResource(R.string.knowledge_status, info.count, info.built, (info.sizeBytes / 1_000_000).toInt()),
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onDownload) { Text(stringResource(R.string.knowledge_download), fontSize = 12.sp) }
+                    TextButton(onClick = onImport) { Text(stringResource(R.string.knowledge_import), fontSize = 12.sp) }
+                    TextButton(onClick = { confirmDelete = true }) {
+                        Text(stringResource(R.string.knowledge_delete), fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+            else -> {
+                Text(stringResource(R.string.knowledge_not_installed), fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onDownload, shape = RoundedCornerShape(20.dp)) { Text(stringResource(R.string.knowledge_download), fontSize = 12.sp) }
+                    TextButton(onClick = onImport) { Text(stringResource(R.string.knowledge_import), fontSize = 12.sp) }
+                }
+            }
+        }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.knowledge_title)) },
+            text = { Text(stringResource(R.string.knowledge_delete) + "?") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; onDelete() }) {
+                    Text(stringResource(R.string.knowledge_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.dismiss)) } }
+        )
+    }
 }
 
 private fun openLink(context: android.content.Context, url: String) {

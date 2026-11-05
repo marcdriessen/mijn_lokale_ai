@@ -56,7 +56,7 @@ De dagelijkse briefing op de achtergrond gebruikt het model voor "Nieuws".
 |---|---|
 | **Chat** | Gesprekken met het lokale model. Bijlagen (foto, PDF, Word…) worden gelezen en geanonimiseerd. Je kunt dicteren en antwoorden laten voorlezen. Optioneel webzoeken (zie §5.3) en "Via Engels". |
 | **Nieuws** | Dagelijkse, gepersonaliseerde nieuwsbriefing per profiel (zie §4). |
-| **Werk** | *Vraagbaak* (vakvragen met bronnen, zie §5.1)<br>*Psycho-educatie* (hand-outs op B1/A2, NL/BG/EN)<br>*Meetinstrumenten* (CIWA-Ar, COWS, AUDIT met uitleg per score; de app telt alleen op en adviseert niet)<br>*Rapportage* (dicteren/scannen/document → anonimiseren → spelling verbeteren → SOEP/SBAR/SOAP → opslaan als Word)<br>*Leerkaarten* (uit eigen documenten) |
+| **Werk** | *Vraagbaak* (vakvragen met bronnen, zie §5.1)<br>*Psycho-educatie* (hand-outs op B1/A2, NL/BG/EN)<br>*Meetinstrumenten* (CIWA-Ar, COWS, AUDIT met uitleg per score; de app telt alleen op en adviseert niet)<br>*Rapportage* (dicteren/scannen/document → anonimiseren → spelling verbeteren → SOEP/SBAR/SOAP → opslaan als Word)<br>*Leerkaarten* (uit de kennisbank of eigen documenten, met quiz) |
 | **Vertalen** | Tekst, foto's, documenten en gedeelde webpagina's naar 14 talen. Offline met ML Kit, of nauwkeuriger met het AI-model. Opslaan als Word en voorlezen. |
 | **Taalcoach** | Oefengesprekken (vooral Bulgaars) met verbetering, uitleg, antwoord en vertaling. Je kunt spreken en laten terugspreken. |
 
@@ -215,6 +215,18 @@ Een vakvraag wordt beantwoord met **bronnen**, in deze volgorde:
 3. **Eigen bibliotheek** (offline). Eigen PDF's, Word-bestanden, ODT, RTF, HTML, tekst en foto's
    worden in stukken (passages) geknipt en geanonimiseerd. Bij een vraag zoekt een TF-IDF-score de
    best passende passages.
+
+4. **Kennisbank GGZ & verslaving** (offline, optioneel). Een SQLite-bestand met FTS4-index
+   (`kennisbank.sqlite`, ±286.000 vraag/antwoord-paren) dat `tools/maak_kennisbank.py` bouwt uit
+   UMCU-datasets op Hugging Face. De workflow `kennisbank.yml` zet het als `kennisbank.sqlite.gz` op de release
+   `kennisbank`; de app downloadt het van daar (niet in privacymodus) of importeert het als bestand.
+   Zoeken (`data/medical/KnowledgeBase.kt`): de vraag wordt genormaliseerd (kleine letters, zonder accenten),
+   prefix-zoektermen gaan naar FTS4, en de kandidaten worden in Kotlin met TF-IDF gerangschikt. De beste 4 gaan
+   als bron "Kennisbank" mee, met artikeltitel, jaar en link.
+   Dezelfde kennisbank levert **leerkaarten** (Werk → Leerkaarten): een onderwerp geeft de best passende
+   vraag/antwoord-paren als stapel (10/20/50), "Willekeurige mix" kiest willekeurige paren. De **quiz**
+   (`Quiz` in `data/work/WorkTools.kt`) maakt meerkeuzevragen zonder model: de foute opties zijn antwoorden van
+   andere kaarten uit dezelfde stapel; een goed/fout antwoord telt als Leitner-herhaling.
 
 Daarna gaat het zo verder:
 
